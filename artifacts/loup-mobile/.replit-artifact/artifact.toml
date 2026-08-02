@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/loup-mobile/"
+title = "Loup Mobile"
+description = "Native mobile companion app for Loup, the household services marketplace. Five tabs — Home, Catalog, Bookings with family calendar, The Pack, and Billing — mirroring the web app's Golden Hour design and running against the same shared API server. Testable on a phone via Expo Go."
+version = "1.0.0"
+id = "artifacts/loup-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/loup-mobile/" ]
+localPort = 25801
+
+[services.development]
+run = "pnpm --filter @workspace/loup-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/loup-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/loup-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "25801"
+BASE_PATH = "/loup-mobile/"
