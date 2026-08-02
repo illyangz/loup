@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const [location] = useLocation()
-  
+
   const navItems = [
     { href: "/", label: "Home", icon: Home },
     { href: "/browse", label: "Catalog", icon: Search },
@@ -13,47 +13,60 @@ export function Shell({ children }: { children: React.ReactNode }) {
     { href: "/billing", label: "Billing", icon: FileText },
   ]
 
+  const isHome = location === "/"
+
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-background pb-[80px] md:pb-0 md:pl-[240px]">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-[240px] fixed top-0 left-0 h-screen border-r border-border bg-card/50 backdrop-blur-xl">
-        <div className="p-8">
-          <Link href="/" className="font-serif text-3xl font-medium tracking-tight text-primary">Loup</Link>
+    <div className="min-h-[100dvh] flex flex-col bg-background pb-[80px] lg:pb-0 relative">
+      <div className="absolute inset-0 bg-sunlight pointer-events-none" />
+
+      {/* Desktop Top Bar */}
+      <header className="hidden lg:flex h-20 border-b border-border/50 px-6 xl:px-8 items-center justify-between bg-card/60 backdrop-blur-3xl sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center gap-12">
+          <Link href="/" className="font-serif text-4xl font-normal tracking-tight text-primary italic">Loup</Link>
+          <nav className="flex items-center gap-8">
+            {navItems.map((item) => {
+              const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href))
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "text-sm font-medium transition-colors py-7 border-b-2",
+                    isActive
+                      ? "text-primary border-primary"
+                      : "text-muted-foreground hover:text-foreground border-transparent"
+                  )}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
+          </nav>
         </div>
-        <nav className="flex-1 px-4 space-y-2">
-          {navItems.map((item) => {
-            const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href))
-            return (
-              <Link 
-                key={item.href} 
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm",
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                )}
-              >
-                <item.icon className="w-5 h-5" />
-                {item.label}
-              </Link>
-            )
-          })}
-        </nav>
-      </aside>
+      </header>
+
+      {/* Mobile Header */}
+      <header className="lg:hidden px-4 pt-4 relative z-10">
+        <Link href="/" className="font-serif text-3xl font-normal tracking-tight text-primary italic">Loup</Link>
+      </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-8">
+      <main
+        className={cn(
+          "flex-1 w-full mx-auto p-4 lg:p-8 relative z-10",
+          isHome ? "max-w-[1600px]" : "max-w-3xl"
+        )}
+      >
         {children}
       </main>
 
       {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 glass-nav flex justify-around items-center px-2 py-3 z-50 pb-safe">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 glass-nav flex justify-around items-center px-2 py-3 z-50 pb-safe">
         {navItems.map((item) => {
           const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href))
           return (
-            <Link 
-              key={item.href} 
+            <Link
+              key={item.href}
               href={item.href}
               className={cn(
                 "flex flex-col items-center gap-1 p-2 rounded-xl min-w-[64px] transition-all",
