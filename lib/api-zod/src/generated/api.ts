@@ -613,6 +613,50 @@ export const DeclineServiceRequestResponse = zod.object({
 
 
 /**
+ * @summary VAPID public key for Web Push subscription
+ */
+export const GetPushPublicKeyResponse = zod.object({
+  "publicKey": zod.string()
+})
+
+
+/**
+ * @summary Register a Web Push subscription for the current member
+ */
+
+
+
+
+
+export const SubscribePushBody = zod.object({
+  "endpoint": zod.string().min(1),
+  "keys": zod.object({
+  "p256dh": zod.string().min(1),
+  "auth": zod.string().min(1)
+})
+})
+
+export const SubscribePushResponse = zod.object({
+  "error": zod.string()
+})
+
+
+/**
+ * @summary Remove a Web Push subscription by endpoint
+ */
+
+
+
+export const UnsubscribePushBody = zod.object({
+  "endpoint": zod.string().min(1)
+})
+
+export const UnsubscribePushResponse = zod.object({
+  "error": zod.string()
+})
+
+
+/**
  * @summary Current consolidated household bill
  */
 export const GetBillingStatementResponse = zod.object({

@@ -5,6 +5,28 @@
  * Loup — household services marketplace API
  * OpenAPI spec version: 0.1.0
  */
+export interface PushPublicKey {
+  publicKey: string;
+}
+
+export type PushSubscriptionInputKeys = {
+  /** @minLength 1 */
+  p256dh: string;
+  /** @minLength 1 */
+  auth: string;
+};
+
+export interface PushSubscriptionInput {
+  /** @minLength 1 */
+  endpoint: string;
+  keys: PushSubscriptionInputKeys;
+}
+
+export interface PushUnsubscribeInput {
+  /** @minLength 1 */
+  endpoint: string;
+}
+
 export interface HealthStatus {
   status: string;
 }

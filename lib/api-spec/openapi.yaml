@@ -22,6 +22,8 @@ tags:
     description: Consolidated bill and payments
   - name: pack
     description: Household thread and service requests
+  - name: push
+    description: Web Push notification subscriptions
 paths:
   /healthz:
     get:
@@ -520,6 +522,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiMessage"
+  /push/public-key:
+    get:
+      operationId: getPushPublicKey
+      tags: [push]
+      summary: VAPID public key for Web Push subscription
+      responses:
+        "200":
+          description: Public key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushPublicKey"
+  /push/subscriptions:
+    post:
+      operationId: subscribePush
+      tags: [push]
+      summary: Register a Web Push subscription for the current member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushSubscriptionInput"
+      responses:
+        "201":
+          description: Subscription saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /push/subscriptions/remove:
+    post:
+      operationId: unsubscribePush
+      tags: [push]
+      summary: Remove a Web Push subscription by endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushUnsubscribeInput"
+      responses:
+        "200":
+          description: Subscription removed (or was not present)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
   /billing/statement:
     get:
       operationId: getBillingStatement
@@ -586,6 +648,36 @@ paths:
                   $ref: "#/components/schemas/BillStatementSummary"
 components:
   schemas:
+    PushPublicKey:
+      type: object
+      required: [publicKey]
+      properties:
+        publicKey:
+          type: string
+    PushSubscriptionInput:
+      type: object
+      required: [endpoint, keys]
+      properties:
+        endpoint:
+          type: string
+          minLength: 1
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh:
+              type: string
+              minLength: 1
+            auth:
+              type: string
+              minLength: 1
+    PushUnsubscribeInput:
+      type: object
+      required: [endpoint]
+      properties:
+        endpoint:
+          type: string
+          minLength: 1
     HealthStatus:
       type: object
       properties:

@@ -31,6 +31,7 @@ import {
   getCurrentMember,
   postPackMessage,
 } from "../lib/loup";
+import { notifyHousehold, notifyHouseholdHeads } from "../lib/push";
 
 const router: IRouter = Router();
 
@@ -69,6 +70,13 @@ router.post("/pack/messages", async (req, res): Promise<void> => {
     return;
   }
   const message = await postPackMessage(member.householdId, member.id, parsed.data.body);
+  // Alert other subscribed household members about the new message.
+  void notifyHousehold(member.householdId, member.id, {
+    title: `${member.name} · Pack`,
+    body: parsed.data.body,
+    url: "/household",
+    tag: "pack-message",
+  });
   await db
     .update(membersTable)
     .set({ packLastReadAt: new Date() })
@@ -90,6 +98,13 @@ router.post("/pack/messages", async (req, res): Promise<void> => {
           memberId: replier.id,
           body: reply.body,
           sentAt: new Date(),
+        });
+        // Alert everyone else (including the original sender's devices).
+        void notifyHousehold(householdId, replier.id, {
+          title: `${replier.name} · Pack`,
+          body: reply.body,
+          url: "/household",
+          tag: "pack-message",
         });
       }
     } catch (err) {
@@ -154,6 +169,13 @@ router.post("/pack/requests", async (req, res): Promise<void> => {
   const rows = await fetchServiceRequests(member.householdId);
   const view = rows.find((r) => r.id === request!.id);
   req.log.info({ requestId: request!.id }, "Service request created");
+  // Alert the head of household that a request needs their approval.
+  void notifyHouseholdHeads(member.householdId, member.id, {
+    title: "Approval needed",
+    body: `${member.name} requested ${service.name}`,
+    url: "/household",
+    tag: "service-request",
+  });
   res.status(201).json(CreateServiceRequestResponse.parse(view));
 });
 

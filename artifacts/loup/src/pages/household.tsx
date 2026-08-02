@@ -25,7 +25,57 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { ServiceRequestCard } from "@/components/service-request-card"
-import { Users, Crown, CreditCard, Activity, CalendarCheck, MessageSquare, ShieldAlert, Send, Loader2, Plus } from "lucide-react"
+import { usePushNotifications } from "@/hooks/use-push"
+import { Users, Crown, CreditCard, Activity, CalendarCheck, MessageSquare, ShieldAlert, Send, Loader2, Plus, Bell, BellOff } from "lucide-react"
+
+function NotificationsToggle() {
+  const { toast } = useToast()
+  const { supported, enabled, busy, permissionDenied, enable, disable } = usePushNotifications()
+
+  if (!supported) return null
+
+  const handleClick = async () => {
+    try {
+      if (enabled) {
+        await disable()
+        toast({ title: "Notifications off", description: "You won't get phone alerts from the pack." })
+      } else {
+        const ok = await enable()
+        if (ok) {
+          toast({ title: "Notifications on", description: "You'll get an alert for new pack messages and approval requests." })
+        } else {
+          toast({
+            title: "Notifications blocked",
+            description: "Allow notifications for Loup in your browser or phone settings, then try again.",
+            variant: "destructive",
+          })
+        }
+      }
+    } catch {
+      toast({ title: "Couldn't update notifications", description: "Please try again.", variant: "destructive" })
+    }
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleClick}
+      disabled={busy}
+      className="gap-2"
+      title={permissionDenied ? "Notifications are blocked in your browser settings" : undefined}
+    >
+      {busy ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : enabled ? (
+        <Bell className="h-4 w-4 text-primary" />
+      ) : (
+        <BellOff className="h-4 w-4" />
+      )}
+      {enabled ? "Alerts on" : "Alerts off"}
+    </Button>
+  )
+}
 
 function PackThread() {
   const queryClient = useQueryClient()
@@ -202,10 +252,13 @@ export default function Household() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <header>
-        <h1 className="text-3xl font-serif tracking-tight flex items-center gap-3">
-          <Users className="h-8 w-8 text-primary" />
-          The Pack
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-3xl font-serif tracking-tight flex items-center gap-3">
+            <Users className="h-8 w-8 text-primary" />
+            The Pack
+          </h1>
+          <NotificationsToggle />
+        </div>
         <div className="text-muted-foreground mt-2">
           {isLoadingHousehold ? <Skeleton className="h-5 w-48" /> : `Manage ${household?.name} household`}
         </div>

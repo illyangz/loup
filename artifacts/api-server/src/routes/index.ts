@@ -6,6 +6,7 @@ import householdRouter from "./household";
 import bookingsRouter from "./bookings";
 import billingRouter from "./billing";
 import packRouter from "./pack";
+import pushRouter from "./push";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(householdRouter);
 router.use(bookingsRouter);
 router.use(billingRouter);
 router.use(packRouter);
+router.use(pushRouter);
 
 export default router;
