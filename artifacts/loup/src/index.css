@@ -86,6 +86,14 @@
   --app-font-sans: 'Outfit', sans-serif;
   --app-font-serif: 'Instrument Serif', serif;
   --app-font-mono: monospace;
+
+  /* Pack colors */
+  --pack-1: 150 30% 40%; /* Sage */
+  --pack-2: 210 40% 45%; /* Slate Blue */
+  --pack-3: 340 45% 50%; /* Rose */
+  --pack-4: 25 60% 45%;  /* Terracotta */
+  --pack-5: 280 30% 45%; /* Amethyst */
+  --pack-6: 180 35% 40%; /* Teal */
 }
 
 .dark {
@@ -116,6 +124,14 @@
   --border: 26 20% 22%;
   --input: 26 20% 22%;
   --ring: 28 65% 60%;
+
+  /* Pack colors */
+  --pack-1: 150 25% 55%;
+  --pack-2: 210 50% 65%;
+  --pack-3: 340 50% 65%;
+  --pack-4: 25 70% 60%;
+  --pack-5: 280 40% 65%;
+  --pack-6: 180 40% 55%;
 }
 
 @layer base {

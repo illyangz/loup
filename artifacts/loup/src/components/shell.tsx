@@ -14,6 +14,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   ]
 
   const isHome = location === "/"
+  const isBookings = location === "/bookings" || location.startsWith("/bookings/")
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background pb-[80px] lg:pb-0 relative">
@@ -54,7 +55,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <main
         className={cn(
           "flex-1 w-full mx-auto p-4 lg:p-8 relative z-10",
-          isHome ? "max-w-[1600px]" : "max-w-3xl"
+          (isHome || isBookings) ? "max-w-[1600px]" : "max-w-3xl"
         )}
       >
         {children}
