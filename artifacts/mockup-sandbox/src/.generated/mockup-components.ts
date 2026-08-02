@@ -5,5 +5,7 @@ export const modules: ModuleMap = {
   "./components/mockups/loup-home/GoldenHour.tsx": () => import("../components/mockups/loup-home/GoldenHour.tsx"),
   "./components/mockups/loup-home/HouseholdConsole.tsx": () => import("../components/mockups/loup-home/HouseholdConsole.tsx"),
   "./components/mockups/loup-home/MemberLens.tsx": () => import("../components/mockups/loup-home/MemberLens.tsx"),
+  "./components/mockups/loup-home/MobileCompanion.tsx": () => import("../components/mockups/loup-home/MobileCompanion.tsx"),
+  "./components/mockups/loup-home/MobileWalletLens.tsx": () => import("../components/mockups/loup-home/MobileWalletLens.tsx"),
   "./components/mockups/loup-home/PackConsole.tsx": () => import("../components/mockups/loup-home/PackConsole.tsx")
 };

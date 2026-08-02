@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+.theme-wallet {
+  --background: 35 30% 97%;
+  --foreground: 20 60% 15%;
+  --card: 35 30% 99%;
+  --card-foreground: 20 60% 15%;
+  --popover: 35 30% 99%;
+  --popover-foreground: 20 60% 15%;
+  --primary: 25 70% 45%;
+  --primary-foreground: 35 30% 97%;
+  --secondary: 35 30% 92%;
+  --secondary-foreground: 25 70% 45%;
+  --muted: 35 20% 88%;
+  --muted-foreground: 25 15% 45%;
+  --accent: 20 70% 55%;
+  --accent-foreground: 35 30% 97%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 35 30% 97%;
+  --border: 35 20% 88%;
+  --input: 35 20% 88%;
+  --ring: 25 70% 45%;
+  --radius: 1.5rem;
+
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.theme-wallet h1, .theme-wallet h2, .theme-wallet h3, .theme-wallet h4, .theme-wallet h5, .theme-wallet h6, .theme-wallet .font-serif {
+  font-family: 'Playfair Display', serif;
+}
+
+.glass-tab-bar {
+  background: rgba(246, 241, 235, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(200, 180, 160, 0.25);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
