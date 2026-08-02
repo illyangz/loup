@@ -42,7 +42,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const isBookings = location === "/bookings" || location.startsWith("/bookings/")
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-background pb-[80px] lg:pb-0 relative">
+    <div className="min-h-[100dvh] flex flex-col bg-background pb-[calc(80px+env(safe-area-inset-bottom,0px))] lg:pb-0 relative">
       <div className="absolute inset-0 bg-sunlight pointer-events-none" />
 
       {/* Desktop Top Bar */}
@@ -83,7 +83,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Mobile Header */}
-      <header className="lg:hidden px-4 pt-4 relative z-10 flex items-center justify-between">
+      <header className="lg:hidden px-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] relative z-10 flex items-center justify-between">
         <Link href="/" className="font-serif text-3xl font-normal tracking-tight text-primary italic">Loup</Link>
         <ThemeToggle />
       </header>

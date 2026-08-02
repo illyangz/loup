@@ -147,6 +147,9 @@
 }
 
 @layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
   .glass-nav {
     @apply bg-background/80 backdrop-blur-xl border-t border-border/50;
   }
