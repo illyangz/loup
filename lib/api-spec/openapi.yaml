@@ -3,13 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Loup — household services marketplace API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: home
+    description: Home screen summary
+  - name: catalog
+    description: Categories and providers
+  - name: bookings
+    description: Booking engine, tracking, and chat
+  - name: household
+    description: Household members and activity
+  - name: billing
+    description: Consolidated bill and payments
 paths:
   /healthz:
     get:
@@ -24,6 +34,420 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /home/summary:
+    get:
+      operationId: getHomeSummary
+      tags: [home]
+      summary: Home screen summary for the current member
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeSummary"
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [catalog]
+      summary: List service categories
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+  /providers:
+    get:
+      operationId: listProviders
+      tags: [catalog]
+      summary: List providers with optional filters
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by category slug
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Free-text search over provider name and tagline
+        - name: availableNow
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Only providers available right now
+      responses:
+        "200":
+          description: Providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Provider"
+  /providers/{id}:
+    get:
+      operationId: getProvider
+      tags: [catalog]
+      summary: Provider profile with services
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Provider detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /providers/{id}/reviews:
+    get:
+      operationId: listProviderReviews
+      tags: [catalog]
+      summary: Reviews for a provider
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Review"
+  /household:
+    get:
+      operationId: getHousehold
+      tags: [household]
+      summary: Household profile with members
+      responses:
+        "200":
+          description: Household
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Household"
+  /household/activity:
+    get:
+      operationId: listHouseholdActivity
+      tags: [household]
+      summary: Recent household activity feed
+      responses:
+        "200":
+          description: Activity items, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+  /addresses:
+    get:
+      operationId: listAddresses
+      tags: [household]
+      summary: Saved household addresses
+      responses:
+        "200":
+          description: Addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Address"
+  /bookings:
+    get:
+      operationId: listBookings
+      tags: [bookings]
+      summary: List household bookings
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, upcoming, past, all]
+          description: Filter bookings by lifecycle scope (default all)
+      responses:
+        "200":
+          description: Bookings, soonest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Booking"
+    post:
+      operationId: createBooking
+      tags: [bookings]
+      summary: Create a booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingInput"
+      responses:
+        "201":
+          description: Created booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /bookings/{id}:
+    get:
+      operationId: getBooking
+      tags: [bookings]
+      summary: Booking detail with status timeline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Booking detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+    patch:
+      operationId: updateBooking
+      tags: [bookings]
+      summary: Reschedule or cancel a booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingUpdate"
+      responses:
+        "200":
+          description: Updated booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          description: Invalid update
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /bookings/{id}/advance:
+    post:
+      operationId: advanceBooking
+      tags: [bookings]
+      summary: Advance a live booking to its next status (demo control)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Booking after advancing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingDetail"
+        "400":
+          description: Booking cannot advance further
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /bookings/{id}/messages:
+    get:
+      operationId: listBookingMessages
+      tags: [bookings]
+      summary: Booking-scoped chat messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendBookingMessage
+      tags: [bookings]
+      summary: Send a chat message on a booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Created message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /reviews:
+    post:
+      operationId: createReview
+      tags: [catalog]
+      summary: Rate and review a completed booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewInput"
+      responses:
+        "201":
+          description: Created review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /billing/statement:
+    get:
+      operationId: getBillingStatement
+      tags: [billing]
+      summary: Current consolidated household bill
+      responses:
+        "200":
+          description: Current statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillStatement"
+  /billing/methods:
+    get:
+      operationId: listPaymentMethods
+      tags: [billing]
+      summary: Household payment methods
+      responses:
+        "200":
+          description: Payment methods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PaymentMethod"
+  /billing/pay:
+    post:
+      operationId: payBillingStatement
+      tags: [billing]
+      summary: Settle the current consolidated bill
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "200":
+          description: Statement after payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillStatement"
+        "400":
+          description: Nothing to pay or invalid method
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /billing/history:
+    get:
+      operationId: listBillingHistory
+      tags: [billing]
+      summary: Past consolidated statements
+      responses:
+        "200":
+          description: Statement summaries, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BillStatementSummary"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +457,588 @@ components:
           type: string
       required:
         - status
-
+    ApiMessage:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    HomeSummary:
+      type: object
+      properties:
+        memberName:
+          type: string
+        householdName:
+          type: string
+        activeBooking:
+          oneOf:
+            - $ref: "#/components/schemas/Booking"
+            - type: "null"
+        nextBooking:
+          oneOf:
+            - $ref: "#/components/schemas/Booking"
+            - type: "null"
+        upcomingCount:
+          type: integer
+        openBillTotal:
+          type: number
+        monthToDateSpend:
+          type: number
+        memberCount:
+          type: integer
+      required:
+        - memberName
+        - householdName
+        - activeBooking
+        - nextBooking
+        - upcomingCount
+        - openBillTotal
+        - monthToDateSpend
+        - memberCount
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        tagline:
+          type: string
+        icon:
+          type: string
+          description: Lucide icon name, e.g. Sparkles, AirVent, Wrench
+        providerCount:
+          type: integer
+        startingPrice:
+          type: number
+      required:
+        - id
+        - name
+        - slug
+        - tagline
+        - icon
+        - providerCount
+        - startingPrice
+    Provider:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        categorySlug:
+          type: string
+        categoryName:
+          type: string
+        tagline:
+          type: string
+        bio:
+          type: string
+        rating:
+          type: number
+        reviewCount:
+          type: integer
+        jobsCompleted:
+          type: integer
+        yearsOnPlatform:
+          type: integer
+        verified:
+          type: boolean
+        availableNow:
+          type: boolean
+        responseMinutes:
+          type: integer
+          description: Typical response time in minutes
+        startingPrice:
+          type: number
+        badges:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - categorySlug
+        - categoryName
+        - tagline
+        - bio
+        - rating
+        - reviewCount
+        - jobsCompleted
+        - yearsOnPlatform
+        - verified
+        - availableNow
+        - responseMinutes
+        - startingPrice
+        - badges
+    Service:
+      type: object
+      properties:
+        id:
+          type: integer
+        providerId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        durationMinutes:
+          type: integer
+      required:
+        - id
+        - providerId
+        - name
+        - description
+        - price
+        - durationMinutes
+    ProviderDetail:
+      allOf:
+        - $ref: "#/components/schemas/Provider"
+        - type: object
+          properties:
+            services:
+              type: array
+              items:
+                $ref: "#/components/schemas/Service"
+          required:
+            - services
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+        providerId:
+          type: integer
+        authorName:
+          type: string
+        rating:
+          type: integer
+        comment:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - providerId
+        - authorName
+        - rating
+        - comment
+        - createdAt
+    ReviewInput:
+      type: object
+      properties:
+        bookingId:
+          type: integer
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+      required:
+        - bookingId
+        - rating
+        - comment
+    Household:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/HouseholdMember"
+      required:
+        - id
+        - name
+        - members
+    HouseholdMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        relation:
+          type: string
+          description: e.g. Head of Household, Partner, Son, Housekeeper
+        role:
+          type: string
+          enum: [head, owner, member]
+        initials:
+          type: string
+        monthlySpendLimit:
+          type: ["number", "null"]
+        monthToDateSpend:
+          type: number
+        isCurrentUser:
+          type: boolean
+      required:
+        - id
+        - name
+        - relation
+        - role
+        - initials
+        - monthlySpendLimit
+        - monthToDateSpend
+        - isCurrentUser
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        kind:
+          type: string
+          enum: [booking_created, booking_completed, payment, review]
+        memberName:
+          type: string
+        description:
+          type: string
+        amount:
+          type: ["number", "null"]
+        occurredAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - kind
+        - memberName
+        - description
+        - amount
+        - occurredAt
+    Address:
+      type: object
+      properties:
+        id:
+          type: integer
+        label:
+          type: string
+        area:
+          type: string
+          description: Dubai neighbourhood, e.g. Jumeirah, Downtown
+        street:
+          type: string
+        instructions:
+          type: ["string", "null"]
+      required:
+        - id
+        - label
+        - area
+        - street
+        - instructions
+    Booking:
+      type: object
+      properties:
+        id:
+          type: integer
+        providerId:
+          type: integer
+        providerName:
+          type: string
+        serviceId:
+          type: integer
+        serviceName:
+          type: string
+        categoryName:
+          type: string
+        categoryIcon:
+          type: string
+        memberId:
+          type: integer
+        memberName:
+          type: string
+        addressId:
+          type: integer
+        addressLabel:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        priceEstimate:
+          type: number
+        instructions:
+          type: ["string", "null"]
+        etaMinutes:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - providerId
+        - providerName
+        - serviceId
+        - serviceName
+        - categoryName
+        - categoryIcon
+        - memberId
+        - memberName
+        - addressId
+        - addressLabel
+        - scheduledAt
+        - status
+        - priceEstimate
+        - instructions
+        - etaMinutes
+        - createdAt
+    BookingStatus:
+      type: string
+      enum:
+        - pending
+        - confirmed
+        - en_route
+        - arrived
+        - in_progress
+        - completed
+        - cancelled
+    BookingEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        note:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - bookingId
+        - status
+        - note
+        - occurredAt
+    BookingDetail:
+      allOf:
+        - $ref: "#/components/schemas/Booking"
+        - type: object
+          properties:
+            events:
+              type: array
+              items:
+                $ref: "#/components/schemas/BookingEvent"
+            hasReview:
+              type: boolean
+          required:
+            - events
+            - hasReview
+    BookingInput:
+      type: object
+      properties:
+        serviceId:
+          type: integer
+        addressId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        instructions:
+          type: string
+      required:
+        - serviceId
+        - addressId
+        - scheduledAt
+    BookingUpdate:
+      type: object
+      properties:
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [cancelled]
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        sender:
+          type: string
+          enum: [member, provider]
+        senderName:
+          type: string
+        body:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - bookingId
+        - sender
+        - senderName
+        - body
+        - sentAt
+    MessageInput:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+      required:
+        - body
+    PaymentMethod:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [card, wallet, cash]
+        label:
+          type: string
+        detail:
+          type: ["string", "null"]
+          description: e.g. "Visa ending 4421" or wallet balance text
+        isDefault:
+          type: boolean
+      required:
+        - id
+        - type
+        - label
+        - detail
+        - isDefault
+    BillItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        serviceName:
+          type: string
+        providerName:
+          type: string
+        memberName:
+          type: string
+        categoryName:
+          type: string
+        amount:
+          type: number
+        date:
+          type: string
+          format: date-time
+      required:
+        - id
+        - bookingId
+        - serviceName
+        - providerName
+        - memberName
+        - categoryName
+        - amount
+        - date
+    MemberSpend:
+      type: object
+      properties:
+        memberId:
+          type: integer
+        memberName:
+          type: string
+        initials:
+          type: string
+        amount:
+          type: number
+      required:
+        - memberId
+        - memberName
+        - initials
+        - amount
+    CategorySpend:
+      type: object
+      properties:
+        categoryName:
+          type: string
+        amount:
+          type: number
+      required:
+        - categoryName
+        - amount
+    BillStatement:
+      type: object
+      properties:
+        id:
+          type: integer
+        month:
+          type: string
+          description: Human label, e.g. "August 2026"
+        status:
+          type: string
+          enum: [open, paid]
+        total:
+          type: number
+        paidAt:
+          type: ["string", "null"]
+          format: date-time
+        paidWith:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BillItem"
+        byMember:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberSpend"
+        byCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategorySpend"
+      required:
+        - id
+        - month
+        - status
+        - total
+        - paidAt
+        - paidWith
+        - items
+        - byMember
+        - byCategory
+    BillStatementSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        month:
+          type: string
+        status:
+          type: string
+          enum: [open, paid]
+        total:
+          type: number
+        itemCount:
+          type: integer
+        paidAt:
+          type: ["string", "null"]
+          format: date-time
+        paidWith:
+          type: ["string", "null"]
+      required:
+        - id
+        - month
+        - status
+        - total
+        - itemCount
+        - paidAt
+        - paidWith
+    PaymentInput:
+      type: object
+      properties:
+        paymentMethodId:
+          type: integer
+      required:
+        - paymentMethodId

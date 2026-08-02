@@ -1,45 +1,27 @@
-# [Project name]
+# Loup
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+On-demand home & lifestyle services marketplace for Dubai households ("wolf" in French — the household is the pack). Families summon vetted professionals (cleaning, AC, handyman, beauty, home health, pest control, laundry, pool care), track jobs live, chat with providers, and settle everything on one consolidated household bill in AED.
 
-## Run & Operate
+Based on the "RightNow" development brief (attached_assets/), renamed to Loup per user request. Current build: **customer surface only** — provider app and admin console are planned follow-ups.
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+## Architecture
 
-## Stack
+pnpm monorepo:
+- `artifacts/loup` — customer web app (React + Vite, wouter, TanStack Query, shadcn/ui, framer-motion). Mobile-first with bottom tab bar; desktop gets a sidebar. Light/dark mode. Design theme: "Midnight Champagne" (midnight navy + champagne gold, Fraunces + Plus Jakarta Sans).
+- `artifacts/api-server` — Express 5 + pino, serves `/api/*`. Routes in `src/routes/` (home, catalog, household, bookings, billing), shared helpers in `src/lib/loup.ts`.
+- `lib/api-spec` — OpenAPI contract (`openapi.yaml`). `pnpm --filter @workspace/api-spec run codegen` regenerates the react-query client (`lib/api-client-react`) and Zod schemas (`lib/api-zod`).
+- `lib/db` — Drizzle schema in `src/schema/` (household, catalog, bookings, billing domains). `pnpm --filter @workspace/db run push` to sync.
+- `scripts/src/seed.ts` — re-runnable demo seed: `pnpm --filter @workspace/scripts run seed`. Wipes and reseeds everything with dates relative to now (always looks alive). Safe way to reset demo state.
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+## Demo model (no auth yet)
 
-## Where things live
-
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
-
-## Architecture decisions
-
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Single seeded household: the Mansour family (5 members, roles head/owner/member, spend limits). Current user = `isCurrentUser` flag on members; resolved in `getCurrentMember()` (`artifacts/api-server/src/lib/loup.ts`) — the single seam to replace with real sessions later.
+- Payments are simulated (card/wallet/cash rows, no gateway). Paying the open statement marks it paid and opens a fresh one.
+- Live feel is simulated server-side: new bookings auto-confirm ~7s after placement; chat messages get a canned provider reply ~3s later; the booking detail page has a "simulate provider progress" control that advances status (completing a job adds it to the open bill).
+- Booking status chain: pending → confirmed → en_route → arrived → in_progress → completed (cancelled is terminal).
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Product name: **Loup** (not RightNow).
+- User is on the Replit iOS app — native mobile (Expo) builds can't be previewed there; this build is a mobile-first responsive web app instead. Native apps are a future option on replit.com.
+- No emojis in the UI.

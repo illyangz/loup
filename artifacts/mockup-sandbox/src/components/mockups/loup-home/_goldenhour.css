@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+.theme-golden-hour {
+  /* Warm linen background */
+  --background: 42 40% 96%; 
+  /* Deep warm clay/brown text */
+  --foreground: 24 35% 20%; 
+  
+  /* Cards slightly lighter than bg for contrast */
+  --card: 42 45% 98%; 
+  --card-foreground: 24 35% 20%;
+  
+  --popover: 42 45% 98%;
+  --popover-foreground: 24 35% 20%;
+
+  /* Honey/Terracotta Primary */
+  --primary: 26 55% 52%; 
+  --primary-foreground: 42 40% 98%;
+
+  /* Warm stone/sand for secondary elements */
+  --secondary: 35 30% 90%; 
+  --secondary-foreground: 24 35% 20%;
+
+  --muted: 35 25% 88%;
+  --muted-foreground: 24 20% 45%;
+
+  --accent: 35 40% 86%;
+  --accent-foreground: 24 35% 20%;
+
+  --border: 35 25% 86%;
+  --input: 35 25% 86%;
+  --ring: 26 55% 52%;
+
+  --radius: 1.5rem;
+
+  --font-sans: 'Outfit', sans-serif;
+  --font-serif: 'Instrument Serif', serif;
+}
+
+.theme-golden-hour {
+  font-family: var(--font-sans);
+}
+
+.theme-golden-hour .font-serif {
+  font-family: var(--font-serif);
+}
+
+.theme-golden-hour .bg-sunlight {
+  background: 
+    radial-gradient(circle at 85% 0%, rgba(210, 124, 75, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 10% 100%, rgba(210, 124, 75, 0.04) 0%, transparent 50%);
+}
+
+.theme-golden-hour .golden-shadow {
+  box-shadow: 0 20px 40px -15px rgba(160, 110, 80, 0.2),
+              0 10px 20px -10px rgba(160, 110, 80, 0.1);
+}
+
+.theme-golden-hour .golden-shadow-sm {
+  box-shadow: 0 10px 25px -5px rgba(160, 110, 80, 0.08),
+              0 4px 10px -5px rgba(160, 110, 80, 0.04);
+}

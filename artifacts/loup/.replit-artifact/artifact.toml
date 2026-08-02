@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Loup"
+description = "Loup is an on-demand home and lifestyle services marketplace for Dubai households. Customers browse vetted independent providers (cleaning, AC repair, handyman, beauty, home healthcare), book on-demand or scheduled visits, track jobs live, chat with providers, and manage everything as a family household with one consolidated bill and multiple ways to pay."
+version = "1.0.0"
+id = "artifacts/loup"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25140
+
+[services.development]
+run = "pnpm --filter @workspace/loup run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/loup", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/loup/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25140"
+BASE_PATH = "/"
