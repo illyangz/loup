@@ -1,6 +1,26 @@
 import { Link, useLocation } from "wouter"
-import { Home, Search, Calendar, Users, FileText } from "lucide-react"
+import { Home, Search, Calendar, Users, FileText, Sun, Moon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useTheme } from "@/hooks/use-theme"
+
+function ThemeToggle({ className }: { className?: string }) {
+  const { resolvedTheme, toggleTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className={cn(
+        "inline-flex items-center justify-center w-10 h-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+        className
+      )}
+      data-testid="button-theme-toggle"
+    >
+      {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+    </button>
+  )
+}
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const [location] = useLocation()
@@ -44,11 +64,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
         </div>
+        <ThemeToggle />
       </header>
 
       {/* Mobile Header */}
-      <header className="lg:hidden px-4 pt-4 relative z-10">
+      <header className="lg:hidden px-4 pt-4 relative z-10 flex items-center justify-between">
         <Link href="/" className="font-serif text-3xl font-normal tracking-tight text-primary italic">Loup</Link>
+        <ThemeToggle />
       </header>
 
       {/* Main Content */}
