@@ -5,6 +5,7 @@ import {
   pgTable,
   serial,
   text,
+  timestamp,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -25,6 +26,8 @@ export const membersTable = pgTable("members", {
   initials: text("initials").notNull(),
   monthlySpendLimit: doublePrecision("monthly_spend_limit"),
   isCurrentUser: boolean("is_current_user").notNull().default(false),
+  // When this member last opened the Pack thread (drives unread counts).
+  packLastReadAt: timestamp("pack_last_read_at", { withTimezone: true }),
 });
 
 export const addressesTable = pgTable("addresses", {

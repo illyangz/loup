@@ -64,7 +64,35 @@ export const GetHomeSummaryResponse = zod.object({
   "upcomingCount": zod.number().int(),
   "openBillTotal": zod.number(),
   "monthToDateSpend": zod.number(),
-  "memberCount": zod.number().int()
+  "memberCount": zod.number().int(),
+  "isHeadOfHousehold": zod.boolean().describe('Whether the current member can approve or decline service requests'),
+  "packUnreadCount": zod.number().int(),
+  "recentPackMessages": zod.array(zod.object({
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
+  "memberName": zod.string(),
+  "initials": zod.string(),
+  "isCurrentUser": zod.boolean(),
+  "body": zod.string(),
+  "sentAt": zod.coerce.date()
+})).describe('Latest household thread messages, newest first'),
+  "pendingRequests": zod.array(zod.object({
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
+  "memberName": zod.string(),
+  "initials": zod.string(),
+  "serviceId": zod.number().int(),
+  "serviceName": zod.string(),
+  "providerName": zod.string(),
+  "categoryName": zod.string(),
+  "categoryIcon": zod.string(),
+  "price": zod.number(),
+  "note": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'declined']),
+  "bookingId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable()
+})).describe('Pending service requests awaiting a decision')
 })
 
 
@@ -440,6 +468,147 @@ export const CreateReviewResponse = zod.object({
   "rating": zod.number().int(),
   "comment": zod.string(),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Household thread messages, oldest first (marks thread read)
+ */
+export const ListPackMessagesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
+  "memberName": zod.string(),
+  "initials": zod.string(),
+  "isCurrentUser": zod.boolean(),
+  "body": zod.string(),
+  "sentAt": zod.coerce.date()
+})
+export const ListPackMessagesResponse = zod.array(ListPackMessagesResponseItem)
+
+
+/**
+ * @summary Post a message to the household thread
+ */
+
+
+
+export const SendPackMessageBody = zod.object({
+  "body": zod.string().min(1)
+})
+
+export const SendPackMessageResponse = zod.object({
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
+  "memberName": zod.string(),
+  "initials": zod.string(),
+  "isCurrentUser": zod.boolean(),
+  "body": zod.string(),
+  "sentAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Service requests from household members, newest first
+ */
+export const ListServiceRequestsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
+  "memberName": zod.string(),
+  "initials": zod.string(),
+  "serviceId": zod.number().int(),
+  "serviceName": zod.string(),
+  "providerName": zod.string(),
+  "categoryName": zod.string(),
+  "categoryIcon": zod.string(),
+  "price": zod.number(),
+  "note": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'declined']),
+  "bookingId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable()
+})
+export const ListServiceRequestsResponse = zod.array(ListServiceRequestsResponseItem)
+
+
+/**
+ * @summary Request a service for head-of-household approval
+ */
+
+
+
+export const CreateServiceRequestBody = zod.object({
+  "serviceId": zod.number().int(),
+  "note": zod.string().min(1)
+})
+
+export const CreateServiceRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
+  "memberName": zod.string(),
+  "initials": zod.string(),
+  "serviceId": zod.number().int(),
+  "serviceName": zod.string(),
+  "providerName": zod.string(),
+  "categoryName": zod.string(),
+  "categoryIcon": zod.string(),
+  "price": zod.number(),
+  "note": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'declined']),
+  "bookingId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Approve a pending request and create the booking
+ */
+export const ApproveServiceRequestParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ApproveServiceRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
+  "memberName": zod.string(),
+  "initials": zod.string(),
+  "serviceId": zod.number().int(),
+  "serviceName": zod.string(),
+  "providerName": zod.string(),
+  "categoryName": zod.string(),
+  "categoryIcon": zod.string(),
+  "price": zod.number(),
+  "note": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'declined']),
+  "bookingId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Decline a pending request
+ */
+export const DeclineServiceRequestParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeclineServiceRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "memberId": zod.number().int(),
+  "memberName": zod.string(),
+  "initials": zod.string(),
+  "serviceId": zod.number().int(),
+  "serviceName": zod.string(),
+  "providerName": zod.string(),
+  "categoryName": zod.string(),
+  "categoryIcon": zod.string(),
+  "price": zod.number(),
+  "note": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'declined']),
+  "bookingId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable()
 })
 
 

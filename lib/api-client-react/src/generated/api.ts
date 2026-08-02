@@ -37,12 +37,16 @@ import type {
   ListProvidersParams,
   Message,
   MessageInput,
+  PackMessage,
+  PackMessageInput,
   PaymentInput,
   PaymentMethod,
   Provider,
   ProviderDetail,
   Review,
-  ReviewInput
+  ReviewInput,
+  ServiceRequest,
+  ServiceRequestInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1366,6 +1370,444 @@ export const useCreateReview = <TError = ErrorType<ApiMessage>,
         TContext
       > => {
       return useMutation(getCreateReviewMutationOptions(options));
+    }
+
+export const getListPackMessagesUrl = () => {
+
+
+
+
+  return `/api/pack/messages`
+}
+
+/**
+ * @summary Household thread messages, oldest first (marks thread read)
+ */
+export const listPackMessages = async ( options?: Parameters<typeof customFetch>[1]): Promise<PackMessage[]> => {
+
+  return customFetch<PackMessage[]>(getListPackMessagesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPackMessagesQueryKey = () => {
+    return [
+    `/api/pack/messages`
+    ] as const;
+    }
+
+
+export const getListPackMessagesQueryOptions = <TData = Awaited<ReturnType<typeof listPackMessages>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPackMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPackMessagesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPackMessages>>> = ({ signal }) => listPackMessages({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPackMessages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPackMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof listPackMessages>>>
+export type ListPackMessagesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Household thread messages, oldest first (marks thread read)
+ */
+
+export function useListPackMessages<TData = Awaited<ReturnType<typeof listPackMessages>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPackMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPackMessagesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendPackMessageUrl = () => {
+
+
+
+
+  return `/api/pack/messages`
+}
+
+/**
+ * @summary Post a message to the household thread
+ */
+export const sendPackMessage = async (packMessageInput: PackMessageInput, options?: Parameters<typeof customFetch>[1]): Promise<PackMessage> => {
+
+  return customFetch<PackMessage>(getSendPackMessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(packMessageInput)
+  }
+);}
+
+
+
+
+
+export const getSendPackMessageMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendPackMessage>>, TError,{data: BodyType<PackMessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendPackMessage>>, TError,{data: BodyType<PackMessageInput>}, TContext> => {
+
+const mutationKey = ['sendPackMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendPackMessage>>, {data: BodyType<PackMessageInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendPackMessage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendPackMessageMutationResult = NonNullable<Awaited<ReturnType<typeof sendPackMessage>>>
+    export type SendPackMessageMutationBody = BodyType<PackMessageInput>
+    export type SendPackMessageMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary Post a message to the household thread
+ */
+export const useSendPackMessage = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendPackMessage>>, TError,{data: BodyType<PackMessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendPackMessage>>,
+        TError,
+        {data: BodyType<PackMessageInput>},
+        TContext
+      > => {
+      return useMutation(getSendPackMessageMutationOptions(options));
+    }
+
+export const getListServiceRequestsUrl = () => {
+
+
+
+
+  return `/api/pack/requests`
+}
+
+/**
+ * @summary Service requests from household members, newest first
+ */
+export const listServiceRequests = async ( options?: Parameters<typeof customFetch>[1]): Promise<ServiceRequest[]> => {
+
+  return customFetch<ServiceRequest[]>(getListServiceRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListServiceRequestsQueryKey = () => {
+    return [
+    `/api/pack/requests`
+    ] as const;
+    }
+
+
+export const getListServiceRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listServiceRequests>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listServiceRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListServiceRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listServiceRequests>>> = ({ signal }) => listServiceRequests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listServiceRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListServiceRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listServiceRequests>>>
+export type ListServiceRequestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Service requests from household members, newest first
+ */
+
+export function useListServiceRequests<TData = Awaited<ReturnType<typeof listServiceRequests>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listServiceRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListServiceRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateServiceRequestUrl = () => {
+
+
+
+
+  return `/api/pack/requests`
+}
+
+/**
+ * @summary Request a service for head-of-household approval
+ */
+export const createServiceRequest = async (serviceRequestInput: ServiceRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<ServiceRequest> => {
+
+  return customFetch<ServiceRequest>(getCreateServiceRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(serviceRequestInput)
+  }
+);}
+
+
+
+
+
+export const getCreateServiceRequestMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createServiceRequest>>, TError,{data: BodyType<ServiceRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createServiceRequest>>, TError,{data: BodyType<ServiceRequestInput>}, TContext> => {
+
+const mutationKey = ['createServiceRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createServiceRequest>>, {data: BodyType<ServiceRequestInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createServiceRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateServiceRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createServiceRequest>>>
+    export type CreateServiceRequestMutationBody = BodyType<ServiceRequestInput>
+    export type CreateServiceRequestMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary Request a service for head-of-household approval
+ */
+export const useCreateServiceRequest = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createServiceRequest>>, TError,{data: BodyType<ServiceRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createServiceRequest>>,
+        TError,
+        {data: BodyType<ServiceRequestInput>},
+        TContext
+      > => {
+      return useMutation(getCreateServiceRequestMutationOptions(options));
+    }
+
+export const getApproveServiceRequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/pack/requests/${id}/approve`
+}
+
+/**
+ * @summary Approve a pending request and create the booking
+ */
+export const approveServiceRequest = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ServiceRequest> => {
+
+  return customFetch<ServiceRequest>(getApproveServiceRequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveServiceRequestMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveServiceRequest>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveServiceRequest>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['approveServiceRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveServiceRequest>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  approveServiceRequest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveServiceRequestMutationResult = NonNullable<Awaited<ReturnType<typeof approveServiceRequest>>>
+
+    export type ApproveServiceRequestMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary Approve a pending request and create the booking
+ */
+export const useApproveServiceRequest = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveServiceRequest>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveServiceRequest>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getApproveServiceRequestMutationOptions(options));
+    }
+
+export const getDeclineServiceRequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/pack/requests/${id}/decline`
+}
+
+/**
+ * @summary Decline a pending request
+ */
+export const declineServiceRequest = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ServiceRequest> => {
+
+  return customFetch<ServiceRequest>(getDeclineServiceRequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeclineServiceRequestMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineServiceRequest>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineServiceRequest>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['declineServiceRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineServiceRequest>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  declineServiceRequest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineServiceRequestMutationResult = NonNullable<Awaited<ReturnType<typeof declineServiceRequest>>>
+
+    export type DeclineServiceRequestMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary Decline a pending request
+ */
+export const useDeclineServiceRequest = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineServiceRequest>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof declineServiceRequest>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeclineServiceRequestMutationOptions(options));
     }
 
 export const getGetBillingStatementUrl = () => {

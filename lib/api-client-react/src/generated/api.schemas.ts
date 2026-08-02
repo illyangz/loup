@@ -48,6 +48,45 @@ export interface Booking {
   createdAt: string;
 }
 
+export interface PackMessage {
+  id: number;
+  memberId: number;
+  memberName: string;
+  initials: string;
+  isCurrentUser: boolean;
+  body: string;
+  sentAt: string;
+}
+
+export type ServiceRequestStatus = typeof ServiceRequestStatus[keyof typeof ServiceRequestStatus];
+
+
+export const ServiceRequestStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  declined: 'declined',
+} as const;
+
+export interface ServiceRequest {
+  id: number;
+  memberId: number;
+  memberName: string;
+  initials: string;
+  serviceId: number;
+  serviceName: string;
+  providerName: string;
+  categoryName: string;
+  categoryIcon: string;
+  price: number;
+  note: string;
+  status: ServiceRequestStatus;
+  /** @nullable */
+  bookingId: number | null;
+  createdAt: string;
+  /** @nullable */
+  decidedAt: string | null;
+}
+
 export interface HomeSummary {
   memberName: string;
   householdName: string;
@@ -57,6 +96,13 @@ export interface HomeSummary {
   openBillTotal: number;
   monthToDateSpend: number;
   memberCount: number;
+  /** Whether the current member can approve or decline service requests */
+  isHeadOfHousehold: boolean;
+  packUnreadCount: number;
+  /** Latest household thread messages, newest first */
+  recentPackMessages: PackMessage[];
+  /** Pending service requests awaiting a decision */
+  pendingRequests: ServiceRequest[];
 }
 
 export interface Category {
@@ -231,6 +277,17 @@ export interface Message {
 export interface MessageInput {
   /** @minLength 1 */
   body: string;
+}
+
+export interface PackMessageInput {
+  /** @minLength 1 */
+  body: string;
+}
+
+export interface ServiceRequestInput {
+  serviceId: number;
+  /** @minLength 1 */
+  note: string;
 }
 
 export type PaymentMethodType = typeof PaymentMethodType[keyof typeof PaymentMethodType];

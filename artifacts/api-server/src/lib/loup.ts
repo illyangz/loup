@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, ne } from "drizzle-orm";
 import {
   db,
   addressesTable,
@@ -6,7 +6,9 @@ import {
   bookingsTable,
   categoriesTable,
   membersTable,
+  packMessagesTable,
   providersTable,
+  serviceRequestsTable,
   servicesTable,
   statementsTable,
 } from "@workspace/db";
@@ -208,6 +210,82 @@ export async function statementView(statement: {
       .map(([categoryName, amount]) => ({ categoryName, amount }))
       .sort((a, b) => b.amount - a.amount),
   };
+}
+
+export async function fetchPackMessages(householdId: number) {
+  return db
+    .select({
+      id: packMessagesTable.id,
+      memberId: packMessagesTable.memberId,
+      memberName: membersTable.name,
+      initials: membersTable.initials,
+      isCurrentUser: membersTable.isCurrentUser,
+      body: packMessagesTable.body,
+      sentAt: packMessagesTable.sentAt,
+    })
+    .from(packMessagesTable)
+    .innerJoin(membersTable, eq(packMessagesTable.memberId, membersTable.id))
+    .where(eq(packMessagesTable.householdId, householdId))
+    .orderBy(asc(packMessagesTable.sentAt));
+}
+
+export async function countUnreadPackMessages(member: {
+  id: number;
+  householdId: number;
+  packLastReadAt: Date | null;
+}): Promise<number> {
+  const conditions = [
+    eq(packMessagesTable.householdId, member.householdId),
+    ne(packMessagesTable.memberId, member.id),
+  ];
+  if (member.packLastReadAt) {
+    conditions.push(gt(packMessagesTable.sentAt, member.packLastReadAt));
+  }
+  const rows = await db
+    .select({ id: packMessagesTable.id })
+    .from(packMessagesTable)
+    .where(and(...conditions));
+  return rows.length;
+}
+
+export async function fetchServiceRequests(householdId: number) {
+  return db
+    .select({
+      id: serviceRequestsTable.id,
+      memberId: serviceRequestsTable.memberId,
+      memberName: membersTable.name,
+      initials: membersTable.initials,
+      serviceId: serviceRequestsTable.serviceId,
+      serviceName: servicesTable.name,
+      providerName: providersTable.name,
+      categoryName: categoriesTable.name,
+      categoryIcon: categoriesTable.icon,
+      price: servicesTable.price,
+      note: serviceRequestsTable.note,
+      status: serviceRequestsTable.status,
+      bookingId: serviceRequestsTable.bookingId,
+      createdAt: serviceRequestsTable.createdAt,
+      decidedAt: serviceRequestsTable.decidedAt,
+    })
+    .from(serviceRequestsTable)
+    .innerJoin(membersTable, eq(serviceRequestsTable.memberId, membersTable.id))
+    .innerJoin(servicesTable, eq(serviceRequestsTable.serviceId, servicesTable.id))
+    .innerJoin(providersTable, eq(servicesTable.providerId, providersTable.id))
+    .innerJoin(categoriesTable, eq(providersTable.categoryId, categoriesTable.id))
+    .where(eq(serviceRequestsTable.householdId, householdId))
+    .orderBy(desc(serviceRequestsTable.createdAt));
+}
+
+export async function postPackMessage(
+  householdId: number,
+  memberId: number,
+  body: string,
+) {
+  const [message] = await db
+    .insert(packMessagesTable)
+    .values({ householdId, memberId, body, sentAt: new Date() })
+    .returning();
+  return message!;
 }
 
 export async function addCompletionBillItem(booking: {

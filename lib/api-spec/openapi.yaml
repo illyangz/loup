@@ -20,6 +20,8 @@ tags:
     description: Household members and activity
   - name: billing
     description: Consolidated bill and payments
+  - name: pack
+    description: Household thread and service requests
 paths:
   /healthz:
     get:
@@ -384,6 +386,140 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiMessage"
+  /pack/messages:
+    get:
+      operationId: listPackMessages
+      tags: [pack]
+      summary: Household thread messages, oldest first (marks thread read)
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PackMessage"
+    post:
+      operationId: sendPackMessage
+      tags: [pack]
+      summary: Post a message to the household thread
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PackMessageInput"
+      responses:
+        "201":
+          description: Created message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PackMessage"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /pack/requests:
+    get:
+      operationId: listServiceRequests
+      tags: [pack]
+      summary: Service requests from household members, newest first
+      responses:
+        "200":
+          description: Requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceRequest"
+    post:
+      operationId: createServiceRequest
+      tags: [pack]
+      summary: Request a service for head-of-household approval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceRequestInput"
+      responses:
+        "201":
+          description: Created request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceRequest"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /pack/requests/{id}/approve:
+    post:
+      operationId: approveServiceRequest
+      tags: [pack]
+      summary: Approve a pending request and create the booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Request after approval, with the created booking id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceRequest"
+        "400":
+          description: Request is not pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /pack/requests/{id}/decline:
+    post:
+      operationId: declineServiceRequest
+      tags: [pack]
+      summary: Decline a pending request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Request after declining
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceRequest"
+        "400":
+          description: Request is not pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
   /billing/statement:
     get:
       operationId: getBillingStatement
@@ -487,6 +623,21 @@ components:
           type: number
         memberCount:
           type: integer
+        isHeadOfHousehold:
+          type: boolean
+          description: Whether the current member can approve or decline service requests
+        packUnreadCount:
+          type: integer
+        recentPackMessages:
+          type: array
+          description: Latest household thread messages, newest first
+          items:
+            $ref: "#/components/schemas/PackMessage"
+        pendingRequests:
+          type: array
+          description: Pending service requests awaiting a decision
+          items:
+            $ref: "#/components/schemas/ServiceRequest"
       required:
         - memberName
         - householdName
@@ -496,6 +647,10 @@ components:
         - openBillTotal
         - monthToDateSpend
         - memberCount
+        - isHeadOfHousehold
+        - packUnreadCount
+        - recentPackMessages
+        - pendingRequests
     Category:
       type: object
       properties:
@@ -892,6 +1047,103 @@ components:
           minLength: 1
       required:
         - body
+    PackMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        memberId:
+          type: integer
+        memberName:
+          type: string
+        initials:
+          type: string
+        isCurrentUser:
+          type: boolean
+        body:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - memberId
+        - memberName
+        - initials
+        - isCurrentUser
+        - body
+        - sentAt
+    PackMessageInput:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+      required:
+        - body
+    ServiceRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        memberId:
+          type: integer
+        memberName:
+          type: string
+        initials:
+          type: string
+        serviceId:
+          type: integer
+        serviceName:
+          type: string
+        providerName:
+          type: string
+        categoryName:
+          type: string
+        categoryIcon:
+          type: string
+        price:
+          type: number
+        note:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, declined]
+        bookingId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        decidedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - memberId
+        - memberName
+        - initials
+        - serviceId
+        - serviceName
+        - providerName
+        - categoryName
+        - categoryIcon
+        - price
+        - note
+        - status
+        - bookingId
+        - createdAt
+        - decidedAt
+    ServiceRequestInput:
+      type: object
+      properties:
+        serviceId:
+          type: integer
+        note:
+          type: string
+          minLength: 1
+      required:
+        - serviceId
+        - note
     PaymentMethod:
       type: object
       properties:

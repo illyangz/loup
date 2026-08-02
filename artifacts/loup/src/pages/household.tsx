@@ -1,14 +1,186 @@
-import { useGetHousehold, useListHouseholdActivity } from "@workspace/api-client-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useRef, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import {
+  useGetHousehold,
+  useListHouseholdActivity,
+  useListPackMessages,
+  useSendPackMessage,
+  useListServiceRequests,
+  useCreateServiceRequest,
+  useListProviders,
+  useGetProvider,
+  getListPackMessagesQueryKey,
+  getListServiceRequestsQueryKey,
+  getGetHomeSummaryQueryKey,
+} from "@workspace/api-client-react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Users, Crown, CreditCard, Activity, CalendarCheck, MessageSquare, ShieldAlert } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
+import { ServiceRequestCard } from "@/components/service-request-card"
+import { Users, Crown, CreditCard, Activity, CalendarCheck, MessageSquare, ShieldAlert, Send, Loader2, Plus } from "lucide-react"
+
+function PackThread() {
+  const queryClient = useQueryClient()
+  const { data: messages, isLoading } = useListPackMessages({
+    query: { refetchInterval: 4000, queryKey: getListPackMessagesQueryKey() },
+  })
+  const sendMessage = useSendPackMessage()
+  const [body, setBody] = useState("")
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages?.length])
+
+  const handleSend = () => {
+    const trimmed = body.trim()
+    if (!trimmed || sendMessage.isPending) return
+    sendMessage.mutate({ data: { body: trimmed } }, {
+      onSuccess: () => {
+        setBody("")
+        queryClient.invalidateQueries({ queryKey: getListPackMessagesQueryKey() })
+        queryClient.invalidateQueries({ queryKey: getGetHomeSummaryQueryKey() })
+      },
+    })
+  }
+
+  return (
+    <Card className="border-border">
+      <CardContent className="p-0 flex flex-col h-[440px]">
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {isLoading ? (
+            [1, 2, 3].map(i => (
+              <div key={i} className="flex gap-3"><Skeleton className="h-9 w-9 rounded-full" /><div className="space-y-2 flex-1"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-4 w-2/3" /></div></div>
+            ))
+          ) : messages?.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No messages yet — say hi to the pack</p>
+          ) : (
+            messages?.map(msg => (
+              <div key={msg.id} className={`flex items-start gap-3 ${msg.isCurrentUser ? "flex-row-reverse" : ""}`}>
+                <Avatar className="h-9 w-9 shrink-0">
+                  <AvatarFallback className={msg.isCurrentUser ? "bg-primary text-primary-foreground text-xs" : "bg-secondary text-primary text-xs"}>
+                    {msg.initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className={`max-w-[80%] rounded-2xl border p-3.5 ${msg.isCurrentUser ? "bg-primary/10 border-primary/20 rounded-tr-none" : "bg-secondary/40 border-border/50 rounded-tl-none"}`}>
+                  <div className="flex items-baseline justify-between gap-4 mb-1">
+                    <span className="text-sm font-medium">{msg.isCurrentUser ? "You" : msg.memberName.split(" ")[0]}</span>
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
+                      {new Date(msg.sentAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-foreground/85 leading-relaxed">{msg.body}</p>
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={bottomRef} />
+        </div>
+        <div className="p-4 border-t border-border flex gap-2">
+          <Input
+            placeholder="Message the pack…"
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSend()}
+          />
+          <Button size="icon" onClick={handleSend} disabled={!body.trim() || sendMessage.isPending}>
+            {sendMessage.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function RequestServiceDialog() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const [open, setOpen] = useState(false)
+  const [providerId, setProviderId] = useState<number | null>(null)
+  const [serviceId, setServiceId] = useState<number | null>(null)
+  const [note, setNote] = useState("")
+
+  const { data: providers } = useListProviders(undefined, { query: { enabled: open, queryKey: ["listProviders"] as const } })
+  const { data: provider } = useGetProvider(providerId ?? 0, {
+    query: { enabled: open && !!providerId, queryKey: ["getProvider", providerId] as const },
+  })
+  const createRequest = useCreateServiceRequest()
+
+  const reset = () => { setProviderId(null); setServiceId(null); setNote("") }
+
+  const submit = () => {
+    if (!serviceId || !note.trim()) return
+    createRequest.mutate({ data: { serviceId, note: note.trim() } }, {
+      onSuccess: () => {
+        setOpen(false)
+        reset()
+        queryClient.invalidateQueries({ queryKey: getListServiceRequestsQueryKey() })
+        queryClient.invalidateQueries({ queryKey: getGetHomeSummaryQueryKey() })
+        toast({ title: "Request sent", description: "The head of household will review it." })
+      },
+      onError: () => toast({ title: "Couldn't send the request", variant: "destructive" }),
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={o => { setOpen(o); if (!o) reset() }}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm"><Plus className="h-4 w-4" /> Request a service</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-serif">Request a service</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <Select value={providerId ? String(providerId) : ""} onValueChange={v => { setProviderId(Number(v)); setServiceId(null) }}>
+            <SelectTrigger><SelectValue placeholder="Choose a provider" /></SelectTrigger>
+            <SelectContent>
+              {providers?.map(p => (
+                <SelectItem key={p.id} value={String(p.id)}>{p.name} — {p.categoryName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={serviceId ? String(serviceId) : ""} onValueChange={v => setServiceId(Number(v))} disabled={!provider}>
+            <SelectTrigger><SelectValue placeholder={providerId ? "Choose a service" : "Pick a provider first"} /></SelectTrigger>
+            <SelectContent>
+              {provider?.services.map(s => (
+                <SelectItem key={s.id} value={String(s.id)}>{s.name} — {s.price} AED</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Textarea
+            placeholder="Why do you need it? e.g. “My room's AC is barely cooling”"
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            rows={3}
+          />
+        </div>
+        <DialogFooter>
+          <Button onClick={submit} disabled={!serviceId || !note.trim() || createRequest.isPending}>
+            {createRequest.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Send for approval
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 export default function Household() {
   const { data: household, isLoading: isLoadingHousehold } = useGetHousehold()
   const { data: activity, isLoading: isLoadingActivity } = useListHouseholdActivity()
+  const { data: requests, isLoading: isLoadingRequests } = useListServiceRequests()
+
+  const pending = requests?.filter(r => r.status === "pending") ?? []
+  const decided = requests?.filter(r => r.status !== "pending") ?? []
 
   const getActivityIcon = (kind: string) => {
     switch (kind) {
@@ -27,10 +199,54 @@ export default function Household() {
           <Users className="h-8 w-8 text-primary" />
           The Pack
         </h1>
-        <p className="text-muted-foreground mt-2">
+        <div className="text-muted-foreground mt-2">
           {isLoadingHousehold ? <Skeleton className="h-5 w-48" /> : `Manage ${household?.name} household`}
-        </p>
+        </div>
       </header>
+
+      {/* Family thread */}
+      <section className="space-y-4">
+        <h2 className="text-2xl font-serif tracking-tight flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-primary" /> Pack thread
+        </h2>
+        <PackThread />
+      </section>
+
+      {/* Service requests */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-serif tracking-tight">Requests</h2>
+          <div className="flex items-center gap-3">
+            {pending.length > 0 && <Badge variant="secondary" className="text-primary">{pending.length} pending</Badge>}
+            <RequestServiceDialog />
+          </div>
+        </div>
+        {isLoadingRequests ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[1, 2].map(i => <Skeleton key={i} className="h-44 rounded-2xl" />)}
+          </div>
+        ) : requests?.length === 0 ? (
+          <Card className="border-dashed bg-transparent shadow-none">
+            <CardContent className="p-8 text-center text-muted-foreground text-sm">
+              No requests yet — family members can request a service for approval here.
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {pending.map(request => <ServiceRequestCard key={request.id} request={request} />)}
+            </div>
+            {decided.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Decided</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {decided.map(request => <ServiceRequestCard key={request.id} request={request} />)}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </section>
 
       {/* Members */}
       <section className="space-y-4">

@@ -4,7 +4,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Sparkles, AirVent, Wrench, Scissors, HeartPulse, Bug, Droplets, Shirt, ArrowRight, Clock, Receipt, User, Loader2, Calendar, Users, Activity } from "lucide-react"
+import { Sparkles, AirVent, Wrench, Scissors, HeartPulse, Bug, Droplets, Shirt, ArrowRight, Clock, Receipt, User, Loader2, Calendar, Users, Activity, MessageSquare } from "lucide-react"
+import { ServiceRequestCard } from "@/components/service-request-card"
+import { Badge } from "@/components/ui/badge"
 
 const ICONS: Record<string, any> = {
   Sparkles, AirVent, Wrench, Scissors, HeartPulse, Bug, Droplets, Shirt
@@ -104,6 +106,23 @@ export default function Home() {
             </Card>
           )}
 
+          {/* Requests from the pack */}
+          {(summary?.pendingRequests?.length ?? 0) > 0 && (
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl lg:text-3xl font-serif flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" /> Requests
+                </h2>
+                <Badge variant="secondary" className="text-primary">{summary!.pendingRequests.length} pending</Badge>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {summary!.pendingRequests.map(request => (
+                  <ServiceRequestCard key={request.id} request={request} />
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Bill Summary — mobile only (lives in ledger rail on desktop) */}
           <Card className="lg:hidden border-0 bg-secondary/60 group relative rounded-[1.5rem]">
             <Link href="/billing" className="absolute inset-0 z-10" />
@@ -127,6 +146,48 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
+
+          {/* The Pack thread preview — mobile only (lives in ledger rail on desktop) */}
+          {!isLoadingSummary && (
+            <section className="space-y-4 lg:hidden">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-serif flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-primary" /> The Pack
+                </h2>
+                {(summary?.packUnreadCount ?? 0) > 0 && (
+                  <Badge className="bg-primary text-primary-foreground">{summary!.packUnreadCount} new</Badge>
+                )}
+              </div>
+              <Card className="border-border group relative hover:border-primary/30 transition-colors rounded-[1.5rem]">
+                <Link href="/household" className="absolute inset-0 z-10" aria-label="Open the pack thread" />
+                <CardContent className="p-5 space-y-4">
+                  {summary?.recentPackMessages?.length ? (
+                    summary.recentPackMessages.map(msg => (
+                      <div key={msg.id} className="flex items-start gap-3">
+                        <Avatar className="h-8 w-8 shrink-0">
+                          <AvatarFallback className="bg-secondary text-primary text-xs">{msg.initials}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-sm font-medium">{msg.isCurrentUser ? "You" : msg.memberName.split(" ")[0]}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest shrink-0">
+                              {new Date(msg.sentAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">{msg.body}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-2">No messages yet — say hi to the pack</p>
+                  )}
+                  <div className="flex items-center justify-end text-xs font-medium text-primary">
+                    Open the thread <ArrowRight className="ml-1 h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          )}
 
           {/* Service Directory */}
           <section className="space-y-4 lg:space-y-8">
@@ -260,13 +321,37 @@ export default function Home() {
           {/* The Pack */}
           <div className="bg-card/60 backdrop-blur-sm rounded-[2rem] p-8 border border-border/60 golden-shadow-sm hover:-translate-y-1 transition-transform duration-500 relative group">
             <Link href="/household" className="absolute inset-0 z-10 rounded-[2rem]" />
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2 text-primary">
-                <Users className="w-5 h-5" />
+                <MessageSquare className="w-5 h-5" />
                 <h3 className="text-2xl font-serif text-foreground">The Pack</h3>
               </div>
-              <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              {(summary?.packUnreadCount ?? 0) > 0 ? (
+                <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">{summary!.packUnreadCount} New</span>
+              ) : (
+                <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              )}
             </div>
+            {summary?.recentPackMessages?.length ? (
+              <div className="space-y-4 mb-4">
+                {summary.recentPackMessages.map(msg => (
+                  <div key={msg.id} className="flex items-start gap-3">
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarFallback className="bg-secondary text-primary text-xs font-serif italic">{msg.initials}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-sm font-semibold">{msg.isCurrentUser ? "You" : msg.memberName.split(" ")[0]}</span>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest shrink-0">
+                          {new Date(msg.sentAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium text-muted-foreground truncate">{msg.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <p className="text-sm font-medium text-muted-foreground">
               {summary?.memberCount ?? "—"} members in {summary?.householdName ?? "your household"}
             </p>

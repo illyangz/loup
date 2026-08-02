@@ -3,6 +3,7 @@
  * Run with: pnpm --filter @workspace/scripts run seed
  * All dates are relative to "now" so the demo always looks alive.
  */
+import { eq } from "drizzle-orm";
 import {
   db,
   pool,
@@ -19,6 +20,8 @@ import {
   statementsTable,
   billItemsTable,
   paymentMethodsTable,
+  packMessagesTable,
+  serviceRequestsTable,
 } from "@workspace/db";
 
 const now = new Date();
@@ -36,6 +39,8 @@ const monthLabel = (d: Date) =>
 
 async function main() {
   console.log("Clearing existing data...");
+  await db.delete(packMessagesTable);
+  await db.delete(serviceRequestsTable);
   await db.delete(messagesTable);
   await db.delete(bookingEventsTable);
   await db.delete(billItemsTable);
@@ -373,6 +378,25 @@ async function main() {
     { bookingId: acBooking.id, sender: "provider", senderName: "Polar AC Engineers", body: "Perfect. On my way now — traffic on SZR is light, see you in about 15 minutes.", sentAt: minsAgo(12) },
     { bookingId: physioBooking.id, sender: "provider", senderName: "Nightingale Home Care", body: "Session started — we're warming up gently, she's doing well.", sentAt: minsAgo(55) },
     { bookingId: physioBooking.id, sender: "member", senderName: "Layla Mansour", body: "Thank you — she was nervous this morning, glad it's going smoothly.", sentAt: minsAgo(50) },
+  ]);
+
+  console.log("Seeding the pack thread and requests...");
+  await db.insert(packMessagesTable).values([
+    { householdId: hid, memberId: omar.id, body: "Pest control is done — kitchen is back in action tonight.", sentAt: hoursAgo(3) },
+    { householdId: hid, memberId: rosa.id, body: "Laundry pickup done, everything back Thursday.", sentAt: hoursAgo(2) },
+    { householdId: hid, memberId: zayd.id, body: "Can someone approve my AC request before tonight? It's boiling in my room 🥵", sentAt: minsAgo(95) },
+    { householdId: hid, memberId: layla.id, body: "Physio's here — settling Teta in now, she's calm.", sentAt: minsAgo(55) },
+    { householdId: hid, memberId: amira.id, body: "Also I put in a request for Saturday hair, pretty please 🙏", sentAt: minsAgo(40) },
+  ]);
+  // Omar last opened the thread ~90 minutes ago, so the newest messages are unread.
+  await db
+    .update(membersTable)
+    .set({ packLastReadAt: minsAgo(90) })
+    .where(eq(membersTable.id, omar.id));
+
+  await db.insert(serviceRequestsTable).values([
+    { householdId: hid, memberId: zayd.id, serviceId: svc["Full AC Service (per unit)"]!.id, note: "My room's AC is barely cooling", status: "pending", createdAt: minsAgo(100) },
+    { householdId: hid, memberId: amira.id, serviceId: svc["Blow-Dry & Style"]!.id, note: "Saturday morning?", status: "pending", createdAt: minsAgo(45) },
   ]);
 
   console.log("Seeding billing...");

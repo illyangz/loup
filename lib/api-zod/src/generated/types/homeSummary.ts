@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Booking } from './booking';
+import type { PackMessage } from './packMessage';
+import type { ServiceRequest } from './serviceRequest';
 
 export interface HomeSummary {
   memberName: string;
@@ -16,4 +18,11 @@ export interface HomeSummary {
   openBillTotal: number;
   monthToDateSpend: number;
   memberCount: number;
+  /** Whether the current member can approve or decline service requests */
+  isHeadOfHousehold: boolean;
+  packUnreadCount: number;
+  /** Latest household thread messages, newest first */
+  recentPackMessages: PackMessage[];
+  /** Pending service requests awaiting a decision */
+  pendingRequests: ServiceRequest[];
 }
