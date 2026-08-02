@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter"
 import { Home, Search, Calendar, Users, FileText, Sun, Moon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/hooks/use-theme"
+import { useGetHomeSummary, getGetHomeSummaryQueryKey } from "@workspace/api-client-react"
 
 function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, toggleTheme } = useTheme()
@@ -24,6 +25,10 @@ function ThemeToggle({ className }: { className?: string }) {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const [location] = useLocation()
+  const { data: summary } = useGetHomeSummary({
+    query: { refetchInterval: 15000, queryKey: getGetHomeSummaryQueryKey() },
+  })
+  const packUnread = summary?.packUnreadCount ?? 0
 
   const navItems = [
     { href: "/", label: "Home", icon: Home },
@@ -58,7 +63,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
                       : "text-muted-foreground hover:text-foreground border-transparent"
                   )}
                 >
-                  {item.label}
+                  <span className="relative inline-flex items-center gap-1.5">
+                    {item.label}
+                    {item.href === "/household" && packUnread > 0 && (
+                      <span
+                        data-testid="badge-pack-unread-desktop"
+                        className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center leading-none"
+                      >
+                        {packUnread > 9 ? "9+" : packUnread}
+                      </span>
+                    )}
+                  </span>
                 </Link>
               )
             })}
@@ -96,7 +111,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <item.icon className={cn("w-6 h-6", isActive && "fill-primary/20")} strokeWidth={isActive ? 2.5 : 2} />
+              <span className="relative">
+                <item.icon className={cn("w-6 h-6", isActive && "fill-primary/20")} strokeWidth={isActive ? 2.5 : 2} />
+                {item.href === "/household" && packUnread > 0 && (
+                  <span
+                    data-testid="badge-pack-unread-mobile"
+                    className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center leading-none"
+                  >
+                    {packUnread > 9 ? "9+" : packUnread}
+                  </span>
+                )}
+              </span>
               <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
           )

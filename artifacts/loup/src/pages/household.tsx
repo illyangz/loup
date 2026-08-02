@@ -40,6 +40,13 @@ function PackThread() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages?.length])
 
+  // Fetching messages marks them read server-side; refresh the summary so nav badges clear
+  useEffect(() => {
+    if (messages) {
+      queryClient.invalidateQueries({ queryKey: getGetHomeSummaryQueryKey() })
+    }
+  }, [messages, queryClient])
+
   const handleSend = () => {
     const trimmed = body.trim()
     if (!trimmed || sendMessage.isPending) return
