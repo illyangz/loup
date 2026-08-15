@@ -52,7 +52,7 @@ function Router() {
       <Route path="/api-docs" component={ApiDocs} />
       <Route path="/embed/demo" component={EmbedDemo} />
       <Route path="/support" component={Support} />
-      <Route path="/" component={HomeRoute} />
+       <Route path="/" component={Login} />
       <Route path="/browse" component={BrowseRoute} />
       <Route path="/providers/:id" component={ProviderProfileRoute} />
       <Route path="/book/:providerId" component={BookRoute} />
