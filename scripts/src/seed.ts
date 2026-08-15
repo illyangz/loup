@@ -22,6 +22,12 @@ import {
   paymentMethodsTable,
   packMessagesTable,
   serviceRequestsTable,
+  employersTable,
+  benefitProgramsTable,
+  employeesTable,
+  allowanceLedgerTable,
+  routinesTable,
+  auditEventsTable,
 } from "@workspace/db";
 
 const now = new Date();
@@ -39,6 +45,12 @@ const monthLabel = (d: Date) =>
 
 async function main() {
   console.log("Clearing existing data...");
+  await db.delete(auditEventsTable);
+  await db.delete(allowanceLedgerTable);
+  await db.delete(routinesTable);
+  await db.delete(employeesTable);
+  await db.delete(benefitProgramsTable);
+  await db.delete(employersTable);
   await db.delete(packMessagesTable);
   await db.delete(serviceRequestsTable);
   await db.delete(messagesTable);
@@ -446,6 +458,198 @@ async function main() {
     { providerId: prov["Falcon Shield Pest Control"]!, bookingId: null, authorName: "Elena V.", rating: 5, comment: "No smell, no ants, no drama. Kids were back in the kitchen the same evening.", createdAt: daysAgo(50) },
     { providerId: prov["Crystal Pools & Gardens"]!, bookingId: null, authorName: "Tariq J.", rating: 4, comment: "Pool has been perfect all summer. Photo log after each visit is a nice touch.", createdAt: daysAgo(28) },
     { providerId: prov["Desert Rose Housekeeping"]!, bookingId: null, authorName: "Mina L.", rating: 5, comment: "Quiet, careful and always on time. My apartment smells like a hotel.", createdAt: daysAgo(33) },
+  ]);
+
+  console.log("Seeding Nexa employer programme...");
+  const [employer] = await db
+    .insert(employersTable)
+    .values({
+      name: "Nexa Technologies",
+      slug: "nexa",
+      country: "AE",
+      active: true,
+    })
+    .returning();
+  const [benefitProgram] = await db
+    .insert(benefitProgramsTable)
+    .values({
+      employerId: employer!.id,
+      name: "Nexa Life Administration Benefit",
+      period: "monthly",
+      allowanceAmount: 500,
+      renewalDate: new Date(now.getFullYear(), now.getMonth() + 1, 1)
+        .toISOString()
+        .slice(0, 10),
+      expirationPolicy: "Unused allowance expires at period end",
+      householdAccess: true,
+      maxHouseholdMembers: 3,
+      maxHouseholdAllocationPct: 50,
+      active: true,
+    })
+    .returning();
+
+  const today = now.toISOString().slice(0, 10);
+  const detailedEmployees = [
+    {
+      externalEmployeeId: "NEXA-0001",
+      name: "Omar Mansour",
+      workEmail: "omar.mansour@nexa.example",
+      department: "Strategy",
+      benefitTier: "Core",
+      householdEligible: true,
+      linkedMemberId: omar.id,
+    },
+    {
+      externalEmployeeId: "NEXA-0002",
+      name: "Layla Mansour",
+      workEmail: "layla.mansour@nexa.example",
+      department: "People",
+      benefitTier: "Core",
+      householdEligible: true,
+      linkedMemberId: layla.id,
+    },
+    {
+      externalEmployeeId: "NEXA-0003",
+      name: "Zayd Mansour",
+      workEmail: "zayd.mansour@nexa.example",
+      department: "Engineering",
+      benefitTier: "Core",
+      householdEligible: false,
+      linkedMemberId: zayd.id,
+    },
+    {
+      externalEmployeeId: "NEXA-0004",
+      name: "Amira Mansour",
+      workEmail: "amira.mansour@nexa.example",
+      department: "Design",
+      benefitTier: "Core",
+      householdEligible: false,
+      linkedMemberId: amira.id,
+    },
+    {
+      externalEmployeeId: "NEXA-0005",
+      name: "Rosa Dela Cruz",
+      workEmail: "rosa.delacruz@nexa.example",
+      department: "Workplace",
+      benefitTier: "Core",
+      householdEligible: false,
+      linkedMemberId: rosa.id,
+    },
+  ];
+  const rosterEmployees = Array.from({ length: 121 }, (_, index) => ({
+    externalEmployeeId: `NEXA-${String(index + 6).padStart(4, "0")}`,
+    name: `Nexa colleague ${String(index + 6).padStart(3, "0")}`,
+    workEmail: `colleague${index + 6}@nexa.example`,
+    department: ["Engineering", "People", "Finance", "Commercial"][
+      index % 4
+    ]!,
+    benefitTier: index % 7 === 0 ? "Plus" : "Core",
+    householdEligible: index % 5 !== 0,
+    linkedMemberId: null,
+  }));
+  const seededEmployees = await db
+    .insert(employeesTable)
+    .values(
+      [...detailedEmployees, ...rosterEmployees].map((employee) => ({
+        employerId: employer!.id,
+        externalEmployeeId: employee.externalEmployeeId,
+        name: employee.name,
+        workEmail: employee.workEmail,
+        department: employee.department,
+        benefitTier: employee.benefitTier,
+        eligibilityStatus: "eligible",
+        householdEligible: employee.householdEligible,
+        linkedMemberId: employee.linkedMemberId,
+        startDate: today,
+      })),
+    )
+    .returning();
+  const omarEmployee = seededEmployees.find(
+    (employee) => employee.externalEmployeeId === "NEXA-0001",
+  )!;
+
+  await db.insert(allowanceLedgerTable).values([
+    {
+      employerId: employer!.id,
+      employeeId: omarEmployee.id,
+      entryType: "authorized",
+      amount: 500,
+      referenceType: "benefit_programme",
+      referenceId: benefitProgram!.id,
+      note: "Monthly employer-authorized allowance",
+    },
+    {
+      employerId: employer!.id,
+      employeeId: omarEmployee.id,
+      entryType: "reserved",
+      amount: 120,
+      referenceType: "booking",
+      referenceId: acBooking.id,
+      note: "Reserved for an eligible home-maintenance booking",
+    },
+    {
+      employerId: employer!.id,
+      employeeId: omarEmployee.id,
+      entryType: "redeemed",
+      amount: 85,
+      referenceType: "booking",
+      referenceId: laundryDone.id,
+      note: "Redeemed after service completion",
+    },
+  ]);
+
+  await db.insert(routinesTable).values([
+    {
+      memberId: omar.id,
+      categorySlug: "home-cleaning",
+      label: "Weekly home care",
+      frequency: "Weekly",
+      preferredDay: "Saturday",
+      preferredTime: "10:00",
+      maxCopayment: 75,
+      automaticReminder: true,
+      manualConfirmation: true,
+      status: "active",
+    },
+    {
+      memberId: omar.id,
+      categorySlug: "home-maintenance",
+      label: "Quarterly cooling check",
+      frequency: "Quarterly",
+      preferredDay: "First Sunday",
+      preferredTime: "09:00",
+      maxCopayment: 100,
+      automaticReminder: true,
+      manualConfirmation: true,
+      status: "active",
+    },
+  ]);
+
+  await db.insert(auditEventsTable).values([
+    {
+      actorRole: "operations",
+      actorId: "ops-demo",
+      action: "matching.override",
+      entityType: "booking",
+      entityId: String(acBooking.id),
+      metadata: { reason: "Coverage continuity for the household" },
+    },
+    {
+      actorRole: "employer",
+      actorId: "nexa-admin",
+      action: "benefit_programme.updated",
+      entityType: "benefit_programme",
+      entityId: String(benefitProgram!.id),
+      metadata: { field: "householdAccess", value: true },
+    },
+    {
+      actorRole: "employee",
+      actorId: "omar-demo",
+      action: "allowance.reserved",
+      entityType: "ledger",
+      entityId: String(omarEmployee.id),
+      metadata: { amount: 120, category: "home-maintenance" },
+    },
   ]);
 
   console.log("Seed complete.");

@@ -29,6 +29,15 @@ export const LIVE_STATUSES = [
   "in_progress",
 ];
 
+// The platform exposes three customer-facing categories. Legacy catalog rows
+// for AC Cooling and Handyman are grouped into Home Maintenance.
+export const BOOKABLE_CATEGORY_SLUGS = [
+  "home-cleaning",
+  "laundry",
+  "ac-cooling",
+  "handyman",
+] as const;
+
 export function currentMonthLabel(): string {
   return new Date().toLocaleString("en-US", {
     month: "long",
@@ -78,9 +87,11 @@ export async function fetchBookingViews(opts?: {
   order?: "asc" | "desc";
 }): Promise<BookingView[]> {
   let query = bookingQuery().$dynamic();
+  const conditions = [inArray(categoriesTable.slug, BOOKABLE_CATEGORY_SLUGS)];
   if (opts?.statuses && opts.statuses.length > 0) {
-    query = query.where(inArray(bookingsTable.status, opts.statuses));
+    conditions.push(inArray(bookingsTable.status, opts.statuses));
   }
+  query = query.where(and(...conditions));
   query = query.orderBy(
     opts?.order === "desc"
       ? desc(bookingsTable.scheduledAt)
@@ -92,7 +103,12 @@ export async function fetchBookingViews(opts?: {
 export async function fetchBookingView(
   id: number,
 ): Promise<BookingView | undefined> {
-  const rows = await bookingQuery().where(eq(bookingsTable.id, id));
+  const rows = await bookingQuery().where(
+    and(
+      eq(bookingsTable.id, id),
+      inArray(categoriesTable.slug, BOOKABLE_CATEGORY_SLUGS),
+    ),
+  );
   return rows[0];
 }
 
@@ -163,7 +179,12 @@ export async function fetchStatementItems(statementId: number) {
       categoriesTable,
       eq(providersTable.categoryId, categoriesTable.id),
     )
-    .where(eq(billItemsTable.statementId, statementId))
+    .where(
+      and(
+        eq(billItemsTable.statementId, statementId),
+        inArray(categoriesTable.slug, BOOKABLE_CATEGORY_SLUGS),
+      ),
+    )
     .orderBy(desc(billItemsTable.date));
 }
 
@@ -272,7 +293,12 @@ export async function fetchServiceRequests(householdId: number) {
     .innerJoin(servicesTable, eq(serviceRequestsTable.serviceId, servicesTable.id))
     .innerJoin(providersTable, eq(servicesTable.providerId, providersTable.id))
     .innerJoin(categoriesTable, eq(providersTable.categoryId, categoriesTable.id))
-    .where(eq(serviceRequestsTable.householdId, householdId))
+    .where(
+      and(
+        eq(serviceRequestsTable.householdId, householdId),
+        inArray(categoriesTable.slug, BOOKABLE_CATEGORY_SLUGS),
+      ),
+    )
     .orderBy(desc(serviceRequestsTable.createdAt));
 }
 

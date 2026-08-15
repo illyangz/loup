@@ -7,6 +7,7 @@ import bookingsRouter from "./bookings";
 import billingRouter from "./billing";
 import packRouter from "./pack";
 import pushRouter from "./push";
+import platformRouter from "./platform";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(bookingsRouter);
 router.use(billingRouter);
 router.use(packRouter);
 router.use(pushRouter);
+router.use(platformRouter);
 
 export default router;

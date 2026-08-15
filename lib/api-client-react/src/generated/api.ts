@@ -23,6 +23,7 @@ import type {
   ActivityItem,
   Address,
   ApiMessage,
+  AuditEvent,
   BillStatement,
   BillStatementSummary,
   Booking,
@@ -30,13 +31,22 @@ import type {
   BookingInput,
   BookingUpdate,
   Category,
+  DemoRole,
+  EmployeeImportInput,
+  EmployeeOverview,
+  EmployerEmployee,
+  EmployerOverview,
+  ForecastReport,
   HealthStatus,
   HomeSummary,
   Household,
+  ImportResult,
+  IntegrationDetails,
   ListBookingsParams,
   ListProvidersParams,
   Message,
   MessageInput,
+  OperationsOverview,
   PackMessage,
   PackMessageInput,
   PaymentInput,
@@ -48,8 +58,12 @@ import type {
   PushUnsubscribeInput,
   Review,
   ReviewInput,
+  ServiceFitEvaluation,
   ServiceRequest,
-  ServiceRequestInput
+  ServiceRequestInput,
+  UtilizationReport,
+  VendorPerformance,
+  VendorToday
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -2322,6 +2336,1001 @@ export function useListBillingHistory<TData = Awaited<ReturnType<typeof listBill
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListBillingHistoryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListDemoRolesUrl = () => {
+
+
+
+
+  return `/api/v1/demo/roles`
+}
+
+/**
+ * @summary Available simulated demo roles
+ */
+export const listDemoRoles = async ( options?: Parameters<typeof customFetch>[1]): Promise<DemoRole[]> => {
+
+  return customFetch<DemoRole[]>(getListDemoRolesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDemoRolesQueryKey = () => {
+    return [
+    `/api/v1/demo/roles`
+    ] as const;
+    }
+
+
+export const getListDemoRolesQueryOptions = <TData = Awaited<ReturnType<typeof listDemoRoles>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDemoRoles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDemoRolesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDemoRoles>>> = ({ signal }) => listDemoRoles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDemoRoles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDemoRolesQueryResult = NonNullable<Awaited<ReturnType<typeof listDemoRoles>>>
+export type ListDemoRolesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Available simulated demo roles
+ */
+
+export function useListDemoRoles<TData = Awaited<ReturnType<typeof listDemoRoles>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDemoRoles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDemoRolesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetEmployeeOverviewUrl = () => {
+
+
+
+
+  return `/api/v1/employee/overview`
+}
+
+/**
+ * @summary Employee-facing allowance and life administration overview
+ */
+export const getEmployeeOverview = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmployeeOverview> => {
+
+  return customFetch<EmployeeOverview>(getGetEmployeeOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmployeeOverviewQueryKey = () => {
+    return [
+    `/api/v1/employee/overview`
+    ] as const;
+    }
+
+
+export const getGetEmployeeOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getEmployeeOverview>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployeeOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmployeeOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmployeeOverview>>> = ({ signal }) => getEmployeeOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmployeeOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmployeeOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getEmployeeOverview>>>
+export type GetEmployeeOverviewQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Employee-facing allowance and life administration overview
+ */
+
+export function useGetEmployeeOverview<TData = Awaited<ReturnType<typeof getEmployeeOverview>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployeeOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmployeeOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetEmployerOverviewUrl = () => {
+
+
+
+
+  return `/api/v1/employer/overview`
+}
+
+/**
+ * @summary Aggregate employer benefit overview
+ */
+export const getEmployerOverview = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmployerOverview> => {
+
+  return customFetch<EmployerOverview>(getGetEmployerOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmployerOverviewQueryKey = () => {
+    return [
+    `/api/v1/employer/overview`
+    ] as const;
+    }
+
+
+export const getGetEmployerOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getEmployerOverview>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmployerOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmployerOverview>>> = ({ signal }) => getEmployerOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmployerOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmployerOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getEmployerOverview>>>
+export type GetEmployerOverviewQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Aggregate employer benefit overview
+ */
+
+export function useGetEmployerOverview<TData = Awaited<ReturnType<typeof getEmployerOverview>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmployerOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListEmployerEmployeesUrl = () => {
+
+
+
+
+  return `/api/v1/employer/employees`
+}
+
+/**
+ * @summary Employer-safe employee roster
+ */
+export const listEmployerEmployees = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmployerEmployee[]> => {
+
+  return customFetch<EmployerEmployee[]>(getListEmployerEmployeesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEmployerEmployeesQueryKey = () => {
+    return [
+    `/api/v1/employer/employees`
+    ] as const;
+    }
+
+
+export const getListEmployerEmployeesQueryOptions = <TData = Awaited<ReturnType<typeof listEmployerEmployees>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployerEmployees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEmployerEmployeesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmployerEmployees>>> = ({ signal }) => listEmployerEmployees({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEmployerEmployees>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEmployerEmployeesQueryResult = NonNullable<Awaited<ReturnType<typeof listEmployerEmployees>>>
+export type ListEmployerEmployeesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Employer-safe employee roster
+ */
+
+export function useListEmployerEmployees<TData = Awaited<ReturnType<typeof listEmployerEmployees>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployerEmployees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEmployerEmployeesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportEmployerEmployeesUrl = () => {
+
+
+
+
+  return `/api/v1/employer/employees`
+}
+
+/**
+ * @summary Simulate a CSV employee roster import
+ */
+export const importEmployerEmployees = async (employeeImportInput: EmployeeImportInput, options?: Parameters<typeof customFetch>[1]): Promise<ImportResult> => {
+
+  return customFetch<ImportResult>(getImportEmployerEmployeesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(employeeImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportEmployerEmployeesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importEmployerEmployees>>, TError,{data: BodyType<EmployeeImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importEmployerEmployees>>, TError,{data: BodyType<EmployeeImportInput>}, TContext> => {
+
+const mutationKey = ['importEmployerEmployees'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importEmployerEmployees>>, {data: BodyType<EmployeeImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importEmployerEmployees(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportEmployerEmployeesMutationResult = NonNullable<Awaited<ReturnType<typeof importEmployerEmployees>>>
+    export type ImportEmployerEmployeesMutationBody = BodyType<EmployeeImportInput>
+    export type ImportEmployerEmployeesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Simulate a CSV employee roster import
+ */
+export const useImportEmployerEmployees = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importEmployerEmployees>>, TError,{data: BodyType<EmployeeImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importEmployerEmployees>>,
+        TError,
+        {data: BodyType<EmployeeImportInput>},
+        TContext
+      > => {
+      return useMutation(getImportEmployerEmployeesMutationOptions(options));
+    }
+
+export const getGetEmployerUtilizationUrl = () => {
+
+
+
+
+  return `/api/v1/employer/utilization`
+}
+
+/**
+ * @summary Aggregate employer utilization metrics
+ */
+export const getEmployerUtilization = async ( options?: Parameters<typeof customFetch>[1]): Promise<UtilizationReport> => {
+
+  return customFetch<UtilizationReport>(getGetEmployerUtilizationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmployerUtilizationQueryKey = () => {
+    return [
+    `/api/v1/employer/utilization`
+    ] as const;
+    }
+
+
+export const getGetEmployerUtilizationQueryOptions = <TData = Awaited<ReturnType<typeof getEmployerUtilization>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerUtilization>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmployerUtilizationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmployerUtilization>>> = ({ signal }) => getEmployerUtilization({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmployerUtilization>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmployerUtilizationQueryResult = NonNullable<Awaited<ReturnType<typeof getEmployerUtilization>>>
+export type GetEmployerUtilizationQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Aggregate employer utilization metrics
+ */
+
+export function useGetEmployerUtilization<TData = Awaited<ReturnType<typeof getEmployerUtilization>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerUtilization>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmployerUtilizationQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetEmployerIntegrationsUrl = () => {
+
+
+
+
+  return `/api/v1/employer/integrations`
+}
+
+/**
+ * @summary Simulated SSO and embedded widget integration details
+ */
+export const getEmployerIntegrations = async ( options?: Parameters<typeof customFetch>[1]): Promise<IntegrationDetails> => {
+
+  return customFetch<IntegrationDetails>(getGetEmployerIntegrationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmployerIntegrationsQueryKey = () => {
+    return [
+    `/api/v1/employer/integrations`
+    ] as const;
+    }
+
+
+export const getGetEmployerIntegrationsQueryOptions = <TData = Awaited<ReturnType<typeof getEmployerIntegrations>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerIntegrations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmployerIntegrationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmployerIntegrations>>> = ({ signal }) => getEmployerIntegrations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmployerIntegrations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmployerIntegrationsQueryResult = NonNullable<Awaited<ReturnType<typeof getEmployerIntegrations>>>
+export type GetEmployerIntegrationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Simulated SSO and embedded widget integration details
+ */
+
+export function useGetEmployerIntegrations<TData = Awaited<ReturnType<typeof getEmployerIntegrations>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerIntegrations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmployerIntegrationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetVendorTodayUrl = () => {
+
+
+
+
+  return `/api/v1/vendor/today`
+}
+
+/**
+ * @summary Vendor operational day view
+ */
+export const getVendorToday = async ( options?: Parameters<typeof customFetch>[1]): Promise<VendorToday> => {
+
+  return customFetch<VendorToday>(getGetVendorTodayUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVendorTodayQueryKey = () => {
+    return [
+    `/api/v1/vendor/today`
+    ] as const;
+    }
+
+
+export const getGetVendorTodayQueryOptions = <TData = Awaited<ReturnType<typeof getVendorToday>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVendorToday>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVendorTodayQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVendorToday>>> = ({ signal }) => getVendorToday({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVendorToday>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVendorTodayQueryResult = NonNullable<Awaited<ReturnType<typeof getVendorToday>>>
+export type GetVendorTodayQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Vendor operational day view
+ */
+
+export function useGetVendorToday<TData = Awaited<ReturnType<typeof getVendorToday>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVendorToday>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVendorTodayQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetVendorForecastUrl = () => {
+
+
+
+
+  return `/api/v1/vendor/forecast`
+}
+
+/**
+ * @summary Simulated vendor demand forecast
+ */
+export const getVendorForecast = async ( options?: Parameters<typeof customFetch>[1]): Promise<ForecastReport> => {
+
+  return customFetch<ForecastReport>(getGetVendorForecastUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVendorForecastQueryKey = () => {
+    return [
+    `/api/v1/vendor/forecast`
+    ] as const;
+    }
+
+
+export const getGetVendorForecastQueryOptions = <TData = Awaited<ReturnType<typeof getVendorForecast>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVendorForecast>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVendorForecastQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVendorForecast>>> = ({ signal }) => getVendorForecast({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVendorForecast>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVendorForecastQueryResult = NonNullable<Awaited<ReturnType<typeof getVendorForecast>>>
+export type GetVendorForecastQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Simulated vendor demand forecast
+ */
+
+export function useGetVendorForecast<TData = Awaited<ReturnType<typeof getVendorForecast>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVendorForecast>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVendorForecastQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetVendorPerformanceUrl = () => {
+
+
+
+
+  return `/api/v1/vendor/performance`
+}
+
+/**
+ * @summary Vendor-owned performance metrics
+ */
+export const getVendorPerformance = async ( options?: Parameters<typeof customFetch>[1]): Promise<VendorPerformance> => {
+
+  return customFetch<VendorPerformance>(getGetVendorPerformanceUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVendorPerformanceQueryKey = () => {
+    return [
+    `/api/v1/vendor/performance`
+    ] as const;
+    }
+
+
+export const getGetVendorPerformanceQueryOptions = <TData = Awaited<ReturnType<typeof getVendorPerformance>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVendorPerformance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVendorPerformanceQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVendorPerformance>>> = ({ signal }) => getVendorPerformance({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVendorPerformance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVendorPerformanceQueryResult = NonNullable<Awaited<ReturnType<typeof getVendorPerformance>>>
+export type GetVendorPerformanceQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Vendor-owned performance metrics
+ */
+
+export function useGetVendorPerformance<TData = Awaited<ReturnType<typeof getVendorPerformance>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVendorPerformance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVendorPerformanceQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetOperationsOverviewUrl = () => {
+
+
+
+
+  return `/api/v1/operations/overview`
+}
+
+/**
+ * @summary Operations control tower overview
+ */
+export const getOperationsOverview = async ( options?: Parameters<typeof customFetch>[1]): Promise<OperationsOverview> => {
+
+  return customFetch<OperationsOverview>(getGetOperationsOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOperationsOverviewQueryKey = () => {
+    return [
+    `/api/v1/operations/overview`
+    ] as const;
+    }
+
+
+export const getGetOperationsOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getOperationsOverview>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOperationsOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOperationsOverview>>> = ({ signal }) => getOperationsOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOperationsOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOperationsOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getOperationsOverview>>>
+export type GetOperationsOverviewQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Operations control tower overview
+ */
+
+export function useGetOperationsOverview<TData = Awaited<ReturnType<typeof getOperationsOverview>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOperationsOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListServiceFitEvaluationsUrl = () => {
+
+
+
+
+  return `/api/v1/operations/service-fit`
+}
+
+/**
+ * @summary Internal service-fit evaluation
+ */
+export const listServiceFitEvaluations = async ( options?: Parameters<typeof customFetch>[1]): Promise<ServiceFitEvaluation[]> => {
+
+  return customFetch<ServiceFitEvaluation[]>(getListServiceFitEvaluationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListServiceFitEvaluationsQueryKey = () => {
+    return [
+    `/api/v1/operations/service-fit`
+    ] as const;
+    }
+
+
+export const getListServiceFitEvaluationsQueryOptions = <TData = Awaited<ReturnType<typeof listServiceFitEvaluations>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listServiceFitEvaluations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListServiceFitEvaluationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listServiceFitEvaluations>>> = ({ signal }) => listServiceFitEvaluations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listServiceFitEvaluations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListServiceFitEvaluationsQueryResult = NonNullable<Awaited<ReturnType<typeof listServiceFitEvaluations>>>
+export type ListServiceFitEvaluationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Internal service-fit evaluation
+ */
+
+export function useListServiceFitEvaluations<TData = Awaited<ReturnType<typeof listServiceFitEvaluations>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listServiceFitEvaluations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListServiceFitEvaluationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAuditEventsUrl = () => {
+
+
+
+
+  return `/api/v1/operations/audit`
+}
+
+/**
+ * @summary Immutable operational audit events
+ */
+export const listAuditEvents = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditEvent[]> => {
+
+  return customFetch<AuditEvent[]>(getListAuditEventsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAuditEventsQueryKey = () => {
+    return [
+    `/api/v1/operations/audit`
+    ] as const;
+    }
+
+
+export const getListAuditEventsQueryOptions = <TData = Awaited<ReturnType<typeof listAuditEvents>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAuditEventsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditEvents>>> = ({ signal }) => listAuditEvents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAuditEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditEvents>>>
+export type ListAuditEventsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Immutable operational audit events
+ */
+
+export function useListAuditEvents<TData = Awaited<ReturnType<typeof listAuditEvents>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAuditEventsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

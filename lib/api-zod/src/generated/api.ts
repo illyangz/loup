@@ -754,3 +754,279 @@ export const ListBillingHistoryResponseItem = zod.object({
 export const ListBillingHistoryResponse = zod.array(ListBillingHistoryResponseItem)
 
 
+/**
+ * @summary Available simulated demo roles
+ */
+export const ListDemoRolesResponseItem = zod.object({
+  "role": zod.enum(['employee', 'employer', 'vendor', 'operations']),
+  "label": zod.string(),
+  "description": zod.string(),
+  "href": zod.string()
+})
+export const ListDemoRolesResponse = zod.array(ListDemoRolesResponseItem)
+
+
+/**
+ * @summary Employee-facing allowance and life administration overview
+ */
+export const GetEmployeeOverviewResponse = zod.object({
+  "employeeName": zod.string(),
+  "employerName": zod.string(),
+  "allowance": zod.object({
+  "authorized": zod.number(),
+  "reserved": zod.number(),
+  "redeemed": zod.number(),
+  "available": zod.number(),
+  "renewalDate": zod.string(),
+  "expiration": zod.string()
+}),
+  "upcomingBooking": zod.union([zod.object({
+  "id": zod.number().int(),
+  "providerId": zod.number().int(),
+  "providerName": zod.string(),
+  "serviceId": zod.number().int(),
+  "serviceName": zod.string(),
+  "categoryName": zod.string(),
+  "categoryIcon": zod.string(),
+  "memberId": zod.number().int(),
+  "memberName": zod.string(),
+  "addressId": zod.number().int(),
+  "addressLabel": zod.string(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.enum(['pending', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled']),
+  "priceEstimate": zod.number(),
+  "instructions": zod.string().nullable(),
+  "etaMinutes": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "metrics": zod.object({
+  "employerSupport": zod.number(),
+  "corporateSavings": zod.number(),
+  "servicesCompleted": zod.number().int(),
+  "estimatedTimeSavedMinutes": zod.number().int(),
+  "householdAllocations": zod.number()
+}),
+  "activeCategories": zod.array(zod.object({
+  "slug": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "dimension": zod.string(),
+  "publicPrice": zod.number(),
+  "corporatePrice": zod.number(),
+  "employerContribution": zod.number(),
+  "employeeCopayment": zod.number(),
+  "durationMinutes": zod.number().int(),
+  "providerVerification": zod.string()
+})),
+  "routines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "label": zod.string(),
+  "categorySlug": zod.string(),
+  "frequency": zod.string(),
+  "preferredDay": zod.string(),
+  "preferredTime": zod.string(),
+  "maxCopayment": zod.number(),
+  "manualConfirmation": zod.boolean(),
+  "status": zod.string()
+}))
+})
+
+
+/**
+ * @summary Aggregate employer benefit overview
+ */
+export const GetEmployerOverviewResponse = zod.object({
+  "employerName": zod.string(),
+  "eligibleEmployees": zod.number().int(),
+  "activatedEmployees": zod.number().int(),
+  "authorizedMaximum": zod.number(),
+  "redeemedAllowances": zod.number(),
+  "reservedAllowances": zod.number(),
+  "forecastRedemptions": zod.number(),
+  "invoiceEstimate": zod.number(),
+  "completionRate": zod.number(),
+  "satisfaction": zod.number()
+})
+
+
+/**
+ * @summary Employer-safe employee roster
+ */
+export const ListEmployerEmployeesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "externalEmployeeId": zod.string(),
+  "name": zod.string(),
+  "workEmail": zod.string(),
+  "department": zod.string(),
+  "benefitTier": zod.string(),
+  "eligibilityStatus": zod.string(),
+  "householdEligible": zod.boolean()
+})
+export const ListEmployerEmployeesResponse = zod.array(ListEmployerEmployeesResponseItem)
+
+
+/**
+ * @summary Simulate a CSV employee roster import
+ */
+
+
+
+export const ImportEmployerEmployeesBody = zod.object({
+  "csv": zod.string().min(1)
+})
+
+export const ImportEmployerEmployeesResponse = zod.object({
+  "status": zod.string(),
+  "imported": zod.number().int(),
+  "skipped": zod.number().int(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Aggregate employer utilization metrics
+ */
+export const GetEmployerUtilizationResponse = zod.object({
+  "activationRate": zod.number(),
+  "redemptionRate": zod.number(),
+  "repeatUsageRate": zod.number(),
+  "averageSupportPerActiveEmployee": zod.number(),
+  "categoryUtilization": zod.array(zod.object({
+  "category": zod.string(),
+  "bookings": zod.number().int(),
+  "share": zod.number()
+})),
+  "corporateSavings": zod.number(),
+  "estimatedTimeSavedMinutes": zod.number().int(),
+  "satisfaction": zod.number(),
+  "completionRate": zod.number(),
+  "serviceRecoveryRate": zod.number()
+})
+
+
+/**
+ * @summary Simulated SSO and embedded widget integration details
+ */
+export const GetEmployerIntegrationsResponse = zod.object({
+  "ssoLabel": zod.string(),
+  "ssoUrl": zod.string(),
+  "widgetScript": zod.string(),
+  "widgetSnippet": zod.string(),
+  "apiMode": zod.string()
+})
+
+
+/**
+ * @summary Vendor operational day view
+ */
+export const GetVendorTodayResponse = zod.object({
+  "vendorName": zod.string(),
+  "assignedBookings": zod.array(zod.object({
+  "id": zod.number().int(),
+  "category": zod.string(),
+  "zone": zod.string(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.string(),
+  "operationalRequirement": zod.string()
+})),
+  "awaitingAcceptance": zod.number().int(),
+  "availableCapacity": zod.number().int(),
+  "capacityWarnings": zod.number().int(),
+  "lateArrivalWarnings": zod.number().int(),
+  "serviceRecoveryActions": zod.number().int()
+})
+
+
+/**
+ * @summary Simulated vendor demand forecast
+ */
+export const GetVendorForecastResponse = zod.object({
+  "updatedAt": zod.coerce.date(),
+  "confidence": zod.number(),
+  "windows": zod.array(zod.object({
+  "label": zod.string(),
+  "category": zod.string(),
+  "zone": zod.string(),
+  "expectedBookings": zod.number().int(),
+  "low": zod.number().int(),
+  "high": zod.number().int(),
+  "capacityGap": zod.number().int(),
+  "recommendation": zod.string()
+}))
+})
+
+
+/**
+ * @summary Vendor-owned performance metrics
+ */
+export const GetVendorPerformanceResponse = zod.object({
+  "vendorName": zod.string(),
+  "status": zod.string(),
+  "completionRate": zod.number(),
+  "onTimeRate": zod.number(),
+  "cancellationRate": zod.number(),
+  "averageRating": zod.number(),
+  "complaintRate": zod.number(),
+  "serviceRecoveryRate": zod.number(),
+  "capacityAccuracy": zod.number()
+})
+
+
+/**
+ * @summary Operations control tower overview
+ */
+export const GetOperationsOverviewResponse = zod.object({
+  "forecastBookings": zod.number().int(),
+  "confirmedBookings": zod.number().int(),
+  "unfulfilledDemand": zod.number().int(),
+  "capacityShortages": zod.number().int(),
+  "highRiskBookings": zod.number().int(),
+  "providerIncidents": zod.number().int(),
+  "transactionVolume": zod.number(),
+  "spendingAlerts": zod.number().int(),
+  "matching": zod.array(zod.object({
+  "bookingId": zod.number().int(),
+  "category": zod.string(),
+  "zone": zod.string(),
+  "selectedProvider": zod.string(),
+  "score": zod.number(),
+  "drivers": zod.array(zod.string()),
+  "manualOverride": zod.boolean()
+})),
+  "methodology": zod.string()
+})
+
+
+/**
+ * @summary Internal service-fit evaluation
+ */
+export const ListServiceFitEvaluationsResponseItem = zod.object({
+  "service": zod.string(),
+  "status": zod.string(),
+  "dimensions": zod.array(zod.string()),
+  "problemFrequency": zod.number().int(),
+  "timeSaved": zod.number().int(),
+  "employerRelevance": zod.number().int(),
+  "repeatPotential": zod.number().int(),
+  "standardization": zod.number().int(),
+  "providerCoverage": zod.number().int(),
+  "regulatoryComplexity": zod.number().int(),
+  "overallFit": zod.number().int()
+})
+export const ListServiceFitEvaluationsResponse = zod.array(ListServiceFitEvaluationsResponseItem)
+
+
+/**
+ * @summary Immutable operational audit events
+ */
+export const ListAuditEventsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "actorRole": zod.string(),
+  "action": zod.string(),
+  "entityType": zod.string(),
+  "entityId": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListAuditEventsResponse = zod.array(ListAuditEventsResponseItem)
+
+

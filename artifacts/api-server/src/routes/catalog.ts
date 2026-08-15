@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import {
   db,
   bookingsTable,
@@ -19,8 +19,43 @@ import {
   ListProvidersQueryParams,
   ListProvidersResponse,
 } from "@workspace/api-zod";
+import { BOOKABLE_CATEGORY_SLUGS } from "../lib/loup";
 
 const router: IRouter = Router();
+
+const PLATFORM_CATEGORIES = [
+  {
+    slug: "home-cleaning",
+    name: "Home Cleaning",
+    tagline: "A considered reset for the rooms you live in.",
+    icon: "sparkles",
+  },
+  {
+    slug: "laundry",
+    name: "Laundry & Pressing",
+    tagline: "Fresh laundry, folded and ready to return to.",
+    icon: "shirt",
+  },
+  {
+    slug: "home-maintenance",
+    name: "Home Maintenance",
+    tagline: "Keep the essential systems of home quietly working.",
+    icon: "wrench",
+  },
+] as const;
+
+const CATEGORY_ALIASES: Record<string, readonly string[]> = {
+  "home-cleaning": ["home-cleaning"],
+  laundry: ["laundry"],
+  "home-maintenance": ["ac-cooling", "handyman"],
+};
+
+function platformCategory(slug: string) {
+  if (slug === "ac-cooling" || slug === "handyman") {
+    return PLATFORM_CATEGORIES[2]!;
+  }
+  return PLATFORM_CATEGORIES.find((category) => category.slug === slug);
+}
 
 const providerSelection = {
   id: providersTable.id,
@@ -44,6 +79,7 @@ router.get("/categories", async (_req, res): Promise<void> => {
   const categories = await db
     .select()
     .from(categoriesTable)
+    .where(inArray(categoriesTable.slug, BOOKABLE_CATEGORY_SLUGS))
     .orderBy(categoriesTable.id);
   const providers = await db
     .select({ categoryId: providersTable.categoryId })
@@ -53,15 +89,25 @@ router.get("/categories", async (_req, res): Promise<void> => {
     counts.set(p.categoryId, (counts.get(p.categoryId) ?? 0) + 1);
   }
   const data = ListCategoriesResponse.parse(
-    categories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      slug: c.slug,
-      tagline: c.tagline,
-      icon: c.icon,
-      providerCount: counts.get(c.id) ?? 0,
-      startingPrice: c.startingPrice,
-    })),
+    PLATFORM_CATEGORIES.map((category, index) => {
+      const sourceRows = categories.filter((row) =>
+        (CATEGORY_ALIASES[category.slug] ?? []).includes(row.slug),
+      );
+      return {
+        id: index + 1,
+        name: category.name,
+        slug: category.slug,
+        tagline: category.tagline,
+        icon: category.icon,
+        providerCount: sourceRows.reduce(
+          (total, row) => total + (counts.get(row.id) ?? 0),
+          0,
+        ),
+        startingPrice: sourceRows.length
+          ? Math.min(...sourceRows.map((row) => row.startingPrice))
+          : 0,
+      };
+    }),
   );
   res.json(data);
 });
@@ -76,7 +122,9 @@ router.get("/providers", async (req, res): Promise<void> => {
 
   const conditions = [];
   if (category) {
-    conditions.push(eq(categoriesTable.slug, category));
+    conditions.push(
+      inArray(categoriesTable.slug, CATEGORY_ALIASES[category] ?? []),
+    );
   }
   if (search) {
     conditions.push(
@@ -90,6 +138,7 @@ router.get("/providers", async (req, res): Promise<void> => {
   if (availableNow) {
     conditions.push(eq(providersTable.availableNow, true));
   }
+  conditions.push(inArray(categoriesTable.slug, BOOKABLE_CATEGORY_SLUGS));
 
   let providerQuery = db
     .select(providerSelection)
@@ -103,7 +152,16 @@ router.get("/providers", async (req, res): Promise<void> => {
     desc(providersTable.availableNow),
     desc(providersTable.rating),
   );
-  res.json(ListProvidersResponse.parse(rows));
+  res.json(
+    ListProvidersResponse.parse(
+      rows.map((row) => {
+        const category = platformCategory(row.categorySlug);
+        return category
+          ? { ...row, categorySlug: category.slug, categoryName: category.name }
+          : row;
+      }),
+    ),
+  );
 });
 
 router.get("/providers/:id", async (req, res): Promise<void> => {
@@ -116,7 +174,12 @@ router.get("/providers/:id", async (req, res): Promise<void> => {
     .select(providerSelection)
     .from(providersTable)
     .innerJoin(categoriesTable, eq(providersTable.categoryId, categoriesTable.id))
-    .where(eq(providersTable.id, params.data.id));
+    .where(
+      and(
+        eq(providersTable.id, params.data.id),
+        inArray(categoriesTable.slug, BOOKABLE_CATEGORY_SLUGS),
+      ),
+    );
   if (!provider) {
     res.status(404).json({ error: "Provider not found" });
     return;
@@ -126,7 +189,19 @@ router.get("/providers/:id", async (req, res): Promise<void> => {
     .from(servicesTable)
     .where(eq(servicesTable.providerId, provider.id))
     .orderBy(servicesTable.price);
-  res.json(GetProviderResponse.parse({ ...provider, services }));
+  const category = platformCategory(provider.categorySlug);
+  if (!category) {
+    res.status(404).json({ error: "Provider not found" });
+    return;
+  }
+  res.json(
+    GetProviderResponse.parse({
+      ...provider,
+      categorySlug: category.slug,
+      categoryName: category.name,
+      services,
+    }),
+  );
 });
 
 router.get("/providers/:id/reviews", async (req, res): Promise<void> => {

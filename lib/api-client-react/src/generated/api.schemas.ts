@@ -5,34 +5,30 @@
  * Loup — household services marketplace API
  * OpenAPI spec version: 0.1.0
  */
-export interface PushPublicKey {
-  publicKey: string;
+export type DemoRoleRole = typeof DemoRoleRole[keyof typeof DemoRoleRole];
+
+
+export const DemoRoleRole = {
+  employee: 'employee',
+  employer: 'employer',
+  vendor: 'vendor',
+  operations: 'operations',
+} as const;
+
+export interface DemoRole {
+  role: DemoRoleRole;
+  label: string;
+  description: string;
+  href: string;
 }
 
-export type PushSubscriptionInputKeys = {
-  /** @minLength 1 */
-  p256dh: string;
-  /** @minLength 1 */
-  auth: string;
-};
-
-export interface PushSubscriptionInput {
-  /** @minLength 1 */
-  endpoint: string;
-  keys: PushSubscriptionInputKeys;
-}
-
-export interface PushUnsubscribeInput {
-  /** @minLength 1 */
-  endpoint: string;
-}
-
-export interface HealthStatus {
-  status: string;
-}
-
-export interface ApiMessage {
-  error: string;
+export interface AllowanceSummary {
+  authorized: number;
+  reserved: number;
+  redeemed: number;
+  available: number;
+  renewalDate: string;
+  expiration: string;
 }
 
 export type BookingStatus = typeof BookingStatus[keyof typeof BookingStatus];
@@ -68,6 +64,236 @@ export interface Booking {
   /** @nullable */
   etaMinutes: number | null;
   createdAt: string;
+}
+
+export interface EmployeeMetrics {
+  employerSupport: number;
+  corporateSavings: number;
+  servicesCompleted: number;
+  estimatedTimeSavedMinutes: number;
+  householdAllocations: number;
+}
+
+export interface ActiveService {
+  slug: string;
+  name: string;
+  description: string;
+  dimension: string;
+  publicPrice: number;
+  corporatePrice: number;
+  employerContribution: number;
+  employeeCopayment: number;
+  durationMinutes: number;
+  providerVerification: string;
+}
+
+export interface Routine {
+  id: number;
+  label: string;
+  categorySlug: string;
+  frequency: string;
+  preferredDay: string;
+  preferredTime: string;
+  maxCopayment: number;
+  manualConfirmation: boolean;
+  status: string;
+}
+
+export interface EmployeeOverview {
+  employeeName: string;
+  employerName: string;
+  allowance: AllowanceSummary;
+  upcomingBooking: Booking | null;
+  metrics: EmployeeMetrics;
+  activeCategories: ActiveService[];
+  routines: Routine[];
+}
+
+export interface EmployerOverview {
+  employerName: string;
+  eligibleEmployees: number;
+  activatedEmployees: number;
+  authorizedMaximum: number;
+  redeemedAllowances: number;
+  reservedAllowances: number;
+  forecastRedemptions: number;
+  invoiceEstimate: number;
+  completionRate: number;
+  satisfaction: number;
+}
+
+export interface EmployerEmployee {
+  id: number;
+  externalEmployeeId: string;
+  name: string;
+  workEmail: string;
+  department: string;
+  benefitTier: string;
+  eligibilityStatus: string;
+  householdEligible: boolean;
+}
+
+export interface EmployeeImportInput {
+  /** @minLength 1 */
+  csv: string;
+}
+
+export interface ImportResult {
+  status: string;
+  imported: number;
+  skipped: number;
+  message: string;
+}
+
+export interface CategoryUtilization {
+  category: string;
+  bookings: number;
+  share: number;
+}
+
+export interface UtilizationReport {
+  activationRate: number;
+  redemptionRate: number;
+  repeatUsageRate: number;
+  averageSupportPerActiveEmployee: number;
+  categoryUtilization: CategoryUtilization[];
+  corporateSavings: number;
+  estimatedTimeSavedMinutes: number;
+  satisfaction: number;
+  completionRate: number;
+  serviceRecoveryRate: number;
+}
+
+export interface IntegrationDetails {
+  ssoLabel: string;
+  ssoUrl: string;
+  widgetScript: string;
+  widgetSnippet: string;
+  apiMode: string;
+}
+
+export interface VendorBooking {
+  id: number;
+  category: string;
+  zone: string;
+  scheduledAt: string;
+  status: string;
+  operationalRequirement: string;
+}
+
+export interface VendorToday {
+  vendorName: string;
+  assignedBookings: VendorBooking[];
+  awaitingAcceptance: number;
+  availableCapacity: number;
+  capacityWarnings: number;
+  lateArrivalWarnings: number;
+  serviceRecoveryActions: number;
+}
+
+export interface ForecastWindow {
+  label: string;
+  category: string;
+  zone: string;
+  expectedBookings: number;
+  low: number;
+  high: number;
+  capacityGap: number;
+  recommendation: string;
+}
+
+export interface ForecastReport {
+  updatedAt: string;
+  confidence: number;
+  windows: ForecastWindow[];
+}
+
+export interface VendorPerformance {
+  vendorName: string;
+  status: string;
+  completionRate: number;
+  onTimeRate: number;
+  cancellationRate: number;
+  averageRating: number;
+  complaintRate: number;
+  serviceRecoveryRate: number;
+  capacityAccuracy: number;
+}
+
+export interface MatchDecision {
+  bookingId: number;
+  category: string;
+  zone: string;
+  selectedProvider: string;
+  score: number;
+  drivers: string[];
+  manualOverride: boolean;
+}
+
+export interface OperationsOverview {
+  forecastBookings: number;
+  confirmedBookings: number;
+  unfulfilledDemand: number;
+  capacityShortages: number;
+  highRiskBookings: number;
+  providerIncidents: number;
+  transactionVolume: number;
+  spendingAlerts: number;
+  matching: MatchDecision[];
+  methodology: string;
+}
+
+export interface ServiceFitEvaluation {
+  service: string;
+  status: string;
+  dimensions: string[];
+  problemFrequency: number;
+  timeSaved: number;
+  employerRelevance: number;
+  repeatPotential: number;
+  standardization: number;
+  providerCoverage: number;
+  regulatoryComplexity: number;
+  overallFit: number;
+}
+
+export interface AuditEvent {
+  id: number;
+  actorRole: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  createdAt: string;
+}
+
+export interface PushPublicKey {
+  publicKey: string;
+}
+
+export type PushSubscriptionInputKeys = {
+  /** @minLength 1 */
+  p256dh: string;
+  /** @minLength 1 */
+  auth: string;
+};
+
+export interface PushSubscriptionInput {
+  /** @minLength 1 */
+  endpoint: string;
+  keys: PushSubscriptionInputKeys;
+}
+
+export interface PushUnsubscribeInput {
+  /** @minLength 1 */
+  endpoint: string;
+}
+
+export interface HealthStatus {
+  status: string;
+}
+
+export interface ApiMessage {
+  error: string;
 }
 
 export interface PackMessage {

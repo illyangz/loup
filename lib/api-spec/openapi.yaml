@@ -646,8 +646,465 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/BillStatementSummary"
+  /v1/demo/roles:
+    get:
+      operationId: listDemoRoles
+      tags: [platform]
+      summary: Available simulated demo roles
+      responses:
+        "200":
+          description: Demo role choices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DemoRole"
+  /v1/employee/overview:
+    get:
+      operationId: getEmployeeOverview
+      tags: [platform]
+      summary: Employee-facing allowance and life administration overview
+      responses:
+        "200":
+          description: Employee overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeOverview"
+  /v1/employer/overview:
+    get:
+      operationId: getEmployerOverview
+      tags: [platform]
+      summary: Aggregate employer benefit overview
+      responses:
+        "200":
+          description: Employer overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployerOverview"
+  /v1/employer/employees:
+    get:
+      operationId: listEmployerEmployees
+      tags: [platform]
+      summary: Employer-safe employee roster
+      responses:
+        "200":
+          description: Employee roster
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmployerEmployee"
+    post:
+      operationId: importEmployerEmployees
+      tags: [platform]
+      summary: Simulate a CSV employee roster import
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeImportInput"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+  /v1/employer/utilization:
+    get:
+      operationId: getEmployerUtilization
+      tags: [platform]
+      summary: Aggregate employer utilization metrics
+      responses:
+        "200":
+          description: Aggregate utilization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UtilizationReport"
+  /v1/employer/integrations:
+    get:
+      operationId: getEmployerIntegrations
+      tags: [platform]
+      summary: Simulated SSO and embedded widget integration details
+      responses:
+        "200":
+          description: Integration details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationDetails"
+  /v1/vendor/today:
+    get:
+      operationId: getVendorToday
+      tags: [platform]
+      summary: Vendor operational day view
+      responses:
+        "200":
+          description: Vendor day view
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorToday"
+  /v1/vendor/forecast:
+    get:
+      operationId: getVendorForecast
+      tags: [platform]
+      summary: Simulated vendor demand forecast
+      responses:
+        "200":
+          description: Demand forecast
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForecastReport"
+  /v1/vendor/performance:
+    get:
+      operationId: getVendorPerformance
+      tags: [platform]
+      summary: Vendor-owned performance metrics
+      responses:
+        "200":
+          description: Vendor performance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorPerformance"
+  /v1/operations/overview:
+    get:
+      operationId: getOperationsOverview
+      tags: [platform]
+      summary: Operations control tower overview
+      responses:
+        "200":
+          description: Operations overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationsOverview"
+  /v1/operations/service-fit:
+    get:
+      operationId: listServiceFitEvaluations
+      tags: [platform]
+      summary: Internal service-fit evaluation
+      responses:
+        "200":
+          description: Service-fit evaluations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceFitEvaluation"
+  /v1/operations/audit:
+    get:
+      operationId: listAuditEvents
+      tags: [platform]
+      summary: Immutable operational audit events
+      responses:
+        "200":
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEvent"
 components:
   schemas:
+    DemoRole:
+      type: object
+      required: [role, label, description, href]
+      properties:
+        role:
+          type: string
+          enum: [employee, employer, vendor, operations]
+        label:
+          type: string
+        description:
+          type: string
+        href:
+          type: string
+    EmployeeOverview:
+      type: object
+      required:
+        - employeeName
+        - employerName
+        - allowance
+        - upcomingBooking
+        - metrics
+        - activeCategories
+        - routines
+      properties:
+        employeeName: { type: string }
+        employerName: { type: string }
+        allowance:
+          $ref: "#/components/schemas/AllowanceSummary"
+        upcomingBooking:
+          oneOf:
+            - $ref: "#/components/schemas/Booking"
+            - type: "null"
+        metrics:
+          $ref: "#/components/schemas/EmployeeMetrics"
+        activeCategories:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActiveService"
+        routines:
+          type: array
+          items:
+            $ref: "#/components/schemas/Routine"
+    AllowanceSummary:
+      type: object
+      required: [authorized, reserved, redeemed, available, renewalDate, expiration]
+      properties:
+        authorized: { type: number }
+        reserved: { type: number }
+        redeemed: { type: number }
+        available: { type: number }
+        renewalDate: { type: string }
+        expiration: { type: string }
+    EmployeeMetrics:
+      type: object
+      required: [employerSupport, corporateSavings, servicesCompleted, estimatedTimeSavedMinutes, householdAllocations]
+      properties:
+        employerSupport: { type: number }
+        corporateSavings: { type: number }
+        servicesCompleted: { type: integer }
+        estimatedTimeSavedMinutes: { type: integer }
+        householdAllocations: { type: number }
+    ActiveService:
+      type: object
+      required: [slug, name, description, dimension, publicPrice, corporatePrice, employerContribution, employeeCopayment, durationMinutes, providerVerification]
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string }
+        dimension: { type: string }
+        publicPrice: { type: number }
+        corporatePrice: { type: number }
+        employerContribution: { type: number }
+        employeeCopayment: { type: number }
+        durationMinutes: { type: integer }
+        providerVerification: { type: string }
+    Routine:
+      type: object
+      required: [id, label, categorySlug, frequency, preferredDay, preferredTime, maxCopayment, manualConfirmation, status]
+      properties:
+        id: { type: integer }
+        label: { type: string }
+        categorySlug: { type: string }
+        frequency: { type: string }
+        preferredDay: { type: string }
+        preferredTime: { type: string }
+        maxCopayment: { type: number }
+        manualConfirmation: { type: boolean }
+        status: { type: string }
+    EmployerOverview:
+      type: object
+      required:
+        - employerName
+        - eligibleEmployees
+        - activatedEmployees
+        - authorizedMaximum
+        - redeemedAllowances
+        - reservedAllowances
+        - forecastRedemptions
+        - invoiceEstimate
+        - completionRate
+        - satisfaction
+      properties:
+        employerName: { type: string }
+        eligibleEmployees: { type: integer }
+        activatedEmployees: { type: integer }
+        authorizedMaximum: { type: number }
+        redeemedAllowances: { type: number }
+        reservedAllowances: { type: number }
+        forecastRedemptions: { type: number }
+        invoiceEstimate: { type: number }
+        completionRate: { type: number }
+        satisfaction: { type: number }
+    EmployerEmployee:
+      type: object
+      required: [id, externalEmployeeId, name, workEmail, department, benefitTier, eligibilityStatus, householdEligible]
+      properties:
+        id: { type: integer }
+        externalEmployeeId: { type: string }
+        name: { type: string }
+        workEmail: { type: string }
+        department: { type: string }
+        benefitTier: { type: string }
+        eligibilityStatus: { type: string }
+        householdEligible: { type: boolean }
+    EmployeeImportInput:
+      type: object
+      required: [csv]
+      properties:
+        csv:
+          type: string
+          minLength: 1
+    ImportResult:
+      type: object
+      required: [status, imported, skipped, message]
+      properties:
+        status: { type: string }
+        imported: { type: integer }
+        skipped: { type: integer }
+        message: { type: string }
+    UtilizationReport:
+      type: object
+      required: [activationRate, redemptionRate, repeatUsageRate, averageSupportPerActiveEmployee, categoryUtilization, corporateSavings, estimatedTimeSavedMinutes, satisfaction, completionRate, serviceRecoveryRate]
+      properties:
+        activationRate: { type: number }
+        redemptionRate: { type: number }
+        repeatUsageRate: { type: number }
+        averageSupportPerActiveEmployee: { type: number }
+        categoryUtilization:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryUtilization"
+        corporateSavings: { type: number }
+        estimatedTimeSavedMinutes: { type: integer }
+        satisfaction: { type: number }
+        completionRate: { type: number }
+        serviceRecoveryRate: { type: number }
+    CategoryUtilization:
+      type: object
+      required: [category, bookings, share]
+      properties:
+        category: { type: string }
+        bookings: { type: integer }
+        share: { type: number }
+    IntegrationDetails:
+      type: object
+      required: [ssoLabel, ssoUrl, widgetScript, widgetSnippet, apiMode]
+      properties:
+        ssoLabel: { type: string }
+        ssoUrl: { type: string }
+        widgetScript: { type: string }
+        widgetSnippet: { type: string }
+        apiMode: { type: string }
+    VendorToday:
+      type: object
+      required: [vendorName, assignedBookings, awaitingAcceptance, availableCapacity, capacityWarnings, lateArrivalWarnings, serviceRecoveryActions]
+      properties:
+        vendorName: { type: string }
+        assignedBookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/VendorBooking"
+        awaitingAcceptance: { type: integer }
+        availableCapacity: { type: integer }
+        capacityWarnings: { type: integer }
+        lateArrivalWarnings: { type: integer }
+        serviceRecoveryActions: { type: integer }
+    VendorBooking:
+      type: object
+      required: [id, category, zone, scheduledAt, status, operationalRequirement]
+      properties:
+        id: { type: integer }
+        category: { type: string }
+        zone: { type: string }
+        scheduledAt: { type: string, format: date-time }
+        status: { type: string }
+        operationalRequirement: { type: string }
+    ForecastReport:
+      type: object
+      required: [updatedAt, confidence, windows]
+      properties:
+        updatedAt: { type: string, format: date-time }
+        confidence: { type: number }
+        windows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ForecastWindow"
+    ForecastWindow:
+      type: object
+      required: [label, category, zone, expectedBookings, low, high, capacityGap, recommendation]
+      properties:
+        label: { type: string }
+        category: { type: string }
+        zone: { type: string }
+        expectedBookings: { type: integer }
+        low: { type: integer }
+        high: { type: integer }
+        capacityGap: { type: integer }
+        recommendation: { type: string }
+    VendorPerformance:
+      type: object
+      required: [vendorName, status, completionRate, onTimeRate, cancellationRate, averageRating, complaintRate, serviceRecoveryRate, capacityAccuracy]
+      properties:
+        vendorName: { type: string }
+        status: { type: string }
+        completionRate: { type: number }
+        onTimeRate: { type: number }
+        cancellationRate: { type: number }
+        averageRating: { type: number }
+        complaintRate: { type: number }
+        serviceRecoveryRate: { type: number }
+        capacityAccuracy: { type: number }
+    OperationsOverview:
+      type: object
+      required: [forecastBookings, confirmedBookings, unfulfilledDemand, capacityShortages, highRiskBookings, providerIncidents, transactionVolume, spendingAlerts, matching, methodology]
+      properties:
+        forecastBookings: { type: integer }
+        confirmedBookings: { type: integer }
+        unfulfilledDemand: { type: integer }
+        capacityShortages: { type: integer }
+        highRiskBookings: { type: integer }
+        providerIncidents: { type: integer }
+        transactionVolume: { type: number }
+        spendingAlerts: { type: integer }
+        matching:
+          type: array
+          items:
+            $ref: "#/components/schemas/MatchDecision"
+        methodology: { type: string }
+    MatchDecision:
+      type: object
+      required: [bookingId, category, zone, selectedProvider, score, drivers, manualOverride]
+      properties:
+        bookingId: { type: integer }
+        category: { type: string }
+        zone: { type: string }
+        selectedProvider: { type: string }
+        score: { type: number }
+        drivers:
+          type: array
+          items: { type: string }
+        manualOverride: { type: boolean }
+    ServiceFitEvaluation:
+      type: object
+      required: [service, status, dimensions, problemFrequency, timeSaved, employerRelevance, repeatPotential, standardization, providerCoverage, regulatoryComplexity, overallFit]
+      properties:
+        service: { type: string }
+        status: { type: string }
+        dimensions:
+          type: array
+          items: { type: string }
+        problemFrequency: { type: integer }
+        timeSaved: { type: integer }
+        employerRelevance: { type: integer }
+        repeatPotential: { type: integer }
+        standardization: { type: integer }
+        providerCoverage: { type: integer }
+        regulatoryComplexity: { type: integer }
+        overallFit: { type: integer }
+    AuditEvent:
+      type: object
+      required: [id, actorRole, action, entityType, entityId, createdAt]
+      properties:
+        id: { type: integer }
+        actorRole: { type: string }
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { type: string }
+        createdAt: { type: string, format: date-time }
     PushPublicKey:
       type: object
       required: [publicKey]

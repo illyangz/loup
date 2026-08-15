@@ -1,0 +1,1280 @@
+Act as a Principal Full-Stack Engineer and Product Architect. Restructure the existing “Loup” project into an API-first B2B2C employee lifestyle-benefits and service-orchestration platform tailored to the UAE market.
+
+Before making changes:
+
+1. Inspect the existing codebase, database, routes, components and styling.
+2. Preserve reusable functionality and the strongest parts of the existing design.
+3. Identify broken, incomplete or conflicting functionality.
+4. Preserve Loup’s premium brand identity.
+5. Present a short implementation plan.
+6. Implement the revised architecture without unnecessarily rebuilding the project.
+
+# 1. Product definition
+
+Loup is an employer-funded Life Administration Wellbeing platform.
+
+It helps employers support the part of employee wellbeing that begins outside the workplace: the recurring household, family and personal-administration responsibilities that consume employees’ time and create practical burdens.
+
+Core positioning:
+
+“Loup helps employers give employees time back.”
+
+Supporting position:
+
+“Employee wellbeing does not end when the workday does.”
+
+Loup is not:
+
+* A coupon or discount directory
+* A general consumer-services marketplace
+* A gym or fitness platform
+* A mental-health platform
+* A medical platform
+* A payroll system
+* A bank or stored-value provider
+* A generic rewards catalogue
+
+Loup connects employer-authorized benefit allowances with licensed providers of essential life-administration services.
+
+# 2. Wellness framework
+
+Organize the product around four connected wellbeing dimensions:
+
+## Time wellbeing
+
+Reduce the time employees spend discovering, comparing, booking and coordinating service providers.
+
+## Home wellbeing
+
+Support a clean, comfortable, safe and functional home environment.
+
+## Family wellbeing
+
+Allow employees to extend approved support to selected household members and managed dependents.
+
+## Financial wellbeing
+
+Provide employer contributions, negotiated corporate prices and transparent employee co-payments.
+
+Every active product feature must connect to at least one of these dimensions.
+
+Do not make clinical, mental-health, medical, employee-productivity or employee-retention claims.
+
+# 3. Initial service scope
+
+Only make these categories actively bookable:
+
+1. Home Cleaning
+2. Laundry & Pressing
+3. Home Maintenance
+
+Home Maintenance may include:
+
+* AC inspection
+* AC servicing
+* Basic handyman support
+* Minor plumbing
+* Minor electrical support
+
+Do not actively offer:
+
+* Healthcare
+* Physiotherapy
+* Mental-health services
+* Unlicensed childcare
+* Unlicensed eldercare
+* Generic retail discounts
+* Dining offers
+* Entertainment offers
+* Gym memberships
+* Broad coupon catalogues
+
+A small “Future Support” section may mention potential later categories, but they must not be bookable.
+
+# 4. Service eligibility framework
+
+Create an internal service-fit model for future category evaluation.
+
+Each proposed service should be scored against:
+
+* Problem frequency
+* Estimated personal time saved
+* Home-wellbeing relevance
+* Family-wellbeing relevance
+* Financial value
+* Employer relevance
+* Repeat-booking potential
+* Operational standardization
+* Provider availability
+* Regulatory complexity
+
+Use the conceptual model:
+
+```text
+Service Fit =
+Problem Frequency
++ Time Saved
++ Employer Relevance
++ Operational Standardization
++ Repeat Potential
+− Regulatory Complexity
+```
+
+This model is for internal product planning. It should appear inside the Loup operations interface, not the employee application.
+
+# 5. Platform architecture
+
+Build one shared Loup core serving four role-specific interfaces:
+
+| Interface                | Route         | User                            |
+| ------------------------ | ------------- | ------------------------------- |
+| Employee application     | `/employee`   | Employees and household members |
+| Employer portal          | `/employer`   | HR and benefits administrators  |
+| Vendor portal            | `/vendor`     | Service-provider partners       |
+| Operations control tower | `/operations` | Internal Loup operations team   |
+
+Also create:
+
+* `/login` for demo role selection
+* `/api/v1` for versioned APIs
+* `/api-docs` for readable API documentation
+* `/embed/demo` for an embeddable employer widget
+* `/support` for centralized simulated Loup support
+
+# 6. Integration strategy
+
+Loup must be capable of operating without forcing employers or vendors to adopt another standalone portal.
+
+Support four integration modes:
+
+## Hosted mode
+
+Employers and employees use Loup’s standalone interfaces.
+
+## Simulated SSO mode
+
+Employees launch Loup from an existing employer system without creating another login session.
+
+Create a simulated signed-token flow that represents future:
+
+* OpenID Connect
+* OAuth 2.0
+* SAML
+
+Clearly label the integration as simulated.
+
+## Embedded-widget mode
+
+Create a reusable employee-benefit widget showing:
+
+* Available allowance
+* Renewal date
+* Eligible services
+* Upcoming booking
+* “Book a service” action
+
+Provide sample code:
+
+```html
+<script src="/embed/loup-widget.js"></script>
+
+<loup-benefits
+  employer-id="nexa"
+  employee-token="DEMO_SIGNED_TOKEN">
+</loup-benefits>
+```
+
+## Headless API mode
+
+Allow an employer, HR platform or service provider to build its own interface using Loup APIs.
+
+The standalone portals and widget should use the same APIs wherever practical.
+
+# 7. Technical architecture
+
+Use the existing functional stack.
+
+If restructuring is required, use:
+
+* Node.js
+* Express
+* PostgreSQL through Replit
+* REST APIs
+* Tailwind CSS or the existing styling system
+* Vanilla JavaScript or the existing frontend framework
+* Seeded demo data
+* Role-based access control
+
+Use a modular structure:
+
+```text
+loup-platform/
+├── index.js
+├── server/
+│   ├── auth/
+│   ├── employers/
+│   ├── employees/
+│   ├── households/
+│   ├── benefits-ledger/
+│   ├── services/
+│   ├── pricing/
+│   ├── routines/
+│   ├── bookings/
+│   ├── vendors/
+│   ├── capacity/
+│   ├── predictions/
+│   ├── matching/
+│   ├── quality/
+│   ├── billing/
+│   ├── privacy/
+│   ├── webhooks/
+│   └── audit/
+├── public/
+│   ├── employee/
+│   ├── employer/
+│   ├── vendor/
+│   ├── operations/
+│   └── embed/
+└── database/
+    ├── schema.js
+    ├── seed.js
+    └── ledger.js
+```
+
+Do not place all logic inside `index.js`.
+
+# 8. Employee application
+
+The employee application must be mobile-first.
+
+Navigation:
+
+* Home
+* Services
+* Routines
+* Bookings
+* Household
+* Profile
+
+## Employee home
+
+Display:
+
+### Header
+
+* Greeting
+* Employer identity
+* Notifications
+* Profile control
+
+### Loup Wallet
+
+Display:
+
+* Authorized employer allowance
+* Redeemed amount
+* Reserved amount
+* Available amount
+* Renewal date
+* Expiration information
+* View activity
+
+Use “Loup Wallet” in the interface, but treat it in the backend as a non-cash employer-authorized benefit allowance.
+
+### Main action
+
+Use:
+
+“What can Loup take care of?”
+
+Display the three eligible service categories.
+
+### Upcoming booking
+
+Show:
+
+* Service
+* Provider
+* Date and time
+* Status
+* View details
+* Reschedule
+
+### Wellbeing impact
+
+Show private employee-level metrics:
+
+* Employer support received
+* Corporate savings
+* Services completed
+* Estimated personal time saved
+* Active household allocations
+
+Do not create an employee wellbeing score.
+
+## Services
+
+Each service must display:
+
+* Service description
+* Wellbeing dimension supported
+* Public reference price
+* Corporate employee price
+* Corporate discount
+* Maximum employer contribution
+* Estimated employee co-payment
+* Estimated duration
+* Provider verification
+* Available booking windows
+
+Use plain language such as:
+
+* “Save time on recurring home care.”
+* “Keep your home comfortable and functional.”
+* “Supported by your employer benefit.”
+
+Avoid exaggerated wellness claims.
+
+# 9. Employee checkout
+
+Create a frictionless three-step flow:
+
+1. Select service and service variation.
+2. Select address, date, time and instructions.
+3. Review pricing and confirm.
+
+The backend must calculate:
+
+```text
+Public reference price
+− Corporate discount
+= Corporate employee price
+− Employer allowance contribution
+= Employee co-payment
+```
+
+Example:
+
+| Component                |  Amount |
+| ------------------------ | ------: |
+| Public price             | AED 100 |
+| Corporate discount       | −AED 10 |
+| Corporate employee price |  AED 90 |
+| Employer allowance       | −AED 50 |
+| Employee co-payment      |  AED 40 |
+
+Allow employees to reduce their allowance contribution but never exceed:
+
+* Available balance
+* Category limit
+* Per-booking employer limit
+* Household allocation
+* Benefit expiration rules
+
+Use a simulated saved card and “Simulate Payment” action. Do not collect real payment information.
+
+On confirmation:
+
+* Reserve employer allowance
+* Create immutable ledger entries
+* Create booking
+* Add audit event
+* Trigger mock webhooks
+* Update employee booking view
+
+On completion:
+
+* Convert reservation to redemption
+* Update savings
+* Update time-saved estimate
+* Update employer aggregate reporting
+* Update vendor performance
+* Update operational data
+
+# 10. Routines and preventive support
+
+Create a “Routines” feature aligned with time and home wellbeing.
+
+Employees can create:
+
+* Weekly cleaning
+* Biweekly laundry collection
+* Quarterly AC inspection
+* Monthly household-maintenance reminder
+
+For each routine, allow:
+
+* Frequency
+* Preferred day
+* Preferred time
+* Preferred provider
+* Maximum co-payment
+* Automatic reminder
+* Manual confirmation before booking
+
+Do not automatically spend allowance or confirm a booking without employee approval.
+
+Create a “Home Care Overview” showing:
+
+* Last cleaning
+* Last laundry collection
+* Last AC service
+* Upcoming routine
+* Unresolved maintenance request
+
+# 11. Household access
+
+Allow the primary employee to create a private household group.
+
+Support:
+
+## Invited adult member
+
+* Secure account invitation
+* Separate login
+* Own private booking history
+* Access only to allocated amount and categories
+
+## Managed dependent
+
+* No separate login required
+* Managed by primary employee
+* Booking details visible to primary employee
+
+The primary employee can:
+
+* Add or remove members
+* Allocate allowance
+* Restrict service categories
+* Revoke unused allocations
+* View aggregate household utilization
+
+Rules:
+
+* Household allocations reserve part of the primary allowance.
+* No cash moves when an allocation is created.
+* Employer funds are redeemed only when an eligible service is completed.
+* Allocations cannot exceed available allowance.
+* Household members cannot transfer allocations to unrelated users.
+* Allocations cannot be withdrawn, sold or converted into cash.
+* Allocations inherit the expiration date of the original benefit.
+* Household access ends when the employee loses eligibility.
+* Employer programme rules override household settings.
+
+The employer must never see:
+
+* Household-member names
+* Relationships
+* Addresses
+* Booking history
+* Personal notes
+
+# 12. Employer portal
+
+The employer portal must be desktop-first and focused on benefit governance.
+
+Navigation:
+
+* Overview
+* Employees
+* Benefit Design
+* Utilization
+* Billing
+* Integrations
+* Settings
+
+## Overview
+
+Display:
+
+* Eligible employees
+* Activated employees
+* Authorized maximum
+* Redeemed allowances
+* Reserved allowances
+* Forecast current-period redemptions
+* Current invoice estimate
+* Aggregate completion rate
+* Aggregate satisfaction
+
+## Employees
+
+Support:
+
+* CSV roster import
+* Manual employee creation
+* Deactivation
+* Benefit-tier assignment
+* Department filtering
+* Invitation status
+* Simulated SSO links
+
+Store only:
+
+* External employee ID
+* Name
+* Work email
+* Department
+* Benefit tier
+* Eligibility status
+* Start and end dates
+* Household eligibility
+
+Do not store salary, performance, Emirates ID or medical information.
+
+## Benefit Design
+
+Allow HR to configure:
+
+* Monthly or quarterly allowance
+* Benefit tiers
+* Eligible categories
+* Contribution limits by category
+* Maximum contribution per booking
+* Company-wide spending ceiling
+* Expiration policy
+* Household access
+* Maximum household members
+* Maximum household-allocation percentage
+* Effective dates
+
+Use one flexible allowance with employer-defined limits.
+
+Do not force employees to lock funds into service buckets.
+
+## Utilization
+
+Show aggregate metrics only:
+
+* Activation
+* Redemption
+* Repeat usage
+* Category utilization
+* Average support per active employee
+* Corporate savings
+* Estimated personal time saved
+* Satisfaction
+* Completion rate
+* Service-recovery rate
+
+Do not claim:
+
+* Productivity improvement
+* Reduced absenteeism
+* Reduced turnover
+* Improved mental health
+
+Do not expose personal employee bookings.
+
+Use minimum-group-size controls for segmented analytics.
+
+## High-pressure-period support
+
+Allow an employer to create a temporary benefit campaign for:
+
+* Employee onboarding
+* Relocation
+* Return from parental leave
+* Major project period
+* Work anniversary
+* Recognition event
+* Other employer-defined support period
+
+The employer can configure:
+
+* Eligible group
+* Additional allowance
+* Active period
+* Eligible categories
+* Maximum redemption
+
+Do not label employees as stressed or infer medical or psychological conditions.
+
+# 13. Employer API integration
+
+Create endpoints for:
+
+```http
+POST  /api/v1/employees
+GET   /api/v1/employees
+PATCH /api/v1/employees/:id
+POST  /api/v1/employees/import
+POST  /api/v1/scim/users
+
+POST  /api/v1/benefit-programmes
+GET   /api/v1/benefit-programmes
+PATCH /api/v1/benefit-programmes/:id
+
+GET   /api/v1/employer/utilization
+GET   /api/v1/employer/billing
+GET   /api/v1/employer/invoices
+```
+
+Support:
+
+* Idempotency keys
+* Tenant isolation
+* Pagination
+* Scoped API credentials
+* Audit logs
+* Structured errors
+
+# 14. Vendor portal
+
+The vendor portal supports providers that do not have their own scheduling system.
+
+Navigation:
+
+* Today
+* Bookings
+* Capacity
+* Demand Forecast
+* Performance
+* Payouts
+* Compliance
+* Integrations
+
+## Today
+
+Show:
+
+* Assigned bookings
+* Bookings awaiting acceptance
+* Available capacity
+* Capacity warnings
+* Late-arrival warnings
+* Service-recovery actions
+
+## Capacity
+
+Vendors can declare:
+
+* Service categories
+* Service zones
+* Available days
+* Time blocks
+* Maximum bookings
+* Team capacity
+* Additional temporary capacity
+* Closures
+
+Compare:
+
+* Declared capacity
+* Committed capacity
+* Forecast demand
+* Expected shortage or surplus
+
+## Demand Forecast
+
+Show:
+
+* Next seven days
+* Next 30 days
+* Expected demand range
+* Category
+* General zone
+* Peak periods
+* Capacity gap
+* Recommended capacity commitment
+* Forecast confidence
+
+Vendors can:
+
+* Accept capacity request
+* Partially accept
+* Decline
+* Propose alternative capacity
+
+## Performance
+
+Display the vendor’s own:
+
+* Completion rate
+* On-time rate
+* Cancellation rate
+* Average rating
+* Complaint rate
+* Service-recovery rate
+* Capacity accuracy
+* Quality status
+
+Statuses:
+
+* Active
+* Under Review
+* Throttled
+* Suspended
+
+## Compliance
+
+Track:
+
+* Trade-license status
+* Insurance
+* Service-category authorization
+* Document expiration
+* Worker-verification status
+
+Create expiration warnings.
+
+Do not create a government or ESG certificate.
+
+# 15. Vendor API integration
+
+Allow vendors to connect their current scheduling systems.
+
+Create:
+
+```http
+GET  /api/v1/vendor/services
+PUT  /api/v1/vendor/capacity
+GET  /api/v1/vendor/bookings
+POST /api/v1/vendor/bookings/:id/accept
+POST /api/v1/vendor/bookings/:id/reject
+POST /api/v1/vendor/bookings/:id/start
+POST /api/v1/vendor/bookings/:id/complete
+POST /api/v1/vendor/bookings/:id/incident
+GET  /api/v1/vendor/forecast
+POST /api/v1/vendor/capacity-commitments
+GET  /api/v1/vendor/performance
+GET  /api/v1/vendor/payouts
+```
+
+Before assignment, expose only:
+
+* General service zone
+* Category
+* Required time
+* Operational requirements
+
+After acceptance, expose only personal information necessary for fulfillment.
+
+All support communication must route through centralized Loup support. Do not build direct vendor-employee chat.
+
+# 16. Internal predictive operations layer
+
+The forecasting and operational-management system is internal to Loup and selectively supports vendors.
+
+It must not be presented as an employee-facing AI product.
+
+It must not:
+
+* Score employee wellbeing
+* Infer mental health
+* Predict resignation
+* Measure employee productivity
+* Make employment decisions
+* Expose personal employee predictions to employers
+
+Create four operational modules.
+
+## Demand forecasting
+
+Forecast expected bookings by:
+
+* Category
+* General zone
+* Day
+* Time
+* Benefit-renewal period
+* Allowance-expiration period
+* Employer cohort
+* Historical demand
+* Seasonal and event flags
+
+Output:
+
+* Expected bookings
+* Low–high range
+* Confidence
+* Main drivers
+* Last-updated time
+
+## Capacity-gap engine
+
+Calculate:
+
+```text
+Forecast demand − committed capacity = capacity gap
+```
+
+Generate:
+
+* Shortage alerts
+* Surplus alerts
+* Recommended additional capacity
+* Backup-provider requirements
+
+## Provider-risk engine
+
+Use:
+
+* Recent cancellations
+* Late arrivals
+* Current workload
+* Declared versus accepted capacity
+* Complaint history
+* Service-recovery history
+* Compliance status
+* Geographic scheduling difficulty
+
+Generate:
+
+* Low, Medium or High risk
+* Score
+* Main drivers
+* Recommended operational review
+
+The engine must recommend review rather than automatically accuse or suspend a vendor.
+
+## Matching engine
+
+Rank eligible providers using:
+
+* Service capability
+* Availability
+* Zone
+* Travel requirements
+* Price
+* Completion rate
+* Punctuality
+* Capacity
+* Fulfillment risk
+* Repeat-customer preference
+
+Store:
+
+* Ranked providers
+* Selected provider
+* Score breakdown
+* Timestamp
+* Manual override
+* Override reason
+
+# 17. Operations control tower
+
+Create `/operations` for internal Loup staff.
+
+Navigation:
+
+* Control Tower
+* Demand
+* Capacity
+* Matching
+* Quality
+* Unit Economics
+* Service Strategy
+* Employers
+* Vendors
+* Audit
+
+## Control Tower
+
+Display:
+
+* Forecast bookings
+* Confirmed bookings
+* Unfulfilled demand
+* Capacity shortages
+* High-risk bookings
+* Provider incidents
+* Expected transaction volume
+* Employer-spending alerts
+
+## Demand and capacity
+
+Show:
+
+* Forecast demand
+* Provider-declared capacity
+* Committed capacity
+* Capacity gap
+* Backup capacity
+* Vendor acceptance rate
+
+## Quality
+
+Track:
+
+* No-shows
+* Verified complaints
+* Late arrivals
+* Rework
+* Safety incidents
+* Compliance incidents
+* Corrective actions
+
+Rules:
+
+* Safety or licensing incident triggers immediate manual review.
+* Three verified quality strikes within a configurable period trigger a routing review.
+* A low rating alone is not a three-strike event.
+
+## Unit economics
+
+Display by employer, vendor, service and zone:
+
+* Public reference price
+* Corporate employee price
+* Employer contribution
+* Employee co-payment
+* Provider payment
+* Loup transaction margin
+* Processing cost
+* Support cost
+* Refund cost
+* Contribution margin
+
+## Service Strategy
+
+Display the internal service-fit evaluation.
+
+For each current or proposed service, show:
+
+* Wellbeing pillars supported
+* Problem frequency
+* Estimated time saved
+* Employer relevance
+* Repeat potential
+* Operational standardization
+* Provider coverage
+* Regulatory complexity
+* Overall fit score
+* Status: Active, Testing, Future or Rejected
+
+# 18. Impact measurement
+
+Use practical, non-clinical metrics.
+
+## Employee-level private metrics
+
+* Allowance used
+* Corporate savings
+* Services completed
+* Estimated personal time saved
+* Household allocation
+* Routine completion
+
+## Employer-level aggregate metrics
+
+* Activation
+* Redemption
+* Repeat usage
+* Cost per active employee
+* Category utilization
+* Corporate savings
+* Estimated personal time saved
+* Satisfaction
+* Completion rate
+
+## Operational metrics
+
+* Provider completion
+* On-time arrival
+* Cancellation
+* Service recovery
+* Capacity coverage
+* Contribution margin
+
+Time-saved assumptions must be configurable by service category and clearly labeled as estimates.
+
+Do not use:
+
+```text
+Completed bookings × 3 hours
+```
+
+for every category.
+
+Show the estimation methodology.
+
+# 19. Privacy boundaries
+
+Implement strict role and tenant controls.
+
+Employer users must never access:
+
+* Home addresses
+* Individual booking histories
+* Personal service notes
+* Household identities
+* Individual provider assignments
+* Employee-level predictive data
+
+Vendors must never access:
+
+* Other vendors’ commercial terms
+* Other vendors’ performance
+* Unnecessary employer-benefit information
+* Employee information before assignment
+
+Predictive datasets should use:
+
+* Anonymous employee ID
+* General zone
+* Service category
+* Booking and fulfillment events
+* Benefit-cycle information
+
+Do not use precise addresses for forecasting.
+
+Create immutable audit events for:
+
+* Ledger changes
+* Programme changes
+* Employee eligibility
+* Household allocation
+* Booking status
+* Vendor capacity
+* Quality actions
+* Matching decisions
+* Administrative data access
+
+# 20. Webhooks
+
+Implement signed mock webhooks:
+
+* `employee.created`
+* `employee.activated`
+* `employee.deactivated`
+* `allowance.authorized`
+* `allowance.reserved`
+* `allowance.redeemed`
+* `allowance.released`
+* `booking.created`
+* `booking.accepted`
+* `booking.completed`
+* `booking.cancelled`
+* `booking.refunded`
+* `provider.incident`
+* `provider.capacity_updated`
+* `invoice.generated`
+
+Every event must contain:
+
+* Unique event ID
+* Timestamp
+* Signature
+* Delivery status
+* Retry status
+
+Employer webhooks must exclude private service information.
+
+# 21. API documentation
+
+Create readable documentation at `/api-docs`.
+
+Document:
+
+* Authentication
+* Roles and permissions
+* Idempotency
+* Versioning
+* Pagination
+* Rate limiting
+* Employee synchronization
+* Benefit programmes
+* Allowances
+* Services
+* Quotes
+* Bookings
+* Household allocations
+* Vendor capacity
+* Forecasts
+* Reporting
+* Webhooks
+* Error structures
+
+Clearly state that external integrations are simulated in the MVP.
+
+# 22. Seeded demo data
+
+Generate:
+
+* One employer: Nexa Technologies
+* 126 eligible employees
+* Five detailed employee accounts
+* One employer administrator
+* Three service vendors
+* One Loup operations administrator
+* Three active service categories
+* At least 60 historical bookings
+* At least 15 future bookings
+* Employee routines
+* One invited household member
+* One managed dependent
+* Benefit tiers
+* Ledger history
+* Capacity schedules
+* Provider-quality history
+* Demand forecasts
+* One capacity shortage
+* One elevated-risk booking
+* One temporary employer-support campaign
+* One simulated invoice
+* Future service-fit examples
+
+Detailed employee:
+
+* Omar Mansour
+* Department: Strategy
+* Employer: Nexa Technologies
+* Monthly allowance: AED 500
+* General zone: Dubai Hills
+
+Vendors:
+
+* Bright Home Services
+* Pressed & Ready Laundry
+* CoolCare Maintenance
+
+# 23. Visual design
+
+Preserve the existing Loup identity:
+
+* Deep espresso background
+* Warm amber and burnt-orange accents
+* Cream text
+* Elegant serif headings
+* Clear sans-serif functional text
+* Rounded cards
+* Minimal line icons
+
+Employee interface:
+
+* Mobile-first
+* Warm and personal
+* Minimal friction
+* Clear allowance and booking experience
+
+Employer, vendor and operations interfaces:
+
+* Desktop-friendly
+* Data-oriented
+* Clear tables and charts
+* Responsive
+* Consistent with the Loup brand
+
+Improve:
+
+* Contrast
+* Typography hierarchy
+* Button consistency
+* Loading states
+* Empty states
+* Error states
+* Form validation
+* Keyboard accessibility
+* Touch targets
+* Chart labeling
+
+# 24. Hard boundaries
+
+Do not build:
+
+* Real banking
+* Real stored-value custody
+* Cash withdrawal
+* Tradable employee credits
+* P2P credit marketplace
+* Government portal
+* ESG certification
+* Mental-health compliance claims
+* Healthcare booking
+* Employee productivity scoring
+* Employee wellbeing scoring
+* Resignation prediction
+* Real payment processing
+* Real HRIS integration
+* Real payroll integration
+* Real vendor-system integration
+* Real identity-provider integration
+* Direct employee-vendor chat
+* More than three active service categories
+* Autonomous AI financial decisions
+
+All integrations should be simulated and structured for later replacement.
+
+# 25. Required demonstration
+
+## Employee
+
+1. Omar launches through simulated employer SSO.
+2. He sees AED 500 in authorized allowance.
+3. He books home cleaning.
+4. Corporate pricing is displayed.
+5. Employer contribution is applied.
+6. Employee co-payment is simulated.
+7. Allowance is reserved.
+8. Booking appears as Upcoming.
+9. Completion updates savings and estimated time saved.
+10. Omar creates a recurring cleaning routine.
+11. Omar allocates part of his allowance to a household member.
+
+## Employer
+
+1. HR imports a CSV roster.
+2. HR configures allowance rules.
+3. HR enables household access.
+4. HR creates a temporary support campaign.
+5. HR views aggregate utilization and billing.
+6. HR generates a simulated SSO link.
+7. HR views embedded-widget code.
+8. HR cannot access personal booking information.
+
+## Vendor
+
+1. Vendor declares capacity.
+2. Vendor views forecast demand.
+3. Loup identifies a capacity gap.
+4. Vendor commits additional capacity.
+5. Vendor accepts and completes a booking.
+6. Performance and payout estimates update.
+
+## Operations
+
+1. Operations reviews demand and capacity.
+2. Operations sees a shortage.
+3. Matching ranks providers.
+4. Operations reviews an elevated-risk booking.
+5. Operations overrides one assignment with a reason.
+6. Audit trail records the decision.
+7. Operations reviews current and future services using the wellbeing-aligned service-fit model.
+
+# 26. Completion criteria
+
+The build is complete only when:
+
+* The Life Administration Wellbeing proposition is clear.
+* The product does not resemble a generic discount marketplace.
+* Only the three MVP categories are active.
+* All four interfaces function.
+* The employee booking flow works end to end.
+* Household allocations follow employer rules.
+* Routines can be created.
+* Pricing and allowance calculations occur on the backend.
+* Ledger entries are immutable.
+* Employer privacy restrictions are enforced.
+* Vendor capacity works through portal and API.
+* Forecasts are labeled as simulated MVP estimates.
+* Matching decisions are auditable.
+* SSO, widget, APIs and webhooks are demonstrated.
+* Primary routes work.
+* Major console errors are fixed.
+* Demo accounts are documented.
+* API documentation is accessible.
+* The README explains setup, architecture, credentials, limitations and testing.
+
+After completion, provide:
+
+1. What was reused from the original project
+2. What changed
+3. Route map
+4. API endpoint list
+5. Demo credentials
+6. Database entities
+7. Forecasting methodology
+8. Privacy controls
+9. Known limitations
+10. Instructions for running and testing the full demo
