@@ -10,6 +10,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetHomeSummaryQueryKey,
   useApproveServiceRequest,
   useDeclineServiceRequest,
   useGetHomeSummary,
@@ -44,7 +45,9 @@ export default function HomeScreen() {
   const pad = useScreenPadding();
   const qc = useQueryClient();
 
-  const summary = useGetHomeSummary();
+  const summary = useGetHomeSummary({
+    query: { queryKey: getGetHomeSummaryQueryKey(), refetchInterval: 10_000 },
+  });
   const categories = useListCategories();
   const approve = useApproveServiceRequest({
     mutation: { onSuccess: () => qc.invalidateQueries() },

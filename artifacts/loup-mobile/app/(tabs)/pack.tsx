@@ -14,6 +14,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  getListPackMessagesQueryKey,
   useCreateServiceRequest,
   useGetHousehold,
   useListHouseholdActivity,
@@ -76,7 +77,9 @@ function Thread() {
   const qc = useQueryClient();
   const [body, setBody] = useState('');
 
-  const messages = useListPackMessages();
+  const messages = useListPackMessages({
+    query: { queryKey: getListPackMessagesQueryKey(), refetchInterval: 10_000 },
+  });
   const household = useGetHousehold();
   const send = useSendPackMessage({
     mutation: {

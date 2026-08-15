@@ -14,6 +14,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetBookingQueryKey,
+  getListBookingMessagesQueryKey,
   useAdvanceBooking,
   useCreateReview,
   useGetBooking,
@@ -50,8 +52,12 @@ export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const bookingId = Number(id);
 
-  const booking = useGetBooking(bookingId);
-  const messages = useListBookingMessages(bookingId);
+  const booking = useGetBooking(bookingId, {
+    query: { queryKey: getGetBookingQueryKey(bookingId), refetchInterval: 10_000 },
+  });
+  const messages = useListBookingMessages(bookingId, {
+    query: { queryKey: getListBookingMessagesQueryKey(bookingId), refetchInterval: 10_000 },
+  });
   const [chatBody, setChatBody] = useState('');
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
