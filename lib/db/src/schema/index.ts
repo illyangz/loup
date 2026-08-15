@@ -5,3 +5,5 @@ export * from "./billing";
 export * from "./pack";
 export * from "./push";
 export * from "./platform";
+export * from "./conversations";
+export * from "./messages";

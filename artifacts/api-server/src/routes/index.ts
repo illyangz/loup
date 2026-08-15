@@ -8,6 +8,7 @@ import billingRouter from "./billing";
 import packRouter from "./pack";
 import pushRouter from "./push";
 import platformRouter from "./platform";
+import openaiRouter from "./openai/index";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(billingRouter);
 router.use(packRouter);
 router.use(pushRouter);
 router.use(platformRouter);
+router.use(openaiRouter);
 
 export default router;
