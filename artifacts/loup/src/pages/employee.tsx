@@ -1,30 +1,160 @@
+import { useState, useEffect } from "react";
 import { ArrowRight, CalendarDays, Check, Clock3, CreditCard, Home, LifeBuoy, Repeat2, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { useGetEmployeeOverview, getGetEmployeeOverviewQueryKey } from "@workspace/api-client-react";
-import { PlatformHeader, StatTile, DataState } from "@/components/platform-shell";
-import { PlatformShell } from "@/components/platform-shell";
+import { PlatformHeader, StatTile, DataState, PlatformShell } from "@/components/platform-shell";
+import { cn } from "@/lib/utils";
 
 function money(value: number) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(value); }
 function date(value: string) { return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(value)); }
 
 export default function Employee() {
+  const [mounted, setMounted] = useState(false);
   const query = useGetEmployeeOverview({ query: { queryKey: getGetEmployeeOverviewQueryKey() } });
   const data = query.data;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return <PlatformShell role="employee"><div className="mx-auto max-w-6xl">
-    <PlatformHeader kicker="Your Loup benefit" title={data ? `Good morning, ${data.employeeName.split(" ")[0]}.` : "Your life, with a little more room."} description={data ? `${data.employerName} has set aside a private allowance for the things that keep your household moving.` : "Your private benefit concierge is loading."} action={<Link href="/browse" className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-sm text-background transition-transform hover:-translate-y-0.5" data-testid="link-employee-browse">Browse services <ArrowRight className="h-4 w-4" /></Link>} />
+    <PlatformHeader 
+      kicker="Your Loup benefit" 
+      title={data ? `Good morning, ${data.employeeName.split(" ")[0]}.` : "Your life, with a little more room."} 
+      description={data ? `${data.employerName} has set aside a private allowance for the things that keep your household moving.` : "Your private benefit concierge is loading."} 
+      action={<Link href="/browse" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-[hsl(25_60%_45%)] px-5 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-6px_hsl(var(--primary))] active:scale-95" data-testid="link-employee-browse">Browse services <ArrowRight className="h-4 w-4" /></Link>} 
+    />
     <DataState loading={query.isLoading} error={query.isError} onRetry={() => void query.refetch()}>
-      {data && <div className="space-y-5">
-        <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
-          <div className="relative overflow-hidden rounded-3xl bg-foreground p-7 text-background sm:p-9"><div className="absolute -right-20 -top-24 h-72 w-72 rounded-full border-[38px] border-primary/70 opacity-80" /><div className="relative"><p className="text-xs uppercase tracking-[0.18em] text-background/60">Available to use</p><div className="mt-3 flex flex-wrap items-baseline gap-3"><span className="font-serif text-6xl">{money(data.allowance.available)}</span><span className="text-sm text-background/65">of {money(data.allowance.authorized)} this cycle</span></div><div className="mt-7 h-2 overflow-hidden rounded-full bg-background/15"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, (data.allowance.redeemed / data.allowance.authorized) * 100)}%` }} /></div><div className="mt-3 flex justify-between text-xs text-background/60"><span>{money(data.allowance.redeemed)} redeemed</span><span>Renews {date(data.allowance.renewalDate)}</span></div><Link href="/billing" className="mt-8 inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-background" data-testid="link-employee-allowance-details">See allowance details <ArrowRight className="h-4 w-4" /></Link></div></div>
-          <div className="platform-surface rounded-3xl p-7"><div className="flex items-center justify-between"><p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Next on the calendar</p><CalendarDays className="h-5 w-5 text-primary" /></div>{data.upcomingBooking ? <><p className="mt-8 font-serif text-3xl">{data.upcomingBooking.serviceName}</p><p className="mt-2 text-sm text-muted-foreground">{data.upcomingBooking.providerName} · {date(data.upcomingBooking.scheduledAt)}</p><div className="mt-7 flex items-center gap-2 text-sm"><span className="h-2 w-2 rounded-full bg-primary" /> {data.upcomingBooking.status.replaceAll("_", " ")}</div><Link href={`/bookings/${data.upcomingBooking.id}`} className="mt-8 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm hover:bg-accent" data-testid="link-employee-upcoming-booking">Open booking <ArrowRight className="h-4 w-4" /></Link></> : <div className="mt-8 rounded-2xl bg-accent/60 p-5"><p className="font-serif text-2xl">A calm calendar is a good calendar.</p><Link href="/browse" className="mt-4 inline-flex text-sm font-medium text-primary" data-testid="link-employee-empty-booking">Find a service <ArrowRight className="ml-1 h-4 w-4" /></Link></div>}</div>
+      {data && <div className="space-y-6">
+        <section className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
+          <div className="relative overflow-hidden rounded-3xl bg-foreground p-8 text-background sm:p-10 platform-reveal shadow-xl">
+            <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full border-[38px] border-primary/70 opacity-40 ambient-pulse" />
+            <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/20 rounded-full blur-[80px] pointer-events-none" />
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[0.18em] text-background/60 font-medium">Available to use</p>
+                <div className="rounded-full bg-background/10 px-2.5 py-1 text-[10px] font-medium tracking-wide">
+                  Renews in 14 days
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-baseline gap-3">
+                <span className="font-serif text-7xl count-up drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">{mounted ? money(data.allowance.available) : "AED 0"}</span>
+                <span className="text-sm text-background/70 font-medium">of {money(data.allowance.authorized)} this cycle</span>
+              </div>
+              <div className="mt-8 h-2.5 overflow-hidden rounded-full bg-background/15 ring-1 ring-inset ring-white/10">
+                <div 
+                  className={cn("h-full rounded-full bg-gradient-to-r from-primary to-[hsl(25_70%_60%)] shadow-[0_0_10px_rgba(210,124,75,0.5)]")} 
+                  style={{ 
+                    width: mounted ? `${Math.min(100, (data.allowance.redeemed / data.allowance.authorized) * 100)}%` : "0%",
+                    transition: "width 1s cubic-bezier(0.16, 1, 0.3, 1)" 
+                  }} 
+                />
+              </div>
+              <div className="mt-4 flex justify-between text-sm text-background/70">
+                <span>{money(data.allowance.redeemed)} redeemed</span>
+                <span>Renews {date(data.allowance.renewalDate)}</span>
+              </div>
+              <Link href="/billing" className="mt-10 inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-background transition-colors" data-testid="link-employee-allowance-details">See allowance details <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></Link>
+            </div>
+          </div>
+          
+          <div className="platform-surface platform-card-lift rounded-3xl p-8 platform-reveal" style={{ animationDelay: '50ms' }}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">Next on the calendar</p>
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <CalendarDays className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+            
+            {data.upcomingBooking ? (
+              <div className="relative mt-8">
+                <div className="absolute left-0 top-2 bottom-0 w-0.5 bg-border/60">
+                  <div className="absolute -left-1 top-0 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-background" />
+                </div>
+                <div className="pl-6">
+                  <p className="font-serif text-4xl">{data.upcomingBooking.serviceName}</p>
+                  <p className="mt-3 text-[15px] text-muted-foreground">{data.upcomingBooking.providerName} <span className="mx-2">•</span> {date(data.upcomingBooking.scheduledAt)}</p>
+                  <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium rounded-full bg-accent/50 px-3 py-1.5 border border-border/50">
+                    <span className="h-2 w-2 rounded-full bg-primary animate-pulse" /> 
+                    <span className="capitalize">{data.upcomingBooking.status.replaceAll("_", " ")}</span>
+                  </div>
+                  <div className="mt-8">
+                    <Link href={`/bookings/${data.upcomingBooking.id}`} className="inline-flex items-center gap-2 rounded-full border border-border bg-background/50 px-5 py-2.5 text-sm font-medium hover:bg-accent hover:border-border/80 transition-all hover:shadow-sm" data-testid="link-employee-upcoming-booking">Open booking <ArrowRight className="h-4 w-4" /></Link>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-8 rounded-2xl bg-accent/40 border border-border/50 p-6">
+                <p className="font-serif text-3xl">A calm calendar is a good calendar.</p>
+                <Link href="/browse" className="mt-5 inline-flex items-center text-sm font-medium text-primary hover:opacity-80 transition-opacity" data-testid="link-employee-empty-booking">Find a service <ArrowRight className="ml-1.5 h-4 w-4" /></Link>
+              </div>
+            )}
+          </div>
         </section>
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><StatTile label="Time returned" value={`${Math.floor(data.metrics.estimatedTimeSavedMinutes / 60)}h ${data.metrics.estimatedTimeSavedMinutes % 60}m`} detail="estimated this year" tone="brass" /><StatTile label="Services completed" value={String(data.metrics.servicesCompleted)} detail="across your household" /><StatTile label="Employer support" value={money(data.metrics.employerSupport)} detail="contributed to your care" tone="mint" /><StatTile label="Household allocations" value={String(data.metrics.householdAllocations)} detail="shared with your pack" tone="plum" /></section>
-        <section className="grid gap-5 lg:grid-cols-[1fr_.8fr]">
-          <div className="platform-surface rounded-3xl p-6 sm:p-7"><div className="flex items-start justify-between"><div><p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Eligible services</p><h2 className="mt-2 text-3xl">Make room for what matters.</h2></div><Sparkles className="h-5 w-5 text-primary" /></div><div className="mt-6 divide-y divide-border/70">{data.activeCategories.slice(0, 4).map((service) => <div key={service.slug} className="flex items-center gap-4 py-4" data-testid={`row-employee-service-${service.slug}`}><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent"><Home className="h-4 w-4 text-primary" /></div><div className="min-w-0 flex-1"><p className="font-medium">{service.name}</p><p className="truncate text-xs text-muted-foreground">{service.description}</p></div><span className="text-sm font-medium">{money(service.employeeCopayment)}</span></div>)}</div><Link href="/browse" className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-primary" data-testid="link-employee-all-services">View all services <ArrowRight className="h-4 w-4" /></Link></div>
-          <div className="platform-surface rounded-3xl p-6 sm:p-7"><p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Routines</p><h2 className="mt-2 text-3xl">Set it, then forget it.</h2><div className="mt-6 space-y-3">{data.routines.slice(0, 3).map((routine) => <div key={routine.id} className="rounded-2xl bg-accent/60 p-4" data-testid={`row-employee-routine-${routine.id}`}><div className="flex items-center gap-3"><Repeat2 className="h-4 w-4 text-primary" /><p className="font-medium">{routine.label}</p><span className="ml-auto text-xs text-primary">{routine.status}</span></div><p className="mt-2 pl-7 text-xs text-muted-foreground">{routine.frequency} · {routine.preferredDay}, {routine.preferredTime}</p></div>)}</div><Link href="/household" className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-primary" data-testid="link-employee-household">Manage household <ArrowRight className="h-4 w-4" /></Link></div>
+        
+        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <StatTile index={0} label="Time returned" value={`${Math.floor(data.metrics.estimatedTimeSavedMinutes / 60)}h ${data.metrics.estimatedTimeSavedMinutes % 60}m`} detail="estimated this year" tone="brass" />
+          <StatTile index={1} label="Services completed" value={String(data.metrics.servicesCompleted)} detail="across your household" />
+          <StatTile index={2} label="Employer support" value={money(data.metrics.employerSupport)} detail="contributed to your care" tone="mint" />
+          <StatTile index={3} label="Household allocations" value={String(data.metrics.householdAllocations)} detail="shared with your pack" tone="plum" />
+        </section>
+        
+        <section className="grid gap-6 lg:grid-cols-[1fr_.8fr]">
+          <div className="platform-surface platform-card-lift rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '100ms' }}>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">Eligible services</p>
+                <h2 className="mt-3 text-3xl sm:text-4xl">Make room for what matters.</h2>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Sparkles className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div className="mt-8 divide-y divide-border/60">
+              {data.activeCategories.slice(0, 4).map((service, i) => (
+                <div key={service.slug} className="flex items-center gap-5 py-4 group platform-reveal" style={{ animationDelay: `${150 + (i*50)}ms` }} data-testid={`row-employee-service-${service.slug}`}>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/60 group-hover:bg-primary/10 transition-colors">
+                    <Home className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-[15px]">{service.name}</p>
+                    <p className="truncate text-[13px] text-muted-foreground mt-0.5">{service.description}</p>
+                  </div>
+                  <span className="text-sm font-medium whitespace-nowrap bg-background rounded-full px-2.5 py-1 border border-border/50">{money(service.employeeCopayment)}</span>
+                </div>
+              ))}
+            </div>
+            <Link href="/browse" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:opacity-80 transition-opacity" data-testid="link-employee-all-services">View all services <ArrowRight className="h-4 w-4" /></Link>
+          </div>
+          
+          <div className="platform-surface platform-card-lift rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '150ms' }}>
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">Routines</p>
+            <h2 className="mt-3 text-3xl sm:text-4xl">Set it, then forget it.</h2>
+            <div className="mt-8 space-y-4">
+              {data.routines.slice(0, 3).map((routine, i) => (
+                <div key={routine.id} className="rounded-2xl bg-accent/40 border border-border/50 p-5 hover:bg-accent/60 transition-colors platform-reveal" style={{ animationDelay: `${200 + (i*50)}ms` }} data-testid={`row-employee-routine-${routine.id}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                      <Repeat2 className="h-4 w-4 text-primary" />
+                    </div>
+                    <p className="font-medium">{routine.label}</p>
+                    <span className="ml-auto text-xs font-medium px-2 py-1 rounded-full bg-primary/10 text-primary capitalize">{routine.status}</span>
+                  </div>
+                  <p className="mt-3 pl-11 text-[13px] text-muted-foreground">{routine.frequency} <span className="mx-1">•</span> {routine.preferredDay}, {routine.preferredTime}</p>
+                </div>
+              ))}
+            </div>
+            <Link href="/household" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:opacity-80 transition-opacity" data-testid="link-employee-household">Manage household <ArrowRight className="h-4 w-4" /></Link>
+          </div>
         </section>
       </div>}
     </DataState>
-    <div className="mt-7 flex flex-wrap gap-3 text-xs text-muted-foreground"><span className="inline-flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" /> Benefit privacy protected</span><span className="inline-flex items-center gap-2"><Clock3 className="h-3.5 w-3.5 text-primary" /> Human support when needed</span><Link href="/support" className="inline-flex items-center gap-2 hover:text-foreground" data-testid="link-employee-support"><LifeBuoy className="h-3.5 w-3.5" /> Talk to Loup support</Link><Link href="/billing" className="inline-flex items-center gap-2 hover:text-foreground" data-testid="link-employee-billing"><CreditCard className="h-3.5 w-3.5" /> View billing</Link></div>
+    <div className="mt-10 flex flex-wrap gap-5 text-xs text-muted-foreground font-medium pb-8">
+      <span className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-background/50 px-3 py-1.5"><Check className="h-3.5 w-3.5 text-primary" /> Benefit privacy protected</span>
+      <span className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-background/50 px-3 py-1.5"><Clock3 className="h-3.5 w-3.5 text-primary" /> Human support when needed</span>
+      <Link href="/support" className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-background/50 px-3 py-1.5 hover:bg-accent transition-colors" data-testid="link-employee-support"><LifeBuoy className="h-3.5 w-3.5" /> Talk to Loup support</Link>
+      <Link href="/billing" className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-background/50 px-3 py-1.5 hover:bg-accent transition-colors" data-testid="link-employee-billing"><CreditCard className="h-3.5 w-3.5" /> View billing</Link>
+    </div>
   </div></PlatformShell>;
 }
