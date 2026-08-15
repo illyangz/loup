@@ -16,78 +16,98 @@ export default function Employee() {
   useEffect(() => {
     setMounted(true);
   }, []);
+  
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    e.currentTarget.style.setProperty("--rx", `${-y * 6}deg`);
+    e.currentTarget.style.setProperty("--ry", `${x * 6}deg`);
+  };
+  
+  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.style.setProperty("--rx", "0deg");
+    e.currentTarget.style.setProperty("--ry", "0deg");
+  };
 
   return <PlatformShell role="employee"><div className="mx-auto max-w-6xl">
     <PlatformHeader 
       kicker="Your Loup benefit" 
       title={data ? `Good morning, ${data.employeeName.split(" ")[0]}.` : "Your life, with a little more room."} 
       description={data ? `${data.employerName} has set aside a private allowance for the things that keep your household moving.` : "Your private benefit concierge is loading."} 
-      action={<Link href="/browse" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-[hsl(25_60%_45%)] px-5 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-6px_hsl(var(--primary))] active:scale-95" data-testid="link-employee-browse">Browse services <ArrowRight className="h-4 w-4" /></Link>} 
+      action={<Link href="/browse" className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-[hsl(var(--primary))] to-[#d27c4b] px-5 py-2.5 text-sm font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-[0_0_20px_hsl(var(--primary)/0.4)] active:scale-95" data-testid="link-employee-browse">Browse services <ArrowRight className="h-4 w-4" /></Link>} 
     />
     <DataState loading={query.isLoading} error={query.isError} onRetry={() => void query.refetch()}>
       {data && <div className="space-y-6">
         <section className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
-          <div className="relative overflow-hidden rounded-3xl bg-foreground p-8 text-background sm:p-10 platform-reveal shadow-xl">
-            <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full border-[38px] border-primary/70 opacity-40 ambient-pulse" />
-            <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/20 rounded-full blur-[80px] pointer-events-none" />
+          <div 
+            className="glass-card-glow relative overflow-hidden rounded-3xl p-8 sm:p-10 platform-reveal"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            style={{ 
+              transform: "perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg))",
+              transition: "transform 0.15s ease-out"
+            }}
+          >
+            <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[hsl(var(--primary))/0.3] rounded-full blur-[80px] pointer-events-none" />
             
-            <div className="relative z-10">
+            <div className="relative z-10" style={{ transform: "translateZ(30px)" }}>
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-[0.18em] text-background/60 font-medium">Available to use</p>
-                <div className="rounded-full bg-background/10 px-2.5 py-1 text-[10px] font-medium tracking-wide">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/50 font-medium">Available to use</p>
+                <div className="rounded-full bg-[hsl(var(--primary))/0.2] border border-[hsl(var(--primary))/0.3] px-2.5 py-1 text-[10px] font-medium tracking-wide text-[hsl(var(--primary))]">
                   Renews in 14 days
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-baseline gap-3">
-                <span className="font-serif text-7xl count-up drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">{mounted ? money(data.allowance.available) : "AED 0"}</span>
-                <span className="text-sm text-background/70 font-medium">of {money(data.allowance.authorized)} this cycle</span>
+                <span className="font-serif text-7xl count-up text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] font-bold">{mounted ? money(data.allowance.available) : "AED 0"}</span>
+                <span className="text-sm text-white/60 font-medium">of {money(data.allowance.authorized)} this cycle</span>
               </div>
-              <div className="mt-8 h-2.5 overflow-hidden rounded-full bg-background/15 ring-1 ring-inset ring-white/10">
+              <div className="mt-8 h-2.5 overflow-hidden rounded-full bg-white/5 ring-1 ring-inset ring-white/10">
                 <div 
-                  className={cn("h-full rounded-full bg-gradient-to-r from-primary to-[hsl(25_70%_60%)] shadow-[0_0_10px_rgba(210,124,75,0.5)]")} 
+                  className={cn("h-full rounded-full bg-[hsl(var(--primary))] shadow-[0_0_10px_hsl(var(--primary)/0.8)]")} 
                   style={{ 
                     width: mounted ? `${Math.min(100, (data.allowance.redeemed / data.allowance.authorized) * 100)}%` : "0%",
                     transition: "width 1s cubic-bezier(0.16, 1, 0.3, 1)" 
                   }} 
                 />
               </div>
-              <div className="mt-4 flex justify-between text-sm text-background/70">
+              <div className="mt-4 flex justify-between text-sm text-white/50">
                 <span>{money(data.allowance.redeemed)} redeemed</span>
                 <span>Renews {date(data.allowance.renewalDate)}</span>
               </div>
-              <Link href="/billing" className="mt-10 inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-background transition-colors" data-testid="link-employee-allowance-details">See allowance details <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></Link>
+              <Link href="/billing" className="mt-10 inline-flex items-center gap-2 text-sm font-medium text-[hsl(var(--primary))] hover:text-white transition-colors group" data-testid="link-employee-allowance-details">See allowance details <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></Link>
             </div>
           </div>
           
-          <div className="platform-surface platform-card-lift rounded-3xl p-8 platform-reveal" style={{ animationDelay: '50ms' }}>
+          <div className="glass-card rounded-3xl p-8 platform-reveal" style={{ animationDelay: '50ms' }}>
             <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">Next on the calendar</p>
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <CalendarDays className="h-5 w-5 text-primary" />
+              <p className="text-xs uppercase tracking-[0.16em] text-white/50 font-medium">Next on the calendar</p>
+              <div className="h-10 w-10 rounded-full bg-[hsl(var(--primary))/0.1] flex items-center justify-center">
+                <CalendarDays className="h-5 w-5 text-[hsl(var(--primary))]" />
               </div>
             </div>
             
             {data.upcomingBooking ? (
               <div className="relative mt-8">
-                <div className="absolute left-0 top-2 bottom-0 w-0.5 bg-border/60">
-                  <div className="absolute -left-1 top-0 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-background" />
+                <div className="absolute left-0 top-2 bottom-0 w-0.5 bg-white/10">
+                  <div className="absolute -left-[5px] top-0 h-3 w-3 rounded-full bg-[hsl(var(--primary))] shadow-[0_0_10px_hsl(var(--primary))]" />
                 </div>
                 <div className="pl-6">
-                  <p className="font-serif text-4xl">{data.upcomingBooking.serviceName}</p>
-                  <p className="mt-3 text-[15px] text-muted-foreground">{data.upcomingBooking.providerName} <span className="mx-2">•</span> {date(data.upcomingBooking.scheduledAt)}</p>
-                  <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium rounded-full bg-accent/50 px-3 py-1.5 border border-border/50">
-                    <span className="h-2 w-2 rounded-full bg-primary animate-pulse" /> 
+                  <p className="font-serif text-4xl font-bold text-white">{data.upcomingBooking.serviceName}</p>
+                  <p className="mt-3 text-[15px] text-white/50">{data.upcomingBooking.providerName} <span className="mx-2">•</span> {date(data.upcomingBooking.scheduledAt)}</p>
+                  <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium rounded-full bg-white/5 px-3 py-1.5 border border-white/10 text-white/80">
+                    <span className="h-2 w-2 rounded-full bg-[hsl(var(--primary))] animate-pulse shadow-[0_0_8px_hsl(var(--primary))]" /> 
                     <span className="capitalize">{data.upcomingBooking.status.replaceAll("_", " ")}</span>
                   </div>
                   <div className="mt-8">
-                    <Link href={`/bookings/${data.upcomingBooking.id}`} className="inline-flex items-center gap-2 rounded-full border border-border bg-background/50 px-5 py-2.5 text-sm font-medium hover:bg-accent hover:border-border/80 transition-all hover:shadow-sm" data-testid="link-employee-upcoming-booking">Open booking <ArrowRight className="h-4 w-4" /></Link>
+                    <Link href={`/bookings/${data.upcomingBooking.id}`} className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/10 transition-all hover:shadow-sm" data-testid="link-employee-upcoming-booking">Open booking <ArrowRight className="h-4 w-4" /></Link>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="mt-8 rounded-2xl bg-accent/40 border border-border/50 p-6">
-                <p className="font-serif text-3xl">A calm calendar is a good calendar.</p>
-                <Link href="/browse" className="mt-5 inline-flex items-center text-sm font-medium text-primary hover:opacity-80 transition-opacity" data-testid="link-employee-empty-booking">Find a service <ArrowRight className="ml-1.5 h-4 w-4" /></Link>
+              <div className="mt-8 rounded-2xl bg-white/5 border border-white/10 p-6">
+                <p className="font-serif text-3xl text-white font-bold">A calm calendar is a good calendar.</p>
+                <Link href="/browse" className="mt-5 inline-flex items-center text-sm font-medium text-[hsl(var(--primary))] hover:text-white transition-colors" data-testid="link-employee-empty-booking">Find a service <ArrowRight className="ml-1.5 h-4 w-4" /></Link>
               </div>
             )}
           </div>
@@ -101,60 +121,60 @@ export default function Employee() {
         </section>
         
         <section className="grid gap-6 lg:grid-cols-[1fr_.8fr]">
-          <div className="platform-surface platform-card-lift rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '100ms' }}>
+          <div className="glass-card rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '100ms' }}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">Eligible services</p>
-                <h2 className="mt-3 text-3xl sm:text-4xl">Make room for what matters.</h2>
+                <p className="text-xs uppercase tracking-[0.16em] text-white/50 font-medium">Eligible services</p>
+                <h2 className="mt-3 text-3xl sm:text-4xl text-white">Make room for what matters.</h2>
               </div>
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <Sparkles className="h-6 w-6 text-primary" />
+              <div className="h-12 w-12 rounded-full bg-[hsl(var(--primary))/0.1] flex items-center justify-center shrink-0">
+                <Sparkles className="h-6 w-6 text-[hsl(var(--primary))]" />
               </div>
             </div>
-            <div className="mt-8 divide-y divide-border/60">
+            <div className="mt-8 divide-y divide-white/10">
               {data.activeCategories.slice(0, 4).map((service, i) => (
                 <div key={service.slug} className="flex items-center gap-5 py-4 group platform-reveal" style={{ animationDelay: `${150 + (i*50)}ms` }} data-testid={`row-employee-service-${service.slug}`}>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/60 group-hover:bg-primary/10 transition-colors">
-                    <Home className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/5 group-hover:bg-[hsl(var(--primary))/0.1] transition-colors border border-white/5">
+                    <Home className="h-5 w-5 text-white/40 group-hover:text-[hsl(var(--primary))] transition-colors" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-[15px]">{service.name}</p>
-                    <p className="truncate text-[13px] text-muted-foreground mt-0.5">{service.description}</p>
+                    <p className="font-medium text-[15px] text-white/90">{service.name}</p>
+                    <p className="truncate text-[13px] text-white/50 mt-0.5">{service.description}</p>
                   </div>
-                  <span className="text-sm font-medium whitespace-nowrap bg-background rounded-full px-2.5 py-1 border border-border/50">{money(service.employeeCopayment)}</span>
+                  <span className="text-sm font-medium whitespace-nowrap bg-white/5 rounded-full px-2.5 py-1 border border-white/10 text-white/80">{money(service.employeeCopayment)}</span>
                 </div>
               ))}
             </div>
-            <Link href="/browse" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:opacity-80 transition-opacity" data-testid="link-employee-all-services">View all services <ArrowRight className="h-4 w-4" /></Link>
+            <Link href="/browse" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[hsl(var(--primary))] hover:text-white transition-colors" data-testid="link-employee-all-services">View all services <ArrowRight className="h-4 w-4" /></Link>
           </div>
           
-          <div className="platform-surface platform-card-lift rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '150ms' }}>
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">Routines</p>
-            <h2 className="mt-3 text-3xl sm:text-4xl">Set it, then forget it.</h2>
+          <div className="glass-card rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '150ms' }}>
+            <p className="text-xs uppercase tracking-[0.16em] text-white/50 font-medium">Routines</p>
+            <h2 className="mt-3 text-3xl sm:text-4xl text-white">Set it, then forget it.</h2>
             <div className="mt-8 space-y-4">
               {data.routines.slice(0, 3).map((routine, i) => (
-                <div key={routine.id} className="rounded-2xl bg-accent/40 border border-border/50 p-5 hover:bg-accent/60 transition-colors platform-reveal" style={{ animationDelay: `${200 + (i*50)}ms` }} data-testid={`row-employee-routine-${routine.id}`}>
+                <div key={routine.id} className="rounded-2xl bg-white/5 border border-white/10 p-5 hover:bg-white/10 transition-colors platform-reveal" style={{ animationDelay: `${200 + (i*50)}ms` }} data-testid={`row-employee-routine-${routine.id}`}>
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                      <Repeat2 className="h-4 w-4 text-primary" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--primary))/0.1]">
+                      <Repeat2 className="h-4 w-4 text-[hsl(var(--primary))]" />
                     </div>
-                    <p className="font-medium">{routine.label}</p>
-                    <span className="ml-auto text-xs font-medium px-2 py-1 rounded-full bg-primary/10 text-primary capitalize">{routine.status}</span>
+                    <p className="font-medium text-white/90">{routine.label}</p>
+                    <span className="ml-auto text-xs font-medium px-2 py-1 rounded-full bg-[hsl(var(--primary))/0.1] text-[hsl(var(--primary))] capitalize border border-[hsl(var(--primary))/0.2]">{routine.status}</span>
                   </div>
-                  <p className="mt-3 pl-11 text-[13px] text-muted-foreground">{routine.frequency} <span className="mx-1">•</span> {routine.preferredDay}, {routine.preferredTime}</p>
+                  <p className="mt-3 pl-11 text-[13px] text-white/50">{routine.frequency} <span className="mx-1">•</span> {routine.preferredDay}, {routine.preferredTime}</p>
                 </div>
               ))}
             </div>
-            <Link href="/household" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:opacity-80 transition-opacity" data-testid="link-employee-household">Manage household <ArrowRight className="h-4 w-4" /></Link>
+            <Link href="/household" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[hsl(var(--primary))] hover:text-white transition-colors" data-testid="link-employee-household">Manage household <ArrowRight className="h-4 w-4" /></Link>
           </div>
         </section>
       </div>}
     </DataState>
-    <div className="mt-10 flex flex-wrap gap-5 text-xs text-muted-foreground font-medium pb-8">
-      <span className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-background/50 px-3 py-1.5"><Check className="h-3.5 w-3.5 text-primary" /> Benefit privacy protected</span>
-      <span className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-background/50 px-3 py-1.5"><Clock3 className="h-3.5 w-3.5 text-primary" /> Human support when needed</span>
-      <Link href="/support" className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-background/50 px-3 py-1.5 hover:bg-accent transition-colors" data-testid="link-employee-support"><LifeBuoy className="h-3.5 w-3.5" /> Talk to Loup support</Link>
-      <Link href="/billing" className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-background/50 px-3 py-1.5 hover:bg-accent transition-colors" data-testid="link-employee-billing"><CreditCard className="h-3.5 w-3.5" /> View billing</Link>
+    <div className="mt-10 flex flex-wrap gap-5 text-xs text-white/50 font-medium pb-8">
+      <span className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5"><Check className="h-3.5 w-3.5 text-[hsl(var(--primary))]" /> Benefit privacy protected</span>
+      <span className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5"><Clock3 className="h-3.5 w-3.5 text-[hsl(var(--primary))]" /> Human support when needed</span>
+      <Link href="/support" className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 hover:bg-white/10 hover:text-white transition-colors" data-testid="link-employee-support"><LifeBuoy className="h-3.5 w-3.5" /> Talk to Loup support</Link>
+      <Link href="/billing" className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 hover:bg-white/10 hover:text-white transition-colors" data-testid="link-employee-billing"><CreditCard className="h-3.5 w-3.5" /> View billing</Link>
     </div>
   </div></PlatformShell>;
 }

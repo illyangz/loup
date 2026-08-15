@@ -30,7 +30,7 @@
       (function () {
         try {
           var stored = localStorage.getItem("loup-theme");
-          var dark = stored === "dark" || (stored !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var dark = stored !== "light";
           if (dark) document.documentElement.classList.add("dark");
         } catch (e) {}
       })();

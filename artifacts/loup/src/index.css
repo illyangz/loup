@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
 
 @import 'tailwindcss';
 @import 'tw-animate-css';
@@ -52,98 +52,61 @@
 }
 
 :root {
-  /* Golden Hour — warm linen & amber */
-  --background: 40 42% 95%;
-  --foreground: 24 38% 18%;
-  --card: 42 50% 98%;
-  --card-foreground: 24 35% 20%;
-  --popover: 42 45% 98%;
-  --popover-foreground: 24 35% 20%;
-
-  /* Honey / Terracotta */
-  --primary: 28 62% 45%;
-  --primary-foreground: 42 40% 98%;
-
-  /* Warm stone / sand */
-  --secondary: 36 34% 89%;
-  --secondary-foreground: 24 35% 20%;
-
-  --muted: 35 25% 88%;
-  --muted-foreground: 24 20% 45%;
-
-  --accent: 35 45% 84%;
-  --accent-foreground: 24 35% 20%;
-
-  --destructive: 0 70% 40%;
+  --background: 270 12% 4%;
+  --foreground: 0 0% 97%;
+  --card: 270 10% 8%;
+  --card-foreground: 0 0% 92%;
+  --popover: 270 10% 10%;
+  --popover-foreground: 0 0% 92%;
+  --primary: 38 100% 58%;
+  --primary-foreground: 270 12% 4%;
+  --secondary: 270 10% 12%;
+  --secondary-foreground: 0 0% 85%;
+  --muted: 270 8% 14%;
+  --muted-foreground: 0 0% 60%;
+  --accent: 270 10% 14%;
+  --accent-foreground: 0 0% 90%;
+  --destructive: 0 80% 60%;
   --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 100% / 0.08;
+  --input: 270 10% 12%;
+  --ring: 38 100% 58%;
+  --radius: 1rem;
+  --platform-brass: 38 100% 58%;
+  --platform-plum: 260 90% 68%;
+  --platform-mint: 175 85% 55%;
+  --platform-wash: 270 10% 10%;
 
-  --border: 35 25% 86%;
-  --input: 35 25% 86%;
-  --ring: 26 55% 52%;
-
-  --radius: 1.25rem;
-
-  --app-font-sans: 'Outfit', sans-serif;
-  --app-font-serif: 'Instrument Serif', serif;
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-serif: 'Syne', sans-serif;
   --app-font-mono: monospace;
-
-  /* Pack colors */
-  --pack-1: 150 30% 40%; /* Sage */
-  --pack-2: 210 40% 45%; /* Slate Blue */
-  --pack-3: 340 45% 50%; /* Rose */
-  --pack-4: 25 60% 45%;  /* Terracotta */
-  --pack-5: 280 30% 45%; /* Amethyst */
-  --pack-6: 180 35% 40%; /* Teal */
-
-  /* Platform layer: espresso, brass, and smoked saffron */
-  --platform-ink: 24 38% 18%;
-  --platform-brass: 37 70% 48%;
-  --platform-plum: 337 25% 29%;
-  --platform-mint: 157 24% 37%;
-  --platform-wash: 38 55% 91%;
 }
 
 .dark {
-  /* Golden Hour after dark — warm cocoa & ember */
-  --background: 24 25% 10%;
-  --foreground: 40 35% 92%;
-  --card: 24 25% 13%;
-  --card-foreground: 40 35% 92%;
-  --popover: 24 25% 13%;
-  --popover-foreground: 40 35% 92%;
-
-  /* Glowing amber */
-  --primary: 28 65% 60%;
-  --primary-foreground: 24 30% 10%;
-
-  --secondary: 26 20% 20%;
-  --secondary-foreground: 40 30% 88%;
-
-  --muted: 26 20% 18%;
-  --muted-foreground: 35 15% 62%;
-
-  --accent: 26 25% 24%;
-  --accent-foreground: 40 35% 90%;
-
-  --destructive: 0 60% 45%;
+  --background: 270 12% 4%;
+  --foreground: 0 0% 97%;
+  --card: 270 10% 8%;
+  --card-foreground: 0 0% 92%;
+  --popover: 270 10% 10%;
+  --popover-foreground: 0 0% 92%;
+  --primary: 38 100% 58%;
+  --primary-foreground: 270 12% 4%;
+  --secondary: 270 10% 12%;
+  --secondary-foreground: 0 0% 85%;
+  --muted: 270 8% 14%;
+  --muted-foreground: 0 0% 60%;
+  --accent: 270 10% 14%;
+  --accent-foreground: 0 0% 90%;
+  --destructive: 0 80% 60%;
   --destructive-foreground: 0 0% 98%;
-
-  --border: 26 20% 22%;
-  --input: 26 20% 22%;
-  --ring: 28 65% 60%;
-
-  /* Pack colors */
-  --pack-1: 150 25% 55%;
-  --pack-2: 210 50% 65%;
-  --pack-3: 340 50% 65%;
-  --pack-4: 25 70% 60%;
-  --pack-5: 280 40% 65%;
-  --pack-6: 180 40% 55%;
-  --platform-ink: 40 35% 92%;
-  --platform-brass: 38 75% 62%;
-  --platform-plum: 337 28% 64%;
-  --platform-mint: 157 28% 60%;
-  --platform-wash: 25 22% 19%;
+  --border: 0 0% 100% / 0.08;
+  --input: 270 10% 12%;
+  --ring: 38 100% 58%;
+  --radius: 1rem;
+  --platform-brass: 38 100% 58%;
+  --platform-plum: 260 90% 68%;
+  --platform-mint: 175 85% 55%;
+  --platform-wash: 270 10% 10%;
 }
 
 @layer base {
@@ -154,7 +117,8 @@
     @apply font-sans antialiased bg-background text-foreground selection:bg-primary/20 selection:text-primary;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-serif tracking-tight;
+    @apply font-serif tracking-tight font-bold;
+    letter-spacing: -0.03em;
   }
 }
 
@@ -162,49 +126,60 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  .glass-nav {
-    @apply bg-background/80 backdrop-blur-xl border-t border-border/50;
-  }
-  .card-shadow {
-    @apply shadow-[0_8px_30px_rgba(160,110,80,0.08)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)];
-  }
-  .bg-sunlight {
+  
+  .ambient-field {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background:
-      radial-gradient(circle at 85% 0%, rgba(210, 124, 75, 0.08) 0%, transparent 50%),
-      radial-gradient(circle at 10% 100%, rgba(210, 124, 75, 0.04) 0%, transparent 50%);
+      radial-gradient(ellipse 80% 60% at 15% 10%, hsl(38 100% 58% / 0.12) 0%, transparent 55%),
+      radial-gradient(ellipse 60% 50% at 85% 80%, hsl(260 90% 68% / 0.10) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, hsl(175 85% 55% / 0.04) 0%, transparent 60%),
+      hsl(270 12% 4%);
   }
-  .golden-shadow {
-    box-shadow: 0 20px 40px -15px rgba(160, 110, 80, 0.2),
-                0 10px 20px -10px rgba(160, 110, 80, 0.1);
+
+  .glass-card {
+    background: hsl(0 0% 100% / 0.04);
+    border: 1px solid hsl(0 0% 100% / 0.08);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    box-shadow:
+      0 0 0 1px hsl(0 0% 100% / 0.04) inset,
+      0 24px 64px hsl(270 12% 2% / 0.6),
+      0 1px 0 hsl(0 0% 100% / 0.06) inset;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
   }
-  .golden-shadow-sm {
-    box-shadow: 0 10px 25px -5px rgba(160, 110, 80, 0.08),
-                0 4px 10px -5px rgba(160, 110, 80, 0.04);
+
+  .glass-card:hover {
+    box-shadow:
+      0 0 0 1px hsl(38 100% 58% / 0.12) inset,
+      0 32px 80px hsl(270 12% 2% / 0.7),
+      0 1px 0 hsl(0 0% 100% / 0.08) inset;
+    transform: translateY(-2px);
   }
-  .platform-grid {
-    background-image: linear-gradient(hsl(var(--border) / 0.38) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border) / 0.38) 1px, transparent 1px);
-    background-size: 32px 32px;
+
+  .glass-card-glow {
+    background: hsl(38 100% 58% / 0.05);
+    border: 1px solid hsl(38 100% 58% / 0.15);
+    backdrop-filter: blur(20px) saturate(1.4);
+    box-shadow:
+      0 0 40px hsl(38 100% 58% / 0.08),
+      0 0 0 1px hsl(38 100% 58% / 0.08) inset,
+      0 24px 64px hsl(270 12% 2% / 0.6);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
   }
-  .platform-surface {
-    background: linear-gradient(135deg, hsl(var(--card) / .96), hsl(var(--platform-wash) / .78));
-    box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.5), inset 0 2px 12px 0 rgba(255,255,255,0.4), 0 16px 50px hsl(var(--platform-ink) / .04);
-    @apply dark:shadow-[inset_0_0_0_1px_hsl(var(--border)/0.5),inset_0_2px_12px_0_rgba(255,255,255,0.05),0_16px_50px_hsl(var(--platform-ink)/0.04)];
+
+  .glass-card-glow:hover {
+    box-shadow:
+      0 0 60px hsl(38 100% 58% / 0.12),
+      0 0 0 1px hsl(38 100% 58% / 0.15) inset,
+      0 32px 80px hsl(270 12% 2% / 0.7);
+    transform: translateY(-2px);
   }
+
   .platform-reveal { animation: platform-reveal .55s cubic-bezier(0.16, 1, 0.3, 1) both; }
   
   .platform-stat-glow {
     text-shadow: 0 0 24px currentColor;
     opacity: 0.8;
-  }
-  
-  .platform-card-lift {
-    @apply transition-all duration-300;
-  }
-  
-  .platform-card-lift:hover {
-    transform: translateY(-4px);
-    box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.5), inset 0 2px 12px 0 rgba(255,255,255,0.4), 0 24px 60px hsl(var(--platform-ink) / .08);
-    @apply dark:shadow-[inset_0_0_0_1px_hsl(var(--border)/0.5),inset_0_2px_12px_0_rgba(255,255,255,0.05),0_24px_60px_hsl(var(--platform-ink)/0.08)];
   }
   
   .role-card-shimmer {

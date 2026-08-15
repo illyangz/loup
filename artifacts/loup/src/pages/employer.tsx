@@ -45,7 +45,7 @@ export default function Employer() {
         </section>
         
         <section className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
-          <div className="platform-surface platform-card-lift rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '100ms' }}>
+          <div className="glass-card rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '100ms' }}>
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">Benefit pulse</p>
@@ -91,7 +91,7 @@ export default function Employer() {
             )}
           </div>
           
-          <div className="platform-surface platform-card-lift rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '150ms' }}>
+          <div className="glass-card rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '150ms' }}>
             <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">Category mix</p>
             <h2 className="mt-3 text-3xl sm:text-4xl">What people hand off.</h2>
             <div className="mt-10 space-y-6">
@@ -113,7 +113,7 @@ export default function Employer() {
           </div>
         </section>
         
-        <section id="roster" className="platform-surface platform-card-lift scroll-mt-24 rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '200ms' }}>
+        <section id="roster" className="glass-card scroll-mt-24 rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '200ms' }}>
           <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end mb-8">
             <div>
               <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">People covered</p>
@@ -170,7 +170,7 @@ export default function Employer() {
         </section>
         
         <section id="integrations" className="grid scroll-mt-24 gap-6 lg:grid-cols-[1fr_1fr]">
-          <div className="platform-surface platform-card-lift rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '250ms' }}>
+          <div className="glass-card rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '250ms' }}>
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <Link2 className="h-6 w-6 text-primary" />
@@ -196,7 +196,7 @@ export default function Employer() {
             </div>
           </div>
           
-          <div className="platform-surface platform-card-lift rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '300ms' }}>
+          <div className="glass-card rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: '300ms' }}>
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <FileSpreadsheet className="h-6 w-6 text-primary" />
