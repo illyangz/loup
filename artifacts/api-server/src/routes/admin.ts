@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, asc } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import {
   db,
@@ -11,9 +11,12 @@ import {
   categoriesTable,
   servicesTable,
   bookingsTable,
+  bookingEventsTable,
   allowanceLedgerTable,
   providerQualityFlagsTable,
   supportIncidentsTable,
+  membersTable,
+  bookingStatusHistoryTable,
 } from "@workspace/db";
 import { fetchBookingViews } from "../lib/loup";
 
@@ -387,6 +390,189 @@ router.get("/v1/admin/ledger", async (req, res): Promise<void> => {
     createdByRole: l.createdByRole ?? null,
     createdAt: l.createdAt.toISOString(),
   })));
+});
+
+// ── Support incidents ─────────────────────────────────────────────────────────
+
+router.get("/v1/admin/incidents", async (req, res): Promise<void> => {
+  const { status } = req.query as { status?: string };
+
+  const [incidents, bookingRows, employeeRows, providerRows, memberRows] = await Promise.all([
+    db.select().from(supportIncidentsTable)
+      .orderBy(desc(supportIncidentsTable.createdAt)),
+    db.select({
+      id: bookingsTable.id,
+      status: bookingsTable.status,
+      scheduledAt: bookingsTable.scheduledAt,
+      priceEstimate: bookingsTable.priceEstimate,
+      providerId: bookingsTable.providerId,
+      memberId: bookingsTable.memberId,
+    }).from(bookingsTable),
+    db.select({ id: employeesTable.id, name: employeesTable.name }).from(employeesTable),
+    db.select({ id: providersTable.id, name: providersTable.name }).from(providersTable),
+    db.select({ id: membersTable.id, name: membersTable.name }).from(membersTable),
+  ]);
+
+  const bookingMap = new Map(bookingRows.map(b => [b.id, b]));
+  const employeeMap = new Map(employeeRows.map(e => [e.id, e.name]));
+  const providerMap = new Map(providerRows.map(p => [p.id, p.name]));
+  const memberMap = new Map(memberRows.map(m => [m.id, m.name]));
+
+  const filtered = status
+    ? incidents.filter(i => i.status === status)
+    : incidents;
+
+  res.json(filtered.map(i => {
+    const booking = i.bookingId ? bookingMap.get(i.bookingId) : null;
+    return {
+      id: i.id,
+      bookingId: i.bookingId,
+      bookingStatus: booking?.status ?? null,
+      bookingScheduledAt: booking?.scheduledAt?.toISOString() ?? null,
+      bookingPriceEstimate: booking?.priceEstimate ?? null,
+      employeeId: i.employeeId,
+      employeeName: i.employeeId ? (employeeMap.get(i.employeeId) ?? "Unknown") : null,
+      providerName: booking?.providerId ? (providerMap.get(booking.providerId) ?? "Unknown") : null,
+      memberName: booking?.memberId ? (memberMap.get(booking.memberId) ?? "Unknown") : null,
+      category: i.category,
+      description: i.description,
+      status: i.status,
+      resolution: i.resolution ?? null,
+      createdAt: i.createdAt.toISOString(),
+      resolvedAt: i.resolvedAt?.toISOString() ?? null,
+    };
+  }));
+});
+
+const INCIDENT_STATUSES = ["open", "investigating", "resolved", "closed"] as const;
+type IncidentStatus = typeof INCIDENT_STATUSES[number];
+
+// Terminal booking statuses that must never be reverted when resolving an incident
+const TERMINAL_BOOKING_STATUSES = new Set(["completed", "cancelled", "rejected"]);
+
+router.patch("/v1/admin/incidents/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id ?? "0");
+  const { status, resolution } = req.body as { status?: string; resolution?: string };
+
+  if (!status) { res.status(400).json({ error: "status is required" }); return; }
+  if (!(INCIDENT_STATUSES as readonly string[]).includes(status)) {
+    res.status(400).json({ error: `status must be one of: ${INCIDENT_STATUSES.join(", ")}` });
+    return;
+  }
+
+  const [existing] = await db.select().from(supportIncidentsTable).where(eq(supportIncidentsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Incident not found" }); return; }
+
+  const isClosing = status === "resolved" || status === "closed";
+  const updates: Record<string, unknown> = { status };
+  if (resolution !== undefined) updates.resolution = resolution;
+  if (isClosing) updates.resolvedAt = new Date();
+
+  // Wrap incident update + optional booking restoration in a single transaction so a failure
+  // midway cannot leave an incident resolved while its booking stays disputed.
+  let updated: typeof existing;
+  await db.transaction(async (tx) => {
+    const [inc] = await tx.update(supportIncidentsTable)
+      .set(updates)
+      .where(eq(supportIncidentsTable.id, id))
+      .returning();
+    updated = inc!;
+
+    if (isClosing && existing.bookingId) {
+      const [booking] = await tx
+        .select({ status: bookingsTable.status })
+        .from(bookingsTable)
+        .where(eq(bookingsTable.id, existing.bookingId));
+
+      if (booking?.status === "disputed") {
+        // Look up the exact status the booking held before it was marked disputed.
+        // Restoring to this preserves terminal states (completed, cancelled, rejected)
+        // so resolution never reopens a booking that was already finished.
+        const history = await tx
+          .select({ fromStatus: bookingStatusHistoryTable.fromStatus })
+          .from(bookingStatusHistoryTable)
+          .where(
+            and(
+              eq(bookingStatusHistoryTable.bookingId, existing.bookingId),
+              eq(bookingStatusHistoryTable.toStatus, "disputed"),
+            ),
+          )
+          .orderBy(desc(bookingStatusHistoryTable.createdAt))
+          .limit(1);
+
+        const restoreTo = history[0]?.fromStatus ?? "confirmed";
+        const note = `Incident #${id} resolved — booking status restored`;
+
+        await Promise.all([
+          tx.update(bookingsTable)
+            .set({ status: restoreTo })
+            .where(eq(bookingsTable.id, existing.bookingId)),
+
+          // booking_events drives the customer/mobile timeline — must be kept in sync
+          tx.insert(bookingEventsTable).values({
+            bookingId: existing.bookingId,
+            status: restoreTo,
+            note,
+            occurredAt: new Date(),
+          }),
+
+          // booking_status_history is the admin audit trail
+          tx.insert(bookingStatusHistoryTable).values({
+            bookingId: existing.bookingId,
+            fromStatus: "disputed",
+            toStatus: restoreTo,
+            actorRole: "admin",
+            note,
+          }),
+        ]);
+      }
+      // If the booking is not currently `disputed` its status is left unchanged.
+    }
+  });
+
+  // Return the enriched AdminIncident shape (same contract as GET /v1/admin/incidents)
+  const [bookingRow] = existing.bookingId
+    ? await db
+        .select({
+          status: bookingsTable.status,
+          scheduledAt: bookingsTable.scheduledAt,
+          priceEstimate: bookingsTable.priceEstimate,
+          providerId: bookingsTable.providerId,
+          memberId: bookingsTable.memberId,
+        })
+        .from(bookingsTable)
+        .where(eq(bookingsTable.id, existing.bookingId))
+    : [undefined];
+
+  const [employeeRow] = updated!.employeeId
+    ? await db.select({ name: employeesTable.name }).from(employeesTable).where(eq(employeesTable.id, updated!.employeeId))
+    : [undefined];
+
+  const [providerRow] = bookingRow?.providerId
+    ? await db.select({ name: providersTable.name }).from(providersTable).where(eq(providersTable.id, bookingRow.providerId))
+    : [undefined];
+
+  const [memberRow] = bookingRow?.memberId
+    ? await db.select({ name: membersTable.name }).from(membersTable).where(eq(membersTable.id, bookingRow.memberId))
+    : [undefined];
+
+  res.json({
+    id: updated!.id,
+    bookingId: updated!.bookingId,
+    bookingStatus: bookingRow?.status ?? null,
+    bookingScheduledAt: bookingRow?.scheduledAt?.toISOString() ?? null,
+    bookingPriceEstimate: bookingRow?.priceEstimate ?? null,
+    employeeId: updated!.employeeId,
+    employeeName: employeeRow?.name ?? null,
+    providerName: providerRow?.name ?? null,
+    memberName: memberRow?.name ?? null,
+    category: updated!.category,
+    description: updated!.description,
+    status: updated!.status,
+    resolution: updated!.resolution ?? null,
+    createdAt: updated!.createdAt.toISOString(),
+    resolvedAt: updated!.resolvedAt?.toISOString() ?? null,
+  });
 });
 
 // ── Refund simulation (reverse a ledger entry — idempotent) ──────────────────

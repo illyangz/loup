@@ -8,7 +8,8 @@ import {
   AdminCategory, 
   AdminService, 
   AdminBooking, 
-  LedgerEntry 
+  LedgerEntry,
+  AdminIncident,
 } from "@/lib/api";
 
 // Overview
@@ -184,5 +185,32 @@ export function useRefundLedgerEntry() {
     mutationFn: (id: number) => 
       adminFetch(`/v1/admin/ledger/${id}/refund`, { method: "POST" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "ledger"] })
+  });
+}
+
+// Incidents
+export function useIncidents(status?: string) {
+  return useQuery<AdminIncident[]>({
+    queryKey: ["admin", "incidents", status],
+    queryFn: () => {
+      const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+      return adminFetch(`/v1/admin/incidents${qs}`);
+    },
+  });
+}
+
+export function useResolveIncident() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status, resolution }: { id: number; status: string; resolution?: string }) =>
+      adminFetch(`/v1/admin/incidents/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status, resolution }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "incidents"] });
+      qc.invalidateQueries({ queryKey: ["admin", "bookings"] });
+      qc.invalidateQueries({ queryKey: ["admin", "overview"] });
+    },
   });
 }

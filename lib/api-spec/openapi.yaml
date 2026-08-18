@@ -1219,6 +1219,64 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AuditEvent"
+  /v1/admin/incidents:
+    get:
+      operationId: listAdminIncidents
+      tags: [platform]
+      summary: List support incidents (optionally filtered by status)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, investigating, resolved, closed]
+          description: Filter by incident status (default all)
+      responses:
+        "200":
+          description: Incidents, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminIncident"
+  /v1/admin/incidents/{id}:
+    patch:
+      operationId: resolveAdminIncident
+      tags: [platform]
+      summary: Update the status of a support incident (resolve or close)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminIncidentUpdate"
+      responses:
+        "200":
+          description: Updated incident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminIncident"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
   /openai/conversations:
     get:
       operationId: listOpenaiConversations
@@ -2613,6 +2671,33 @@ components:
               name: { type: string }
               monthlyAllowance: { type: number }
               description: { type: string }
+    AdminIncident:
+      type: object
+      required: [id, bookingId, bookingStatus, bookingScheduledAt, bookingPriceEstimate, employeeId, employeeName, providerName, memberName, category, description, status, resolution, createdAt, resolvedAt]
+      properties:
+        id: { type: integer }
+        bookingId: { type: integer, nullable: true }
+        bookingStatus: { type: string, nullable: true }
+        bookingScheduledAt: { type: string, nullable: true }
+        bookingPriceEstimate: { type: number, nullable: true }
+        employeeId: { type: integer, nullable: true }
+        employeeName: { type: string, nullable: true }
+        providerName: { type: string, nullable: true }
+        memberName: { type: string, nullable: true }
+        category: { type: string }
+        description: { type: string }
+        status: { type: string }
+        resolution: { type: string, nullable: true }
+        createdAt: { type: string }
+        resolvedAt: { type: string, nullable: true }
+    AdminIncidentUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [open, investigating, resolved, closed]
+        resolution: { type: string }
     OpenaiConversation:
       type: object
       properties:

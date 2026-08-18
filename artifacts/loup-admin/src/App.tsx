@@ -10,6 +10,7 @@ import Providers from '@/pages/providers';
 import Catalog from '@/pages/catalog';
 import Bookings from '@/pages/bookings';
 import Ledger from '@/pages/ledger';
+import Incidents from '@/pages/incidents';
 import {
   Route,
   Switch,
@@ -29,6 +30,7 @@ function Router() {
         <Route path="/catalog" component={Catalog} />
         <Route path="/bookings" component={Bookings} />
         <Route path="/ledger" component={Ledger} />
+        <Route path="/incidents" component={Incidents} />
         <Route component={NotFound} />
       </Switch>
     </RoutedErrorBoundary>

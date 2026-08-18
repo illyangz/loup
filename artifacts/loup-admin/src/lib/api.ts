@@ -115,3 +115,21 @@ export type LedgerEntry = {
   note: string | null;
   createdAt: string;
 };
+
+export type AdminIncident = {
+  id: number;
+  bookingId: number | null;
+  bookingStatus: string | null;
+  bookingScheduledAt: string | null;
+  bookingPriceEstimate: number | null;
+  employeeId: number | null;
+  employeeName: string | null;
+  providerName: string | null;
+  memberName: string | null;
+  category: string;
+  description: string;
+  status: string;
+  resolution: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+};
