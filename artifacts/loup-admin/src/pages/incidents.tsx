@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useSearch } from "wouter";
 import { Layout } from "@/components/layout";
-import { useIncidents, useResolveIncident, useIncidentNotes, useAddIncidentNote } from "@/hooks/api-hooks";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { formatAED, formatDateTime } from "@/lib/utils";
 import { AdminIncident, IncidentNote } from "@/lib/api";
-import { AlertTriangle, ChevronDown, ChevronRight, MessageSquare, Send } from "lucide-react";
+import { useIncidents, useResolveIncident, useIncidentNotes, useAddIncidentNote, useAssignIncident } from "@/hooks/api-hooks";
+import { Input } from "@/components/ui/input";
+import { AlertTriangle, ChevronDown, ChevronRight, MessageSquare, Send, UserCheck, X } from "lucide-react";
 
 const STATUS_VARIANTS: Record<string, "default" | "warning" | "success" | "destructive" | "secondary"> = {
   open: "destructive",
@@ -28,8 +29,98 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-// ── Note thread shown inside the expanded row ──────────────────────────────
+function AssignControl({ incident }: { incident: AdminIncident }) {
+  const assignIncident = useAssignIncident();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(incident.assigneeName ?? "");
 
+  function handleOpen() {
+    setDraft(incident.assigneeName ?? "");
+    setEditing(true);
+  }
+
+  function handleSave() {
+    const name = draft.trim() || null;
+    assignIncident.mutate(
+      { id: incident.id, assigneeName: name },
+      { onSuccess: () => setEditing(false) },
+    );
+  }
+
+  function handleUnassign() {
+    assignIncident.mutate(
+      { id: incident.id, assigneeName: null },
+      { onSuccess: () => setEditing(false) },
+    );
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        <Input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Team member name…"
+          className="h-7 text-xs w-36"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSave();
+            if (e.key === "Escape") setEditing(false);
+          }}
+        />
+        <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSave} disabled={assignIncident.isPending}>
+          Save
+        </Button>
+        <Button size="sm" variant="ghost" className="h-7 px-1" onClick={() => setEditing(false)}>
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
+  if (incident.assigneeName) {
+    return (
+      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+          <UserCheck className="h-3.5 w-3.5" />
+          {incident.assigneeName}
+        </span>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
+          onClick={handleUnassign}
+          disabled={assignIncident.isPending}
+          title="Remove assignment"
+        >
+          <X className="h-3 w-3" />
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-5 px-1 text-xs text-muted-foreground"
+          onClick={handleOpen}
+          disabled={assignIncident.isPending}
+        >
+          Change
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="h-6 px-2 text-xs text-muted-foreground"
+      onClick={(e) => { e.stopPropagation(); handleOpen(); }}
+      disabled={assignIncident.isPending || incident.status === "closed"}
+    >
+      <UserCheck className="h-3.5 w-3.5 mr-1" />
+      Assign
+    </Button>
+  );
+}
 function NoteThread({ incidentId, incidentStatus }: { incidentId: number; incidentStatus: string }) {
   const { data: notes, isLoading } = useIncidentNotes(incidentId);
   const addNote = useAddIncidentNote();
@@ -173,6 +264,10 @@ function IncidentRow({
             {incident.status}
           </Badge>
         </TableCell>
+        {/* Assignee column */}
+        <TableCell onClick={(e) => e.stopPropagation()}>
+          <AssignControl incident={incident} />
+        </TableCell>
         <TableCell className="text-xs text-muted-foreground">
           {formatDateTime(incident.createdAt)}
           {incident.resolvedAt && (
@@ -209,7 +304,7 @@ function IncidentRow({
 
       {expanded && (
         <TableRow className="bg-muted/20 hover:bg-muted/20">
-          <TableCell colSpan={9} className="px-8 py-4">
+          <TableCell colSpan={10} className="px-8 py-4">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                 Activity &amp; Notes
@@ -302,6 +397,7 @@ export default function Incidents() {
                 <TableHead>Category</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Assignee</TableHead>
                 <TableHead>Reported</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -318,7 +414,7 @@ export default function Incidents() {
               ))}
               {incidents?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     No incidents found{statusFilter ? ` with status "${statusFilter}"` : ""}.
                   </TableCell>
                 </TableRow>

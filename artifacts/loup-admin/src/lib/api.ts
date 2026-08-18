@@ -143,6 +143,7 @@ export type AdminIncident = {
   description: string;
   status: string;
   resolution: string | null;
+  assigneeName: string | null;
   createdAt: string;
   resolvedAt: string | null;
 };

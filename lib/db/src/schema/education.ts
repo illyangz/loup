@@ -107,6 +107,7 @@ export const supportIncidentsTable = pgTable("support_incidents", {
   /** open | investigating | resolved | closed */
   status: text("status").notNull().default("open"),
   resolution: text("resolution"),
+  assigneeName: text("assignee_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 });

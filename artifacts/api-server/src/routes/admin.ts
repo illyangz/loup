@@ -80,17 +80,13 @@ router.get("/v1/admin/institutions", async (_req, res): Promise<void> => {
     db.select({ id: employeesTable.id, institutionId: employeesTable.institutionId }).from(employeesTable),
   ]);
 
-  const result = institutions.map(inst => {
-    const instCampuses = campuses.filter(c => c.institutionId === inst.id);
-    const employeeCount = employees.filter(e => e.institutionId === inst.id).length;
-    return {
-      ...inst,
-      campusCount: instCampuses.length,
-      campuses: instCampuses,
-      employeeCount,
-      createdAt: inst.createdAt.toISOString(),
-    };
-  });
+  const result = institutions.map(inst => ({
+    ...inst,
+    campusCount: campuses.filter(c => c.institutionId === inst.id).length,
+    campuses: campuses.filter(c => c.institutionId === inst.id).map(c => ({ id: c.id, name: c.name })),
+    employeeCount: employees.filter(e => e.institutionId === inst.id).length,
+    createdAt: inst.createdAt.toISOString(),
+  }));
 
   res.json(result);
 });
@@ -115,7 +111,6 @@ router.patch("/v1/admin/institutions/:id", async (req, res): Promise<void> => {
   if (name !== undefined) updates.name = name;
   if (active !== undefined) updates.active = active;
   if (city !== undefined) updates.city = city;
-  if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No fields to update" }); return; }
 
   const [updated] = await db.update(institutionsTable).set(updates).where(eq(institutionsTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Institution not found" }); return; }
@@ -198,11 +193,10 @@ router.patch("/v1/admin/providers/:id", async (req, res): Promise<void> => {
   const { action, verified, availableNow } = req.body as { action?: "approve" | "suspend"; verified?: boolean; availableNow?: boolean };
 
   const updates: Record<string, unknown> = {};
-  if (action === "approve") { updates.verified = true; updates.availableNow = true; }
-  if (action === "suspend") { updates.availableNow = false; }
+  if (action === "approve") { updates.verified = true; }
+  else if (action === "suspend") { updates.verified = false; }
   if (verified !== undefined) updates.verified = verified;
   if (availableNow !== undefined) updates.availableNow = availableNow;
-  if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No fields to update" }); return; }
 
   const [updated] = await db.update(providersTable).set(updates).where(eq(providersTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Provider not found" }); return; }
@@ -237,12 +231,9 @@ router.patch("/v1/admin/quality-flags/:id", async (req, res): Promise<void> => {
   if (!status) { res.status(400).json({ error: "status is required" }); return; }
 
   const updates: Record<string, unknown> = { status };
-  if (name !== undefined) updates.name = name;
-  if (description !== undefined) updates.description = description;
-  if (price !== undefined) updates.price = price;
-  if (durationMinutes !== undefined) updates.durationMinutes = durationMinutes;
+  if (status === "resolved" || status === "dismissed") updates.reviewedAt = new Date();
 
-  const [updated] = await db.update(bookingsTable).set({ status }).where(eq(bookingsTable.id, id)).returning();
+  const [updated] = await db.update(providerQualityFlagsTable).set(updates).where(eq(providerQualityFlagsTable.id, flagId)).returning();
   if (!updated) { res.status(404).json({ error: "Flag not found" }); return; }
   res.json({ ...updated, reviewedAt: updated.reviewedAt?.toISOString() ?? null, createdAt: updated.createdAt.toISOString() });
 });
@@ -279,13 +270,12 @@ router.patch("/v1/admin/categories/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id ?? "0");
   const { name, tagline, startingPrice } = req.body as { name?: string; tagline?: string; startingPrice?: number };
 
-  const updates: Record<string, unknown> = { status };
+  const updates: Record<string, unknown> = {};
   if (name !== undefined) updates.name = name;
-  if (description !== undefined) updates.description = description;
-  if (price !== undefined) updates.price = price;
-  if (durationMinutes !== undefined) updates.durationMinutes = durationMinutes;
+  if (tagline !== undefined) updates.tagline = tagline;
+  if (startingPrice !== undefined) updates.startingPrice = startingPrice;
 
-  const [updated] = await db.update(bookingsTable).set({ status }).where(eq(bookingsTable.id, id)).returning();
+  const [updated] = await db.update(categoriesTable).set(updates).where(eq(categoriesTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Category not found" }); return; }
   res.json(updated);
 });
@@ -331,13 +321,13 @@ router.patch("/v1/admin/services/:id", async (req, res): Promise<void> => {
     name?: string; description?: string; price?: number; durationMinutes?: number;
   };
 
-  const updates: Record<string, unknown> = { status };
+  const updates: Record<string, unknown> = {};
   if (name !== undefined) updates.name = name;
   if (description !== undefined) updates.description = description;
   if (price !== undefined) updates.price = price;
   if (durationMinutes !== undefined) updates.durationMinutes = durationMinutes;
 
-  const [updated] = await db.update(bookingsTable).set({ status }).where(eq(bookingsTable.id, id)).returning();
+  const [updated] = await db.update(servicesTable).set(updates).where(eq(servicesTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Service not found" }); return; }
   res.json(updated);
 });
@@ -446,6 +436,7 @@ router.get("/v1/admin/incidents", async (req, res): Promise<void> => {
       description: i.description,
       status: i.status,
       resolution: i.resolution ?? null,
+      assigneeName: i.assigneeName ?? null,
       createdAt: i.createdAt.toISOString(),
       resolvedAt: i.resolvedAt?.toISOString() ?? null,
     };
@@ -460,10 +451,13 @@ const TERMINAL_BOOKING_STATUSES = new Set(["completed", "cancelled", "rejected"]
 
 router.patch("/v1/admin/incidents/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id ?? "0");
-  const { status, resolution } = req.body as { status?: string; resolution?: string };
+  const { status, resolution, assigneeName } = req.body as { status?: string; resolution?: string; assigneeName?: string | null };
 
-  if (!status) { res.status(400).json({ error: "status is required" }); return; }
-  if (!(INCIDENT_STATUSES as readonly string[]).includes(status)) {
+  // Validate: at least one field must be present
+  if (status === undefined && assigneeName === undefined) {
+    res.status(400).json({ error: "status or assigneeName is required" }); return;
+  }
+  if (status !== undefined && !(INCIDENT_STATUSES as readonly string[]).includes(status)) {
     res.status(400).json({ error: `status must be one of: ${INCIDENT_STATUSES.join(", ")}` });
     return;
   }
@@ -472,9 +466,22 @@ router.patch("/v1/admin/incidents/:id", async (req, res): Promise<void> => {
   if (!existing) { res.status(404).json({ error: "Incident not found" }); return; }
 
   const isClosing = status === "resolved" || status === "closed";
-  const updates: Record<string, unknown> = { status };
+  const updates: Record<string, unknown> = {};
+  if (status !== undefined) updates.status = status;
   if (resolution !== undefined) updates.resolution = resolution;
   if (isClosing) updates.resolvedAt = new Date();
+  if (assigneeName !== undefined) updates.assigneeName = assigneeName ?? null;
+
+  // Determine system note text for assignee change (computed before transaction so it's available inside)
+  let assigneeNoteText: string | null = null;
+  if (assigneeName !== undefined) {
+    const prev = existing.assigneeName;
+    if (assigneeName && assigneeName !== prev) {
+      assigneeNoteText = `Assigned to ${assigneeName}`;
+    } else if (!assigneeName && prev) {
+      assigneeNoteText = "Assignment removed";
+    }
+  }
 
   // Wrap incident update + optional booking restoration in a single transaction so a failure
   // midway cannot leave an incident resolved while its booking stays disputed.
@@ -485,6 +492,15 @@ router.patch("/v1/admin/incidents/:id", async (req, res): Promise<void> => {
       .where(eq(supportIncidentsTable.id, id))
       .returning();
     updated = inc!;
+
+    // Post a system note when assignee changes
+    if (assigneeNoteText) {
+      await tx.insert(supportIncidentNotesTable).values({
+        incidentId: id,
+        authorRole: "system",
+        note: assigneeNoteText,
+      });
+    }
 
     if (isClosing && existing.bookingId) {
       const [booking] = await tx
@@ -578,6 +594,7 @@ router.patch("/v1/admin/incidents/:id", async (req, res): Promise<void> => {
     description: updated!.description,
     status: updated!.status,
     resolution: updated!.resolution ?? null,
+    assigneeName: updated!.assigneeName ?? null,
     createdAt: updated!.createdAt.toISOString(),
     resolvedAt: updated!.resolvedAt?.toISOString() ?? null,
   });

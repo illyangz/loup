@@ -225,6 +225,21 @@ export function useResolveIncident() {
   });
 }
 
+export function useAssignIncident() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, assigneeName }: { id: number; assigneeName: string | null }) =>
+      adminFetch(`/v1/admin/incidents/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ assigneeName }),
+      }),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["admin", "incidents"] });
+      qc.invalidateQueries({ queryKey: ["admin", "incidents", id, "notes"] });
+    },
+  });
+}
+
 export function useIncidentNotes(incidentId: number | null) {
   return useQuery<IncidentNote[]>({
     queryKey: ["admin", "incidents", incidentId, "notes"],
