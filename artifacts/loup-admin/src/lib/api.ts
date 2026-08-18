@@ -22,6 +22,7 @@ export type AdminOverview = {
   platformRevenueEstimate: number;
   qualityWarningsCount: number;
   activeProviders: number;
+  openIncidentsCount: number;
 };
 
 export type AdminInstitution = {

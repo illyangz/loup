@@ -1,3 +1,4 @@
+import { useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import { useOverview, useQualityFlags, useResolveQualityFlag } from "@/hooks/api-hooks";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,10 +11,12 @@ import {
   Calendar, 
   Wallet, 
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  ShieldAlert,
 } from "lucide-react";
 
 export default function Overview() {
+  const [, navigate] = useLocation();
   const { data: overview, isLoading: isOverviewLoading } = useOverview();
   const { data: flags, isLoading: isFlagsLoading } = useQualityFlags();
   const resolveFlag = useResolveQualityFlag();
@@ -27,6 +30,8 @@ export default function Overview() {
       </Layout>
     );
   }
+
+  const openIncidentsCount = overview?.openIncidentsCount ?? 0;
 
   const kpis = [
     { label: "Active Institutions", value: overview?.totalInstitutions, icon: Building2, trend: "+2 this month" },
@@ -59,6 +64,33 @@ export default function Overview() {
             </Card>
           ))}
         </div>
+
+        {/* Open Incidents alert card */}
+        <Card
+          className={`cursor-pointer transition-colors hover:bg-muted/50 ${openIncidentsCount > 0 ? "border-destructive/60" : ""}`}
+          onClick={() => navigate("/incidents?status=open")}
+        >
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="flex items-center gap-3">
+              <ShieldAlert className={`h-5 w-5 ${openIncidentsCount > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+              <CardTitle className="text-sm font-medium">Open Incidents</CardTitle>
+            </div>
+            {openIncidentsCount > 0 ? (
+              <Badge variant="destructive">{openIncidentsCount} Open</Badge>
+            ) : (
+              <Badge variant="secondary">All Clear</Badge>
+            )}
+          </CardHeader>
+          <CardContent>
+            {openIncidentsCount > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {openIncidentsCount} incident{openIncidentsCount !== 1 ? "s" : ""} require attention. Click to review open and investigating incidents.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No open or investigating incidents. Platform support is healthy.</p>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <Card className="lg:col-span-2">

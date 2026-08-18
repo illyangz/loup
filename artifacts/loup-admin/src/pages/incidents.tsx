@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearch } from "wouter";
 import { Layout } from "@/components/layout";
 import { useIncidents, useResolveIncident, useIncidentNotes, useAddIncidentNote } from "@/hooks/api-hooks";
 import { Card } from "@/components/ui/card";
@@ -225,7 +226,9 @@ function IncidentRow({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Incidents() {
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const search = useSearch();
+  const initialStatus = new URLSearchParams(search).get("status") ?? "";
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
   const [resolving, setResolving] = useState<AdminIncident | null>(null);
   const [resolution, setResolution] = useState("");
 

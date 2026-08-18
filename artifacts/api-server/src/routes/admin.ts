@@ -44,13 +44,15 @@ router.use(requireAdminRole);
 // ── Admin overview ────────────────────────────────────────────────────────────
 
 router.get("/v1/admin/overview", async (_req, res): Promise<void> => {
-  const [institutions, employees, allBookings, ledger, openFlags, providerRows] = await Promise.all([
+  const [institutions, employees, allBookings, ledger, openFlags, providerRows, openIncidents] = await Promise.all([
     db.select({ id: institutionsTable.id }).from(institutionsTable).where(eq(institutionsTable.active, true)),
     db.select({ id: employeesTable.id }).from(employeesTable),
     db.select({ id: bookingsTable.id, createdAt: bookingsTable.createdAt }).from(bookingsTable),
     db.select({ amount: allowanceLedgerTable.amount, entryType: allowanceLedgerTable.entryType }).from(allowanceLedgerTable),
     db.select({ id: providerQualityFlagsTable.id }).from(providerQualityFlagsTable).where(eq(providerQualityFlagsTable.status, "pending_review")),
     db.select({ id: providersTable.id }).from(providersTable),
+    db.select({ id: supportIncidentsTable.id }).from(supportIncidentsTable)
+      .where(inArray(supportIncidentsTable.status, ["open", "investigating"])),
   ]);
 
   const todayStart = new Date();
@@ -65,6 +67,7 @@ router.get("/v1/admin/overview", async (_req, res): Promise<void> => {
     platformRevenueEstimate: Math.round(platformRevenue),
     qualityWarningsCount: openFlags.length,
     activeProviders: providerRows.length,
+    openIncidentsCount: openIncidents.length,
   });
 });
 
