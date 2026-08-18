@@ -86,7 +86,7 @@ export default function Analytics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{formatAED(totalRevenue)}</div>
+              <div className="text-2xl font-bold truncate" title={formatAED(totalRevenue)}>{formatAED(totalRevenue)}</div>
               <p className="text-xs text-muted-foreground mt-1">From bill items</p>
             </CardContent>
           </Card>
