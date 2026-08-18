@@ -11,6 +11,7 @@ import {
   LedgerEntry,
   AdminAnalytics,
   AdminIncident,
+  IncidentNote,
 } from "@/lib/api";
 
 // Overview
@@ -220,6 +221,28 @@ export function useResolveIncident() {
       qc.invalidateQueries({ queryKey: ["admin", "incidents"] });
       qc.invalidateQueries({ queryKey: ["admin", "bookings"] });
       qc.invalidateQueries({ queryKey: ["admin", "overview"] });
+    },
+  });
+}
+
+export function useIncidentNotes(incidentId: number | null) {
+  return useQuery<IncidentNote[]>({
+    queryKey: ["admin", "incidents", incidentId, "notes"],
+    queryFn: () => adminFetch(`/v1/admin/incidents/${incidentId}/notes`),
+    enabled: incidentId !== null,
+  });
+}
+
+export function useAddIncidentNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, note }: { id: number; note: string }) =>
+      adminFetch(`/v1/admin/incidents/${id}/notes`, {
+        method: "POST",
+        body: JSON.stringify({ note }),
+      }),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["admin", "incidents", id, "notes"] });
     },
   });
 }

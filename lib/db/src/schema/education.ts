@@ -111,6 +111,15 @@ export const supportIncidentsTable = pgTable("support_incidents", {
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 });
 
+export const supportIncidentNotesTable = pgTable("support_incident_notes", {
+  id: serial("id").primaryKey(),
+  incidentId: integer("incident_id").notNull().references(() => supportIncidentsTable.id),
+  /** admin | system */
+  authorRole: text("author_role").notNull().default("admin"),
+  note: text("note").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const providerQualityFlagsTable = pgTable("provider_quality_flags", {
   id: serial("id").primaryKey(),
   providerId: integer("provider_id").notNull(),
@@ -168,6 +177,10 @@ export type BookingStatusHistoryRow = typeof bookingStatusHistoryTable.$inferSel
 export const insertSupportIncidentSchema = createInsertSchema(supportIncidentsTable).omit({ id: true, createdAt: true });
 export type InsertSupportIncident = z.infer<typeof insertSupportIncidentSchema>;
 export type SupportIncidentRow = typeof supportIncidentsTable.$inferSelect;
+
+export const insertSupportIncidentNoteSchema = createInsertSchema(supportIncidentNotesTable).omit({ id: true, createdAt: true });
+export type InsertSupportIncidentNote = z.infer<typeof insertSupportIncidentNoteSchema>;
+export type SupportIncidentNoteRow = typeof supportIncidentNotesTable.$inferSelect;
 
 export const insertProviderQualityFlagSchema = createInsertSchema(providerQualityFlagsTable).omit({ id: true, createdAt: true });
 export type InsertProviderQualityFlag = z.infer<typeof insertProviderQualityFlagSchema>;

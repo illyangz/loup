@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout";
-import { useIncidents, useResolveIncident } from "@/hooks/api-hooks";
+import { useIncidents, useResolveIncident, useIncidentNotes, useAddIncidentNote } from "@/hooks/api-hooks";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { formatAED, formatDateTime } from "@/lib/utils";
-import { AdminIncident } from "@/lib/api";
-import { AlertTriangle } from "lucide-react";
+import { AdminIncident, IncidentNote } from "@/lib/api";
+import { AlertTriangle, ChevronDown, ChevronRight, MessageSquare, Send } from "lucide-react";
 
 const STATUS_VARIANTS: Record<string, "default" | "warning" | "success" | "destructive" | "secondary"> = {
   open: "destructive",
@@ -26,6 +26,203 @@ const CATEGORY_LABELS: Record<string, string> = {
   safety: "Safety",
   other: "Other",
 };
+
+// ── Note thread shown inside the expanded row ──────────────────────────────
+
+function NoteThread({ incidentId, incidentStatus }: { incidentId: number; incidentStatus: string }) {
+  const { data: notes, isLoading } = useIncidentNotes(incidentId);
+  const addNote = useAddIncidentNote();
+  const [draft, setDraft] = useState("");
+
+  function handleSubmit() {
+    if (!draft.trim()) return;
+    addNote.mutate(
+      { id: incidentId, note: draft.trim() },
+      { onSuccess: () => setDraft("") },
+    );
+  }
+
+  const isTerminal = incidentStatus === "closed";
+
+  return (
+    <div className="space-y-3">
+      {/* Existing notes */}
+      {isLoading ? (
+        <p className="text-xs text-muted-foreground animate-pulse">Loading notes…</p>
+      ) : notes && notes.length > 0 ? (
+        <div className="space-y-2">
+          {notes.map((n: IncidentNote) => (
+            <div key={n.id} className="flex gap-2">
+              <div className="flex-shrink-0 mt-0.5 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center">
+                <MessageSquare className="h-3 w-3 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-xs font-medium capitalize">{n.authorRole}</span>
+                  <span className="text-xs text-muted-foreground">{formatDateTime(n.createdAt)}</span>
+                </div>
+                <p className="text-sm text-foreground whitespace-pre-wrap break-words">{n.note}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground italic">No notes yet.</p>
+      )}
+
+      {/* Add a note (always visible unless closed) */}
+      {!isTerminal && (
+        <div className="flex gap-2 pt-1">
+          <Textarea
+            placeholder="Add a note…"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={2}
+            className="flex-1 resize-none text-sm"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit();
+            }}
+          />
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={addNote.isPending || !draft.trim()}
+            className="self-end"
+          >
+            <Send className="h-3.5 w-3.5 mr-1" />
+            Post
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Expandable incident row ────────────────────────────────────────────────
+
+function IncidentRow({
+  incident,
+  onInvestigate,
+  onResolve,
+  isPending,
+}: {
+  incident: AdminIncident;
+  onInvestigate: (id: number) => void;
+  onResolve: (incident: AdminIncident) => void;
+  isPending: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <>
+      <TableRow
+        className="cursor-pointer hover:bg-muted/40"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <TableCell className="w-6 px-2">
+          {expanded ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </TableCell>
+        <TableCell className="font-mono text-xs text-muted-foreground">
+          #{incident.id.toString().padStart(4, "0")}
+        </TableCell>
+        <TableCell>
+          {incident.bookingId ? (
+            <div>
+              <div className="font-mono text-xs">#{incident.bookingId.toString().padStart(6, "0")}</div>
+              {incident.bookingStatus && (
+                <Badge variant="outline" className="text-xs mt-0.5">
+                  {incident.bookingStatus}
+                </Badge>
+              )}
+              {incident.bookingPriceEstimate != null && (
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {formatAED(incident.bookingPriceEstimate)}
+                </div>
+              )}
+            </div>
+          ) : (
+            <span className="text-muted-foreground text-xs">—</span>
+          )}
+        </TableCell>
+        <TableCell>
+          <div className="font-medium text-sm">{incident.memberName ?? incident.employeeName ?? "—"}</div>
+          {incident.providerName && (
+            <div className="text-xs text-muted-foreground">via {incident.providerName}</div>
+          )}
+        </TableCell>
+        <TableCell>
+          <Badge variant="outline">
+            {CATEGORY_LABELS[incident.category] ?? incident.category}
+          </Badge>
+        </TableCell>
+        <TableCell className="max-w-xs">
+          <p className="text-sm line-clamp-2">{incident.description}</p>
+          {incident.resolution && (
+            <p className="text-xs text-muted-foreground mt-1 italic line-clamp-1">
+              ✓ {incident.resolution}
+            </p>
+          )}
+        </TableCell>
+        <TableCell>
+          <Badge variant={STATUS_VARIANTS[incident.status] ?? "secondary"}>
+            {incident.status}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-xs text-muted-foreground">
+          {formatDateTime(incident.createdAt)}
+          {incident.resolvedAt && (
+            <div className="text-xs mt-0.5">
+              Closed {formatDateTime(incident.resolvedAt)}
+            </div>
+          )}
+        </TableCell>
+        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-2">
+            {incident.status === "open" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onInvestigate(incident.id)}
+                disabled={isPending}
+              >
+                Investigate
+              </Button>
+            )}
+            {(incident.status === "open" || incident.status === "investigating") && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => onResolve(incident)}
+                disabled={isPending}
+              >
+                Resolve
+              </Button>
+            )}
+          </div>
+        </TableCell>
+      </TableRow>
+
+      {expanded && (
+        <TableRow className="bg-muted/20 hover:bg-muted/20">
+          <TableCell colSpan={9} className="px-8 py-4">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Activity &amp; Notes
+              </p>
+              <NoteThread incidentId={incident.id} incidentStatus={incident.status} />
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Incidents() {
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -95,6 +292,7 @@ export default function Incidents() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-6" />
                 <TableHead>ID</TableHead>
                 <TableHead>Booking</TableHead>
                 <TableHead>Member / Provider</TableHead>
@@ -107,90 +305,17 @@ export default function Incidents() {
             </TableHeader>
             <TableBody>
               {incidents?.map((incident) => (
-                <TableRow key={incident.id}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    #{incident.id.toString().padStart(4, "0")}
-                  </TableCell>
-                  <TableCell>
-                    {incident.bookingId ? (
-                      <div>
-                        <div className="font-mono text-xs">#{incident.bookingId.toString().padStart(6, "0")}</div>
-                        {incident.bookingStatus && (
-                          <Badge variant="outline" className="text-xs mt-0.5">
-                            {incident.bookingStatus}
-                          </Badge>
-                        )}
-                        {incident.bookingPriceEstimate != null && (
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {formatAED(incident.bookingPriceEstimate)}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium text-sm">{incident.memberName ?? incident.employeeName ?? "—"}</div>
-                    {incident.providerName && (
-                      <div className="text-xs text-muted-foreground">via {incident.providerName}</div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {CATEGORY_LABELS[incident.category] ?? incident.category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-xs">
-                    <p className="text-sm line-clamp-2">{incident.description}</p>
-                    {incident.resolution && (
-                      <p className="text-xs text-muted-foreground mt-1 italic line-clamp-1">
-                        ✓ {incident.resolution}
-                      </p>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={STATUS_VARIANTS[incident.status] ?? "secondary"}>
-                      {incident.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {formatDateTime(incident.createdAt)}
-                    {incident.resolvedAt && (
-                      <div className="text-xs mt-0.5">
-                        Closed {formatDateTime(incident.resolvedAt)}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {incident.status === "open" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleMarkInvestigating(incident.id)}
-                          disabled={resolveIncident.isPending}
-                        >
-                          Investigate
-                        </Button>
-                      )}
-                      {(incident.status === "open" || incident.status === "investigating") && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleResolve(incident)}
-                          disabled={resolveIncident.isPending}
-                        >
-                          Resolve
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <IncidentRow
+                  key={incident.id}
+                  incident={incident}
+                  onInvestigate={handleMarkInvestigating}
+                  onResolve={handleResolve}
+                  isPending={resolveIncident.isPending}
+                />
               ))}
               {incidents?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     No incidents found{statusFilter ? ` with status "${statusFilter}"` : ""}.
                   </TableCell>
                 </TableRow>

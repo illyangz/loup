@@ -16,6 +16,7 @@ import {
   allowanceLedgerTable,
   providerQualityFlagsTable,
   supportIncidentsTable,
+  supportIncidentNotesTable,
   membersTable,
   bookingStatusHistoryTable,
 } from "@workspace/db";
@@ -588,6 +589,51 @@ router.patch("/v1/admin/incidents/:id", async (req, res): Promise<void> => {
     resolution: updated!.resolution ?? null,
     createdAt: updated!.createdAt.toISOString(),
     resolvedAt: updated!.resolvedAt?.toISOString() ?? null,
+  });
+});
+
+// ── Incident notes ────────────────────────────────────────────────────────────
+
+router.get("/v1/admin/incidents/:id/notes", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id ?? "0");
+  const [incident] = await db.select({ id: supportIncidentsTable.id }).from(supportIncidentsTable).where(eq(supportIncidentsTable.id, id));
+  if (!incident) { res.status(404).json({ error: "Incident not found" }); return; }
+
+  const notes = await db
+    .select()
+    .from(supportIncidentNotesTable)
+    .where(eq(supportIncidentNotesTable.incidentId, id))
+    .orderBy(asc(supportIncidentNotesTable.createdAt));
+
+  res.json(notes.map(n => ({
+    id: n.id,
+    incidentId: n.incidentId,
+    authorRole: n.authorRole,
+    note: n.note,
+    createdAt: n.createdAt.toISOString(),
+  })));
+});
+
+router.post("/v1/admin/incidents/:id/notes", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id ?? "0");
+  const { note, authorRole = "admin" } = req.body as { note: string; authorRole?: string };
+
+  if (!note || !note.trim()) { res.status(400).json({ error: "note is required" }); return; }
+
+  const [incident] = await db.select({ id: supportIncidentsTable.id }).from(supportIncidentsTable).where(eq(supportIncidentsTable.id, id));
+  if (!incident) { res.status(404).json({ error: "Incident not found" }); return; }
+
+  const [created] = await db
+    .insert(supportIncidentNotesTable)
+    .values({ incidentId: id, note: note.trim(), authorRole })
+    .returning();
+
+  res.status(201).json({
+    id: created!.id,
+    incidentId: created!.incidentId,
+    authorRole: created!.authorRole,
+    note: created!.note,
+    createdAt: created!.createdAt.toISOString(),
   });
 });
 

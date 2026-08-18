@@ -145,3 +145,11 @@ export type AdminIncident = {
   createdAt: string;
   resolvedAt: string | null;
 };
+
+export type IncidentNote = {
+  id: number;
+  incidentId: number;
+  authorRole: string;
+  note: string;
+  createdAt: string;
+};
