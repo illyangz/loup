@@ -187,7 +187,7 @@ async function main() {
 
   const members = await db.insert(membersTable).values([
     { householdId: hid, name: "Omar Mansour",    relation: "Head of household", role: "head",   initials: "OM", monthlySpendLimit: null, isCurrentUser: true  },
-    { householdId: hid, name: "Layla Mansour",   relation: "Partner",           role: "owner",  initials: "LM", monthlySpendLimit: null, isCurrentUser: false },
+    { householdId: hid, name: "Layla Mansour",   relation: "Generations Shaper", role: "owner",  initials: "LM", monthlySpendLimit: null, isCurrentUser: false },
     { householdId: hid, name: "Zayd Mansour",    relation: "Son",               role: "member", initials: "ZM", monthlySpendLimit: 500,  isCurrentUser: false },
     { householdId: hid, name: "Amira Mansour",   relation: "Daughter",          role: "member", initials: "AM", monthlySpendLimit: 300,  isCurrentUser: false },
     { householdId: hid, name: "Rosa Dela Cruz",  relation: "Housekeeper",       role: "member", initials: "RD", monthlySpendLimit: 750,  isCurrentUser: false },
