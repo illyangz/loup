@@ -80,28 +80,15 @@ router.get("/v1/admin/institutions", async (_req, res): Promise<void> => {
     db.select({ id: employeesTable.id, institutionId: employeesTable.institutionId }).from(employeesTable),
   ]);
 
-  const result = providers.map(p => {
-    const provFlags = freshFlags.filter(f => f.providerId === p.id);
-    const openFlags = provFlags.filter(f => f.status === "pending_review" || f.status === "under_review");
+  const result = institutions.map(inst => {
+    const instCampuses = campuses.filter(c => c.institutionId === inst.id);
+    const employeeCount = employees.filter(e => e.institutionId === inst.id).length;
     return {
-      id: p.id,
-      name: p.name,
-      tagline: p.tagline,
-      categoryId: p.categoryId,
-      categoryName: catMap.get(p.categoryId) ?? "Unknown",
-      rating: p.rating,
-      reviewCount: p.reviewCount,
-      jobsCompleted: p.jobsCompleted,
-      yearsOnPlatform: p.yearsOnPlatform,
-      verified: p.verified,
-      availableNow: p.availableNow,
-      startingPrice: p.startingPrice,
-      badges: p.badges,
-      status: p.verified ? "active" : "pending",
-      openFlagCount: openFlags.length,
-      hasOpenFlag: openFlags.length > 0,
-      reducedRouting: openFlags.length > 0,
-      qualityFlags: openFlags.map(f => ({ id: f.id, flagType: f.flagType, currentValue: f.currentValue, threshold: f.threshold })),
+      ...inst,
+      campusCount: instCampuses.length,
+      campuses: instCampuses,
+      employeeCount,
+      createdAt: inst.createdAt.toISOString(),
     };
   });
 
@@ -124,13 +111,13 @@ router.patch("/v1/admin/institutions/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id ?? "0");
   const { name, active, city } = req.body as { name?: string; active?: boolean; city?: string };
 
-  const updates: Record<string, unknown> = { status };
+  const updates: Record<string, unknown> = {};
   if (name !== undefined) updates.name = name;
-  if (description !== undefined) updates.description = description;
-  if (price !== undefined) updates.price = price;
-  if (durationMinutes !== undefined) updates.durationMinutes = durationMinutes;
+  if (active !== undefined) updates.active = active;
+  if (city !== undefined) updates.city = city;
+  if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No fields to update" }); return; }
 
-  const [updated] = await db.update(bookingsTable).set({ status }).where(eq(bookingsTable.id, id)).returning();
+  const [updated] = await db.update(institutionsTable).set(updates).where(eq(institutionsTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Institution not found" }); return; }
   res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
 });
@@ -210,13 +197,14 @@ router.patch("/v1/admin/providers/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id ?? "0");
   const { action, verified, availableNow } = req.body as { action?: "approve" | "suspend"; verified?: boolean; availableNow?: boolean };
 
-  const updates: Record<string, unknown> = { status };
-  if (name !== undefined) updates.name = name;
-  if (description !== undefined) updates.description = description;
-  if (price !== undefined) updates.price = price;
-  if (durationMinutes !== undefined) updates.durationMinutes = durationMinutes;
+  const updates: Record<string, unknown> = {};
+  if (action === "approve") { updates.verified = true; updates.availableNow = true; }
+  if (action === "suspend") { updates.availableNow = false; }
+  if (verified !== undefined) updates.verified = verified;
+  if (availableNow !== undefined) updates.availableNow = availableNow;
+  if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No fields to update" }); return; }
 
-  const [updated] = await db.update(bookingsTable).set({ status }).where(eq(bookingsTable.id, id)).returning();
+  const [updated] = await db.update(providersTable).set(updates).where(eq(providersTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Provider not found" }); return; }
   res.json(updated);
 });
@@ -394,9 +382,9 @@ router.get("/v1/admin/ledger", async (req, res): Promise<void> => {
 
   const empMap = new Map(employees.map(e => [e.id, e]));
 
-  const filtered = status
-    ? incidents.filter(i => i.status === status)
-    : incidents;
+  const filtered = institution
+    ? ledger.filter(l => empMap.get(l.employeeId)?.institutionId === parseInt(institution))
+    : ledger;
 
   res.json(filtered.map(l => ({
     id: l.id,
