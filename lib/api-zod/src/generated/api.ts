@@ -275,7 +275,9 @@ export const CreateBookingBody = zod.object({
   "serviceId": zod.number().int(),
   "addressId": zod.number().int(),
   "scheduledAt": zod.coerce.date(),
-  "instructions": zod.string().optional()
+  "instructions": zod.string().optional(),
+  "allowanceContribution": zod.number().optional().describe('How much of the employee\'s benefit allowance to apply (0 = pay full price, max = available balance up to service price)'),
+  "memberId": zod.number().int().optional().describe('Which household member this booking is for (defaults to current user)')
 })
 
 export const CreateBookingResponse = zod.object({
@@ -772,6 +774,10 @@ export const ListDemoRolesResponse = zod.array(ListDemoRolesResponseItem)
 export const GetEmployeeOverviewResponse = zod.object({
   "employeeName": zod.string(),
   "employerName": zod.string(),
+  "institutionName": zod.string(),
+  "campusName": zod.string(),
+  "benefitTierName": zod.string(),
+  "benefitTierAllowance": zod.number(),
   "allowance": zod.object({
   "authorized": zod.number(),
   "reserved": zod.number(),
@@ -829,6 +835,84 @@ export const GetEmployeeOverviewResponse = zod.object({
   "manualConfirmation": zod.boolean(),
   "status": zod.string()
 }))
+})
+
+
+/**
+ * @summary Get the employee's current category allocation preferences
+ */
+export const GetEmployeeAllocationResponse = zod.object({
+  "totalAllowance": zod.number(),
+  "allocated": zod.number(),
+  "remaining": zod.number(),
+  "allocations": zod.array(zod.object({
+  "slug": zod.string(),
+  "name": zod.string(),
+  "amount": zod.number()
+}))
+})
+
+
+/**
+ * @summary Save (upsert) the employee's category allocation preferences
+ */
+export const SaveEmployeeAllocationBody = zod.object({
+  "allocations": zod.array(zod.object({
+  "slug": zod.string(),
+  "name": zod.string(),
+  "amount": zod.number()
+}))
+})
+
+export const SaveEmployeeAllocationResponse = zod.object({
+  "totalAllowance": zod.number(),
+  "allocated": zod.number(),
+  "remaining": zod.number(),
+  "allocations": zod.array(zod.object({
+  "slug": zod.string(),
+  "name": zod.string(),
+  "amount": zod.number()
+}))
+})
+
+
+/**
+ * @summary Calculate split-payment breakdown for a given service
+ */
+export const GetCheckoutPreviewQueryParams = zod.object({
+  "serviceId": zod.coerce.number().int()
+})
+
+export const GetCheckoutPreviewResponse = zod.object({
+  "serviceId": zod.number().int(),
+  "serviceName": zod.string(),
+  "providerName": zod.string(),
+  "publicPrice": zod.number(),
+  "institutionalPrice": zod.number(),
+  "institutionalSaving": zod.number().optional(),
+  "availableAllowance": zod.number(),
+  "employerContribution": zod.number(),
+  "employeeCopayment": zod.number()
+})
+
+
+/**
+ * @summary Submit a support issue for a booking or general query
+ */
+export const createSupportIssueBodyDescriptionMin = 10;
+
+
+
+export const CreateSupportIssueBody = zod.object({
+  "bookingId": zod.number().int().optional(),
+  "category": zod.enum(['general', 'quality', 'billing', 'safety', 'other']).optional(),
+  "description": zod.string().min(createSupportIssueBodyDescriptionMin)
+})
+
+export const CreateSupportIssueResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.string(),
+  "createdAt": zod.coerce.date()
 })
 
 

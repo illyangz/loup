@@ -674,6 +674,71 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EmployeeOverview"
+  /v1/employee/allocation:
+    get:
+      operationId: getEmployeeAllocation
+      tags: [platform]
+      summary: Get the employee's current category allocation preferences
+      responses:
+        "200":
+          description: Current allocation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeAllocation"
+    patch:
+      operationId: saveEmployeeAllocation
+      tags: [platform]
+      summary: Save (upsert) the employee's category allocation preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeAllocationInput"
+      responses:
+        "200":
+          description: Saved allocation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeAllocation"
+  /v1/employee/checkout-preview:
+    get:
+      operationId: getCheckoutPreview
+      tags: [platform]
+      summary: Calculate split-payment breakdown for a given service
+      parameters:
+        - name: serviceId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Checkout preview with split-payment calculation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutPreview"
+  /v1/employee/issues:
+    post:
+      operationId: createSupportIssue
+      tags: [platform]
+      summary: Submit a support issue for a booking or general query
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportIssueInput"
+      responses:
+        "201":
+          description: Issue created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportIssue"
   /v1/employer/overview:
     get:
       operationId: getEmployerOverview
@@ -933,6 +998,10 @@ components:
       required:
         - employeeName
         - employerName
+        - institutionName
+        - campusName
+        - benefitTierName
+        - benefitTierAllowance
         - allowance
         - upcomingBooking
         - metrics
@@ -941,6 +1010,10 @@ components:
       properties:
         employeeName: { type: string }
         employerName: { type: string }
+        institutionName: { type: string }
+        campusName: { type: string }
+        benefitTierName: { type: string }
+        benefitTierAllowance: { type: number }
         allowance:
           $ref: "#/components/schemas/AllowanceSummary"
         upcomingBooking:
@@ -1649,10 +1722,74 @@ components:
           format: date-time
         instructions:
           type: string
+        allowanceContribution:
+          type: number
+          description: How much of the employee's benefit allowance to apply (0 = pay full price, max = available balance up to service price)
+        memberId:
+          type: integer
+          description: Which household member this booking is for (defaults to current user)
       required:
         - serviceId
         - addressId
         - scheduledAt
+    EmployeeAllocation:
+      type: object
+      required: [totalAllowance, allocated, remaining, allocations]
+      properties:
+        totalAllowance: { type: number }
+        allocated: { type: number }
+        remaining: { type: number }
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryAllocation"
+    CategoryAllocation:
+      type: object
+      required: [slug, name, amount]
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        amount: { type: number }
+    EmployeeAllocationInput:
+      type: object
+      required: [allocations]
+      properties:
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryAllocation"
+    CheckoutPreview:
+      type: object
+      required: [serviceId, serviceName, providerName, publicPrice, institutionalPrice, availableAllowance, employerContribution, employeeCopayment]
+      properties:
+        serviceId: { type: integer }
+        serviceName: { type: string }
+        providerName: { type: string }
+        publicPrice: { type: number }
+        institutionalPrice: { type: number }
+        institutionalSaving: { type: number }
+        availableAllowance: { type: number }
+        employerContribution: { type: number }
+        employeeCopayment: { type: number }
+    SupportIssueInput:
+      type: object
+      required: [description]
+      properties:
+        bookingId:
+          type: integer
+        category:
+          type: string
+          enum: [general, quality, billing, safety, other]
+        description:
+          type: string
+          minLength: 10
+    SupportIssue:
+      type: object
+      required: [id, status, createdAt]
+      properties:
+        id: { type: integer }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
     BookingUpdate:
       type: object
       properties:

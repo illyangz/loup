@@ -31,12 +31,16 @@ import type {
   BookingInput,
   BookingUpdate,
   Category,
+  CheckoutPreview,
   DemoRole,
+  EmployeeAllocation,
+  EmployeeAllocationInput,
   EmployeeImportInput,
   EmployeeOverview,
   EmployerEmployee,
   EmployerOverview,
   ForecastReport,
+  GetCheckoutPreviewParams,
   HealthStatus,
   HomeSummary,
   Household,
@@ -67,6 +71,8 @@ import type {
   ServiceFitEvaluation,
   ServiceRequest,
   ServiceRequestInput,
+  SupportIssue,
+  SupportIssueInput,
   UtilizationReport,
   VendorPerformance,
   VendorToday
@@ -2507,6 +2513,309 @@ export function useGetEmployeeOverview<TData = Awaited<ReturnType<typeof getEmpl
 
 
 
+
+export const getGetEmployeeAllocationUrl = () => {
+
+
+
+
+  return `/api/v1/employee/allocation`
+}
+
+/**
+ * @summary Get the employee's current category allocation preferences
+ */
+export const getEmployeeAllocation = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmployeeAllocation> => {
+
+  return customFetch<EmployeeAllocation>(getGetEmployeeAllocationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmployeeAllocationQueryKey = () => {
+    return [
+    `/api/v1/employee/allocation`
+    ] as const;
+    }
+
+
+export const getGetEmployeeAllocationQueryOptions = <TData = Awaited<ReturnType<typeof getEmployeeAllocation>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployeeAllocation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmployeeAllocationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmployeeAllocation>>> = ({ signal }) => getEmployeeAllocation({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmployeeAllocation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmployeeAllocationQueryResult = NonNullable<Awaited<ReturnType<typeof getEmployeeAllocation>>>
+export type GetEmployeeAllocationQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the employee's current category allocation preferences
+ */
+
+export function useGetEmployeeAllocation<TData = Awaited<ReturnType<typeof getEmployeeAllocation>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployeeAllocation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmployeeAllocationQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveEmployeeAllocationUrl = () => {
+
+
+
+
+  return `/api/v1/employee/allocation`
+}
+
+/**
+ * @summary Save (upsert) the employee's category allocation preferences
+ */
+export const saveEmployeeAllocation = async (employeeAllocationInput: EmployeeAllocationInput, options?: Parameters<typeof customFetch>[1]): Promise<EmployeeAllocation> => {
+
+  return customFetch<EmployeeAllocation>(getSaveEmployeeAllocationUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(employeeAllocationInput)
+  }
+);}
+
+
+
+
+
+export const getSaveEmployeeAllocationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveEmployeeAllocation>>, TError,{data: BodyType<EmployeeAllocationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveEmployeeAllocation>>, TError,{data: BodyType<EmployeeAllocationInput>}, TContext> => {
+
+const mutationKey = ['saveEmployeeAllocation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveEmployeeAllocation>>, {data: BodyType<EmployeeAllocationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveEmployeeAllocation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveEmployeeAllocationMutationResult = NonNullable<Awaited<ReturnType<typeof saveEmployeeAllocation>>>
+    export type SaveEmployeeAllocationMutationBody = BodyType<EmployeeAllocationInput>
+    export type SaveEmployeeAllocationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save (upsert) the employee's category allocation preferences
+ */
+export const useSaveEmployeeAllocation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveEmployeeAllocation>>, TError,{data: BodyType<EmployeeAllocationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveEmployeeAllocation>>,
+        TError,
+        {data: BodyType<EmployeeAllocationInput>},
+        TContext
+      > => {
+      return useMutation(getSaveEmployeeAllocationMutationOptions(options));
+    }
+
+export const getGetCheckoutPreviewUrl = (params: GetCheckoutPreviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/employee/checkout-preview?${stringifiedParams}` : `/api/v1/employee/checkout-preview`
+}
+
+/**
+ * @summary Calculate split-payment breakdown for a given service
+ */
+export const getCheckoutPreview = async (params: GetCheckoutPreviewParams, options?: Parameters<typeof customFetch>[1]): Promise<CheckoutPreview> => {
+
+  return customFetch<CheckoutPreview>(getGetCheckoutPreviewUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCheckoutPreviewQueryKey = (params?: GetCheckoutPreviewParams,) => {
+    return [
+    `/api/v1/employee/checkout-preview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCheckoutPreviewQueryOptions = <TData = Awaited<ReturnType<typeof getCheckoutPreview>>, TError = ErrorType<unknown>>(params: GetCheckoutPreviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCheckoutPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCheckoutPreviewQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCheckoutPreview>>> = ({ signal }) => getCheckoutPreview(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCheckoutPreview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCheckoutPreviewQueryResult = NonNullable<Awaited<ReturnType<typeof getCheckoutPreview>>>
+export type GetCheckoutPreviewQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Calculate split-payment breakdown for a given service
+ */
+
+export function useGetCheckoutPreview<TData = Awaited<ReturnType<typeof getCheckoutPreview>>, TError = ErrorType<unknown>>(
+ params: GetCheckoutPreviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCheckoutPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCheckoutPreviewQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSupportIssueUrl = () => {
+
+
+
+
+  return `/api/v1/employee/issues`
+}
+
+/**
+ * @summary Submit a support issue for a booking or general query
+ */
+export const createSupportIssue = async (supportIssueInput: SupportIssueInput, options?: Parameters<typeof customFetch>[1]): Promise<SupportIssue> => {
+
+  return customFetch<SupportIssue>(getCreateSupportIssueUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(supportIssueInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSupportIssueMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSupportIssue>>, TError,{data: BodyType<SupportIssueInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSupportIssue>>, TError,{data: BodyType<SupportIssueInput>}, TContext> => {
+
+const mutationKey = ['createSupportIssue'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSupportIssue>>, {data: BodyType<SupportIssueInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSupportIssue(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSupportIssueMutationResult = NonNullable<Awaited<ReturnType<typeof createSupportIssue>>>
+    export type CreateSupportIssueMutationBody = BodyType<SupportIssueInput>
+    export type CreateSupportIssueMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Submit a support issue for a booking or general query
+ */
+export const useCreateSupportIssue = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSupportIssue>>, TError,{data: BodyType<SupportIssueInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSupportIssue>>,
+        TError,
+        {data: BodyType<SupportIssueInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSupportIssueMutationOptions(options));
+    }
 
 export const getGetEmployerOverviewUrl = () => {
 

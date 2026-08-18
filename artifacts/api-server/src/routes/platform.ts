@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   auditEventsTable,
@@ -8,9 +8,23 @@ import {
   employersTable,
   membersTable,
   routinesTable,
+  allowanceLedgerTable,
+  institutionsTable,
+  campusesTable,
+  benefitTiersTable,
+  supportIncidentsTable,
+  servicesTable,
+  providersTable,
 } from "@workspace/db";
 import {
   GetEmployeeOverviewResponse,
+  GetEmployeeAllocationResponse,
+  SaveEmployeeAllocationBody,
+  SaveEmployeeAllocationResponse,
+  GetCheckoutPreviewResponse,
+  GetCheckoutPreviewQueryParams,
+  CreateSupportIssueBody,
+  CreateSupportIssueResponse,
   GetEmployerIntegrationsResponse,
   GetEmployerOverviewResponse,
   GetEmployerUtilizationResponse,
@@ -183,13 +197,50 @@ router.get("/v1/employee/overview", async (req, res): Promise<void> => {
     return;
   }
 
+  // Find the employee row linked to this member
+  const [employeeRow] = await db
+    .select()
+    .from(employeesTable)
+    .where(eq(employeesTable.linkedMemberId, member.id));
+
+  // Separately load institution / campus / tier (avoids Drizzle join column-alias conflicts)
+  const [institution] = employeeRow?.institutionId
+    ? await db.select().from(institutionsTable).where(eq(institutionsTable.id, employeeRow.institutionId))
+    : [];
+  const [campus] = employeeRow?.campusId
+    ? await db.select().from(campusesTable).where(eq(campusesTable.id, employeeRow.campusId))
+    : [];
+  const [tier] = employeeRow?.tierId
+    ? await db.select().from(benefitTiersTable).where(eq(benefitTiersTable.id, employeeRow.tierId))
+    : [];
+
   const [employer] = await db
     .select()
     .from(employersTable)
     .where(eq(employersTable.slug, "meridian"));
+
+  // Derive real allowance balances from ledger
+  let authorized = 750, reserved = 0, redeemed = 0;
+  if (employeeRow) {
+    const ledger = await db
+      .select()
+      .from(allowanceLedgerTable)
+      .where(eq(allowanceLedgerTable.employeeId, employeeRow.id));
+    authorized = ledger.filter(r => r.entryType === "authorized").reduce((s, r) => s + r.amount, 0) || 750;
+    reserved = ledger.filter(r => r.entryType === "reserved").reduce((s, r) => s + r.amount, 0);
+    redeemed = ledger.filter(r => r.entryType === "redeemed").reduce((s, r) => s + r.amount, 0);
+  }
+  const available = Math.max(0, authorized - reserved - redeemed);
+
+  // Renewal date = first day of next month
+  const now = new Date();
+  const renewal = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const renewalDate = renewal.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+
   const upcoming = (
     await fetchBookingViews({ statuses: ["pending", "confirmed"] })
   ).find((booking) => asDate(booking.scheduledAt).getTime() >= Date.now());
+
   const routines = await db
     .select({
       id: routinesTable.id,
@@ -205,31 +256,194 @@ router.get("/v1/employee/overview", async (req, res): Promise<void> => {
     .from(routinesTable)
     .where(eq(routinesTable.memberId, member.id));
 
-  req.log.info({ role: "employee" }, "Serving employee platform overview");
+  const completedBookings = await fetchBookingViews({ statuses: ["completed"] });
+  const timeSavedMinutes = completedBookings.length * 90;
+  const employerSupport = Math.round(redeemed * 0.7);
+
+  req.log.info({ role: "employee", employeeId: employeeRow?.id }, "Serving employee platform overview");
   res.json(
     GetEmployeeOverviewResponse.parse({
       employeeName: member.name,
       employerName: employer?.name ?? "Meridian Education Group",
+      institutionName: institution?.name ?? "Meridian International Schools",
+      campusName: campus?.name ?? "Dubai Hills Campus",
+      benefitTierName: tier?.name ?? employeeRow?.benefitTier ?? "Faculty",
+      benefitTierAllowance: tier?.monthlyAllowance ?? 750,
       allowance: {
-        authorized: 750,
-        reserved: 249,
-        redeemed: 85,
-        available: 416,
-        renewalDate: "1 September 2026",
+        authorized,
+        reserved,
+        redeemed,
+        available,
+        renewalDate,
         expiration: "Unused allowance expires at the end of each benefit period.",
       },
       upcomingBooking: upcoming ?? null,
       metrics: {
-        employerSupport: 630,
-        corporateSavings: 108,
-        servicesCompleted: 7,
-        estimatedTimeSavedMinutes: 690,
+        employerSupport: employerSupport || 630,
+        corporateSavings: Math.round(redeemed * 0.15) || 108,
+        servicesCompleted: completedBookings.length || 7,
+        estimatedTimeSavedMinutes: timeSavedMinutes || 690,
         householdAllocations: 210,
       },
       activeCategories,
       routines: routines.length > 0 ? routines : routineFallback,
     }),
   );
+});
+
+// ── Allocation Preferences ────────────────────────────────────────────────────
+
+router.get("/v1/employee/allocation", async (req, res): Promise<void> => {
+  const member = await getCurrentMember();
+  if (!member) { res.status(500).json({ error: "No employee data" }); return; }
+
+  const [employeeRow] = await db
+    .select({ id: employeesTable.id, allocationPrefs: employeesTable.allocationPrefs, tierId: employeesTable.tierId })
+    .from(employeesTable)
+    .where(eq(employeesTable.linkedMemberId, member.id));
+
+  // Determine total allowance from tier or ledger
+  let tierAllowance = 750;
+  if (employeeRow?.tierId) {
+    const [tier] = await db.select({ monthlyAllowance: benefitTiersTable.monthlyAllowance })
+      .from(benefitTiersTable).where(eq(benefitTiersTable.id, employeeRow.tierId));
+    tierAllowance = tier?.monthlyAllowance ?? 750;
+  }
+
+  // Build category allocation list — use saved prefs or equal-split defaults
+  const savedPrefs = (employeeRow?.allocationPrefs as { allocations?: { slug: string; name: string; amount: number }[] } | null)?.allocations ?? null;
+  const allocations = savedPrefs ?? activeCategories.map(cat => ({
+    slug: cat.slug,
+    name: cat.name,
+    amount: Math.floor(tierAllowance / activeCategories.length),
+  }));
+
+  const allocated = allocations.reduce((s: number, a: { amount: number }) => s + a.amount, 0);
+  res.json(GetEmployeeAllocationResponse.parse({
+    totalAllowance: tierAllowance,
+    allocated,
+    remaining: tierAllowance - allocated,
+    allocations,
+  }));
+});
+
+router.patch("/v1/employee/allocation", async (req, res): Promise<void> => {
+  const parsed = SaveEmployeeAllocationBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const member = await getCurrentMember();
+  if (!member) { res.status(500).json({ error: "No employee data" }); return; }
+
+  const [employeeRow] = await db
+    .select({ id: employeesTable.id, tierId: employeesTable.tierId })
+    .from(employeesTable)
+    .where(eq(employeesTable.linkedMemberId, member.id));
+  if (!employeeRow) { res.status(404).json({ error: "Employee not found" }); return; }
+
+  let tierAllowance = 750;
+  if (employeeRow.tierId) {
+    const [tier] = await db.select({ monthlyAllowance: benefitTiersTable.monthlyAllowance })
+      .from(benefitTiersTable).where(eq(benefitTiersTable.id, employeeRow.tierId));
+    tierAllowance = tier?.monthlyAllowance ?? 750;
+  }
+
+  const total = parsed.data.allocations.reduce((s, a) => s + a.amount, 0);
+  if (total > tierAllowance) {
+    res.status(400).json({ error: `Total allocation (${total}) exceeds allowance (${tierAllowance})` });
+    return;
+  }
+
+  await db.update(employeesTable)
+    .set({ allocationPrefs: { allocations: parsed.data.allocations } })
+    .where(eq(employeesTable.id, employeeRow.id));
+
+  res.json(SaveEmployeeAllocationResponse.parse({
+    totalAllowance: tierAllowance,
+    allocated: total,
+    remaining: tierAllowance - total,
+    allocations: parsed.data.allocations,
+  }));
+});
+
+// ── Checkout Preview ──────────────────────────────────────────────────────────
+
+router.get("/v1/employee/checkout-preview", async (req, res): Promise<void> => {
+  const query = GetCheckoutPreviewQueryParams.safeParse(req.query);
+  if (!query.success) { res.status(400).json({ error: query.error.message }); return; }
+
+  const [service] = await db
+    .select({ id: servicesTable.id, name: servicesTable.name, price: servicesTable.price, providerId: servicesTable.providerId })
+    .from(servicesTable)
+    .where(eq(servicesTable.id, query.data.serviceId));
+  if (!service) { res.status(404).json({ error: "Service not found" }); return; }
+
+  const [provider] = await db
+    .select({ name: providersTable.name })
+    .from(providersTable)
+    .where(eq(providersTable.id, service.providerId));
+
+  const member = await getCurrentMember();
+  const [employeeRow] = member
+    ? await db.select({ id: employeesTable.id }).from(employeesTable).where(eq(employeesTable.linkedMemberId, member.id))
+    : [undefined];
+
+  // Derive available allowance from ledger
+  let availableAllowance = 416; // fallback
+  if (employeeRow) {
+    const ledger = await db.select().from(allowanceLedgerTable).where(eq(allowanceLedgerTable.employeeId, employeeRow.id));
+    const auth = ledger.filter(r => r.entryType === "authorized").reduce((s, r) => s + r.amount, 0) || 750;
+    const res_ = ledger.filter(r => r.entryType === "reserved").reduce((s, r) => s + r.amount, 0);
+    const red = ledger.filter(r => r.entryType === "redeemed").reduce((s, r) => s + r.amount, 0);
+    availableAllowance = Math.max(0, auth - res_ - red);
+  }
+
+  const publicPrice = service.price;
+  const institutionalPrice = Math.round(publicPrice * 0.9 * 100) / 100; // 10% institutional discount
+  const institutionalSaving = Math.round((publicPrice - institutionalPrice) * 100) / 100;
+  const employerContribution = Math.min(availableAllowance, institutionalPrice);
+  const employeeCopayment = Math.max(0, Math.round((institutionalPrice - employerContribution) * 100) / 100);
+
+  res.json(GetCheckoutPreviewResponse.parse({
+    serviceId: service.id,
+    serviceName: service.name,
+    providerName: provider?.name ?? "Provider",
+    publicPrice,
+    institutionalPrice,
+    institutionalSaving,
+    availableAllowance,
+    employerContribution,
+    employeeCopayment,
+  }));
+});
+
+// ── Support Issues ────────────────────────────────────────────────────────────
+
+router.post("/v1/employee/issues", async (req, res): Promise<void> => {
+  const parsed = CreateSupportIssueBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const member = await getCurrentMember();
+  const [employeeRow] = member
+    ? await db.select({ id: employeesTable.id }).from(employeesTable).where(eq(employeesTable.linkedMemberId, member.id))
+    : [undefined];
+
+  const [issue] = await db
+    .insert(supportIncidentsTable)
+    .values({
+      bookingId: parsed.data.bookingId ?? null,
+      employeeId: employeeRow?.id ?? null,
+      category: parsed.data.category ?? "general",
+      description: parsed.data.description,
+      status: "open",
+    })
+    .returning();
+
+  req.log.info({ issueId: issue!.id }, "Support issue created");
+  res.status(201).json(CreateSupportIssueResponse.parse({
+    id: issue!.id,
+    status: issue!.status,
+    createdAt: issue!.createdAt.toISOString(),
+  }));
 });
 
 router.get("/v1/employer/overview", async (_req, res): Promise<void> => {

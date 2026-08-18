@@ -3,7 +3,10 @@ import { asc, eq } from "drizzle-orm";
 import {
   db,
   bookingEventsTable,
+  bookingStatusHistoryTable,
   bookingsTable,
+  allowanceLedgerTable,
+  employeesTable,
   messagesTable,
   reviewsTable,
   servicesTable,
@@ -64,7 +67,7 @@ router.post("/bookings", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { serviceId, addressId, scheduledAt, instructions } = parsed.data;
+  const { serviceId, addressId, scheduledAt, instructions, allowanceContribution } = parsed.data;
 
   const [service] = await db
     .select()
@@ -101,6 +104,36 @@ router.post("/bookings", async (req, res): Promise<void> => {
     note: "Booking placed — waiting for the provider to accept",
     occurredAt: new Date(),
   });
+
+  // Write status history row for audit trail
+  await db.insert(bookingStatusHistoryTable).values({
+    bookingId: booking!.id,
+    fromStatus: null,
+    toStatus: "pending",
+    actorRole: "employee",
+    note: "Booking placed by employee",
+  });
+
+  // If the employee applied allowance, write a reserved ledger entry
+  const contribution = allowanceContribution ?? 0;
+  if (contribution > 0) {
+    const [employeeRow] = await db
+      .select({ id: employeesTable.id, employerId: employeesTable.employerId })
+      .from(employeesTable)
+      .where(eq(employeesTable.linkedMemberId, member.id));
+    if (employeeRow) {
+      await db.insert(allowanceLedgerTable).values({
+        employerId: employeeRow.employerId,
+        employeeId: employeeRow.id,
+        entryType: "reserved",
+        amount: contribution,
+        referenceType: "booking",
+        referenceId: booking!.id,
+        note: `Allowance reserved for booking #${booking!.id}`,
+        createdByRole: "employee",
+      });
+    }
+  }
 
   // Providers accept quickly on Loup: auto-confirm shortly after placement.
   const bookingId = booking!.id;

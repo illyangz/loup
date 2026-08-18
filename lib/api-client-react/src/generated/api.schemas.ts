@@ -102,6 +102,10 @@ export interface Routine {
 export interface EmployeeOverview {
   employeeName: string;
   employerName: string;
+  institutionName: string;
+  campusName: string;
+  benefitTierName: string;
+  benefitTierAllowance: number;
   allowance: AllowanceSummary;
   upcomingBooking: Booking | null;
   metrics: EmployeeMetrics;
@@ -491,6 +495,63 @@ export interface BookingInput {
   addressId: number;
   scheduledAt: string;
   instructions?: string;
+  /** How much of the employee's benefit allowance to apply (0 = pay full price, max = available balance up to service price) */
+  allowanceContribution?: number;
+  /** Which household member this booking is for (defaults to current user) */
+  memberId?: number;
+}
+
+export interface CategoryAllocation {
+  slug: string;
+  name: string;
+  amount: number;
+}
+
+export interface EmployeeAllocation {
+  totalAllowance: number;
+  allocated: number;
+  remaining: number;
+  allocations: CategoryAllocation[];
+}
+
+export interface EmployeeAllocationInput {
+  allocations: CategoryAllocation[];
+}
+
+export interface CheckoutPreview {
+  serviceId: number;
+  serviceName: string;
+  providerName: string;
+  publicPrice: number;
+  institutionalPrice: number;
+  institutionalSaving?: number;
+  availableAllowance: number;
+  employerContribution: number;
+  employeeCopayment: number;
+}
+
+export type SupportIssueInputCategory = typeof SupportIssueInputCategory[keyof typeof SupportIssueInputCategory];
+
+
+export const SupportIssueInputCategory = {
+  general: 'general',
+  quality: 'quality',
+  billing: 'billing',
+  safety: 'safety',
+  other: 'other',
+} as const;
+
+export interface SupportIssueInput {
+  bookingId?: number;
+  category?: SupportIssueInputCategory;
+  /** @minLength 10 */
+  description: string;
+}
+
+export interface SupportIssue {
+  id: number;
+  status: string;
+  createdAt: string;
 }
 
 export type BookingUpdateStatus = typeof BookingUpdateStatus[keyof typeof BookingUpdateStatus];
@@ -693,4 +754,8 @@ export const ListBookingsScope = {
   past: 'past',
   all: 'all',
 } as const;
+
+export type GetCheckoutPreviewParams = {
+serviceId: number;
+};
 

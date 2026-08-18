@@ -14,6 +14,10 @@ import type { Routine } from './routine';
 export interface EmployeeOverview {
   employeeName: string;
   employerName: string;
+  institutionName: string;
+  campusName: string;
+  benefitTierName: string;
+  benefitTierAllowance: number;
   allowance: AllowanceSummary;
   upcomingBooking: Booking | null;
   metrics: EmployeeMetrics;

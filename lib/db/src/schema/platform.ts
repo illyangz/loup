@@ -65,6 +65,8 @@ export const employeesTable = pgTable("employees", {
   institutionId: integer("institution_id").references(() => institutionsTable.id),
   campusId: integer("campus_id").references(() => campusesTable.id),
   tierId: integer("tier_id").references(() => benefitTiersTable.id),
+  /** JSONB: { allocations: [{ slug, name, amount }] } */
+  allocationPrefs: jsonb("allocation_prefs"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

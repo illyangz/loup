@@ -11,4 +11,8 @@ export interface BookingInput {
   addressId: number;
   scheduledAt: Date;
   instructions?: string;
+  /** How much of the employee's benefit allowance to apply (0 = pay full price, max = available balance up to service price) */
+  allowanceContribution?: number;
+  /** Which household member this booking is for (defaults to current user) */
+  memberId?: number;
 }
