@@ -84,9 +84,6 @@ export default function Landing() {
 
           {/* Heading */}
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[hsl(var(--primary))] mb-3">
-              Employee portal
-            </p>
             <h2 className="text-[2.1rem] font-serif font-bold text-white leading-[1.1] mb-2">
               {firstName ? `Welcome back, ${firstName}.` : "Welcome back."}
             </h2>
