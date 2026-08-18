@@ -1129,6 +1129,320 @@ router.get("/v1/operations/service-fit", (_req, res): void => {
   );
 });
 
+// ── CSV helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * Sanitize and quote a single CSV cell value.
+ * Cells whose text begins with a spreadsheet formula character (=, +, -, @, tab, CR)
+ * are prefixed with a tab to neutralize formula injection when opened in Excel/Sheets.
+ */
+function csvCell(v: unknown): string {
+  const raw = v == null ? "" : String(v);
+  // Neutralize formula injection: prefix dangerous lead characters with a tab
+  const s = /^[=+\-@\t\r]/.test(raw) ? `\t${raw}` : raw;
+  if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\t")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function toCSV(rows: Record<string, unknown>[]): string {
+  if (!rows.length) return "";
+  const headers = Object.keys(rows[0]!);
+  const lines = [headers.map(csvCell).join(",")];
+  for (const row of rows) lines.push(headers.map(h => csvCell(row[h])).join(","));
+  return lines.join("\r\n");
+}
+
+function sendCSV(res: Response, filename: string, csv: string): void {
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.send(csv);
+}
+
+/**
+ * Compute the net allowance position for one employee from their raw ledger entries.
+ *
+ * Accounting model:
+ *   authorized  = total budget granted for the period
+ *   redeemed    = confirmed spend (completed bookings)
+ *   active_held = reservations not yet fulfilled or released
+ *               = max(0, sum(reserved) − sum(released) − sum(redeemed))
+ *   remaining   = authorized − redeemed − active_held
+ *
+ * This avoids double-counting when a reservation is later converted to a
+ * redemption without an explicit "released" entry: the redeemed amount is
+ * subtracted from the gross reserved total before computing the active hold.
+ */
+function computeEmployeeAllowance(
+  ledger: { entryType: string; amount: number }[],
+  fallbackAuthorized: number,
+): { authorized: number; redeemed: number; activeHeld: number; remaining: number } {
+  const authorized  = ledger.filter(l => l.entryType === "authorized").reduce((s, l) => s + l.amount, 0) || fallbackAuthorized;
+  const redeemed    = ledger.filter(l => l.entryType === "redeemed").reduce((s, l) => s + l.amount, 0);
+  const sumReserved = ledger.filter(l => l.entryType === "reserved").reduce((s, l) => s + l.amount, 0);
+  const sumReleased = ledger.filter(l => l.entryType === "released").reduce((s, l) => s + l.amount, 0);
+  const activeHeld  = Math.max(0, sumReserved - sumReleased - redeemed);
+  const remaining   = Math.max(0, authorized - redeemed - activeHeld);
+  return { authorized, redeemed, activeHeld, remaining };
+}
+
+// ── Employer CSV exports ───────────────────────────────────────────────────────
+
+// Export 1: Employee eligibility roster
+router.get("/v1/employer/export/roster", requireEmployerRole, async (_req, res): Promise<void> => {
+  const { employer } = await resolveEmployerContext();
+
+  const rows = await db
+    .select({
+      id:               employeesTable.id,
+      name:             employeesTable.name,
+      workEmail:        employeesTable.workEmail,
+      department:       employeesTable.department,
+      campusId:         employeesTable.campusId,
+      benefitTier:      employeesTable.benefitTier,
+      tierId:           employeesTable.tierId,
+      eligibilityStatus: employeesTable.eligibilityStatus,
+      startDate:        employeesTable.startDate,
+      endDate:          employeesTable.endDate,
+    })
+    .from(employeesTable)
+    .where(eq(employeesTable.employerId, employer.id))
+    .orderBy(employeesTable.name);
+
+  if (!rows.length) {
+    sendCSV(res, "meridian-employee-roster.csv",
+      "Name,Email,Department,Campus,Benefit Tier,Eligibility,Monthly Allowance (AED),Benefit Start Date,Benefit End Date\r\n");
+    return;
+  }
+
+  const campusIds = [...new Set(rows.map(r => r.campusId).filter(Boolean) as number[])];
+  const tierIds   = [...new Set(rows.map(r => r.tierId).filter(Boolean) as number[])];
+  const empIds    = rows.map(r => r.id);
+
+  const [campusRows, tierRows, ledgerRows] = await Promise.all([
+    campusIds.length > 0
+      ? db.select({ id: campusesTable.id, name: campusesTable.name })
+          .from(campusesTable).where(inArray(campusesTable.id, campusIds))
+      : Promise.resolve<{ id: number; name: string }[]>([]),
+    tierIds.length > 0
+      ? db.select({ id: benefitTiersTable.id, monthlyAllowance: benefitTiersTable.monthlyAllowance })
+          .from(benefitTiersTable).where(inArray(benefitTiersTable.id, tierIds))
+      : Promise.resolve<{ id: number; monthlyAllowance: number }[]>([]),
+    db.select({
+        employeeId: allowanceLedgerTable.employeeId,
+        entryType:  allowanceLedgerTable.entryType,
+        amount:     allowanceLedgerTable.amount,
+      })
+      .from(allowanceLedgerTable)
+      .where(inArray(allowanceLedgerTable.employeeId, empIds)),
+  ]);
+
+  const campusMap = new Map(campusRows.map(c => [c.id, c.name]));
+  const tierMap   = new Map(tierRows.map(t => [t.id, t.monthlyAllowance]));
+
+  const csvRows = rows.map(emp => {
+    const tierAllowance = emp.tierId ? (tierMap.get(emp.tierId) ?? 750) : 750;
+    const empLedger = ledgerRows.filter(l => l.employeeId === emp.id);
+    const { authorized } = computeEmployeeAllowance(empLedger, tierAllowance);
+    return {
+      "Name":                    emp.name,
+      "Email":                   emp.workEmail,
+      "Department":              emp.department,
+      "Campus":                  emp.campusId ? (campusMap.get(emp.campusId) ?? "") : "",
+      "Benefit Tier":            emp.benefitTier,
+      "Eligibility":             emp.eligibilityStatus,
+      "Monthly Allowance (AED)": authorized,
+      "Benefit Start Date":      emp.startDate ?? "",
+      "Benefit End Date":        emp.endDate ?? "",
+    };
+  });
+
+  sendCSV(res, "meridian-employee-roster.csv", toCSV(csvRows));
+});
+
+// Export 2: Campus utilization breakdown
+router.get("/v1/employer/export/utilization", requireEmployerRole, async (_req, res): Promise<void> => {
+  const { employer, institutionId } = await resolveEmployerContext();
+  if (!institutionId) { res.status(500).json({ error: "No institution linked to this employer" }); return; }
+
+  const campuses    = await db.select().from(campusesTable).where(eq(campusesTable.institutionId, institutionId));
+  const allEmployees = await db
+    .select({ id: employeesTable.id, campusId: employeesTable.campusId, tierId: employeesTable.tierId })
+    .from(employeesTable).where(eq(employeesTable.employerId, employer.id));
+
+  // Load tier allowances once
+  const tierIds = [...new Set(allEmployees.map(e => e.tierId).filter(Boolean) as number[])];
+  const tierRows = tierIds.length > 0
+    ? await db.select({ id: benefitTiersTable.id, monthlyAllowance: benefitTiersTable.monthlyAllowance })
+        .from(benefitTiersTable).where(inArray(benefitTiersTable.id, tierIds))
+    : [];
+  const tierMap = new Map(tierRows.map(t => [t.id, t.monthlyAllowance]));
+
+  const allEmpIds = allEmployees.map(e => e.id);
+  const allLedger = allEmpIds.length > 0
+    ? await db.select({
+        employeeId: allowanceLedgerTable.employeeId,
+        entryType:  allowanceLedgerTable.entryType,
+        amount:     allowanceLedgerTable.amount,
+      }).from(allowanceLedgerTable).where(inArray(allowanceLedgerTable.employeeId, allEmpIds))
+    : [];
+
+  const csvRows: Record<string, unknown>[] = [];
+  const PRIVACY_THRESHOLD = 5;
+
+  for (const campus of campuses) {
+    const campusEmp = allEmployees.filter(e => e.campusId === campus.id);
+    if (campusEmp.length === 0) continue;
+
+    if (campusEmp.length < PRIVACY_THRESHOLD) {
+      csvRows.push({
+        "Campus": campus.name, "Employee Count": campusEmp.length,
+        "Authorized (AED)": "suppressed", "Active Holds (AED)": "suppressed",
+        "Redeemed (AED)": "suppressed", "Remaining (AED)": "suppressed",
+        "Note": "Group too small — data suppressed for privacy",
+      });
+      continue;
+    }
+
+    let totAuthorized = 0, totRedeemed = 0, totActiveHeld = 0, totRemaining = 0;
+    for (const emp of campusEmp) {
+      const fallback = emp.tierId ? (tierMap.get(emp.tierId) ?? 750) : 750;
+      const empLedger = allLedger.filter(l => l.employeeId === emp.id);
+      const result = computeEmployeeAllowance(empLedger, fallback);
+      totAuthorized += result.authorized;
+      totRedeemed   += result.redeemed;
+      totActiveHeld += result.activeHeld;
+      totRemaining  += result.remaining;
+    }
+
+    csvRows.push({
+      "Campus":             campus.name,
+      "Employee Count":     campusEmp.length,
+      "Authorized (AED)":  totAuthorized,
+      "Active Holds (AED)": totActiveHeld,
+      "Redeemed (AED)":    totRedeemed,
+      "Remaining (AED)":   totRemaining,
+      "Note":              "",
+    });
+  }
+
+  sendCSV(res, "meridian-utilization.csv", toCSV(csvRows));
+});
+
+// Export 3: Per-employee billing ledger (current benefit cycle)
+router.get("/v1/employer/export/billing", requireEmployerRole, async (_req, res): Promise<void> => {
+  const { employer } = await resolveEmployerContext();
+
+  const empRows = await db
+    .select({
+      id:          employeesTable.id,
+      name:        employeesTable.name,
+      workEmail:   employeesTable.workEmail,
+      benefitTier: employeesTable.benefitTier,
+      tierId:      employeesTable.tierId,
+    })
+    .from(employeesTable)
+    .where(eq(employeesTable.employerId, employer.id))
+    .orderBy(employeesTable.benefitTier, employeesTable.name);
+
+  if (!empRows.length) {
+    sendCSV(res, "meridian-billing-ledger.csv",
+      "Cycle,Employee Name,Email,Tier,Authorized (AED),Active Holds (AED),Redeemed (AED),Remaining (AED)\r\n");
+    return;
+  }
+
+  const empIds = empRows.map(e => e.id);
+
+  // Load tier allowances
+  const tierIds = [...new Set(empRows.map(e => e.tierId).filter(Boolean) as number[])];
+  const [tierRows, allLedger] = await Promise.all([
+    tierIds.length > 0
+      ? db.select({ id: benefitTiersTable.id, monthlyAllowance: benefitTiersTable.monthlyAllowance })
+          .from(benefitTiersTable).where(inArray(benefitTiersTable.id, tierIds))
+      : Promise.resolve<{ id: number; monthlyAllowance: number }[]>([]),
+    db.select({
+        employeeId:  allowanceLedgerTable.employeeId,
+        entryType:   allowanceLedgerTable.entryType,
+        amount:      allowanceLedgerTable.amount,
+        createdAt:   allowanceLedgerTable.createdAt,
+      })
+      .from(allowanceLedgerTable)
+      .where(inArray(allowanceLedgerTable.employeeId, empIds))
+      .orderBy(allowanceLedgerTable.createdAt),
+  ]);
+  const tierMap = new Map(tierRows.map(t => [t.id, t.monthlyAllowance]));
+
+  // Determine cycles: derive from ledger createdAt, fall back to current month
+  const cycleOf = (d: Date) => d.toISOString().slice(0, 7);
+  const cycleSet = new Set(allLedger.map(l => cycleOf(l.createdAt)));
+  const cycles   = cycleSet.size > 0 ? [...cycleSet].sort() : [new Date().toISOString().slice(0, 7)];
+
+  const csvRows: Record<string, unknown>[] = [];
+
+  for (const cycle of cycles) {
+    // Ledger entries for this calendar month
+    const cycleLedger = allLedger.filter(l => cycleOf(l.createdAt) === cycle);
+    // All entries up to and including this month for running totals (authorized persists across months)
+    const cumulativeLedger = allLedger.filter(l => cycleOf(l.createdAt) <= cycle);
+
+    const tierTotals: Record<string, { authorized: number; activeHeld: number; redeemed: number; remaining: number }> = {};
+
+    for (const emp of empRows) {
+      const fallback = emp.tierId ? (tierMap.get(emp.tierId) ?? 750) : 750;
+      // Use cumulative ledger so authorized entries from earlier months still count
+      const empLedger = cumulativeLedger.filter(l => l.employeeId === emp.id);
+      // Redeemed/reserved: only within this cycle for billing breakdown
+      const empCycle  = cycleLedger.filter(l => l.employeeId === emp.id);
+      const authorizedEntry = empLedger.filter(l => l.entryType === "authorized");
+      const authorized = authorizedEntry.reduce((s, l) => s + l.amount, 0) || fallback;
+      const { redeemed, activeHeld, remaining } = computeEmployeeAllowance(
+        // Compute activity from cumulative ledger (correct net position)
+        empLedger,
+        fallback,
+      );
+
+      // Suppress zero-activity rows if this is not the only cycle and employee has no ledger this cycle
+      const hasActivityThisCycle = empCycle.some(l => l.entryType !== "authorized");
+      if (cycles.length > 1 && !hasActivityThisCycle && redeemed === 0 && activeHeld === 0) continue;
+
+      csvRows.push({
+        "Cycle":              cycle,
+        "Employee Name":      emp.name,
+        "Email":              emp.workEmail,
+        "Tier":               emp.benefitTier,
+        "Authorized (AED)":   authorized,
+        "Active Holds (AED)": activeHeld,
+        "Redeemed (AED)":     redeemed,
+        "Remaining (AED)":    remaining,
+      });
+
+      if (!tierTotals[emp.benefitTier]) tierTotals[emp.benefitTier] = { authorized: 0, activeHeld: 0, redeemed: 0, remaining: 0 };
+      const t = tierTotals[emp.benefitTier]!;
+      t.authorized += authorized;
+      t.activeHeld += activeHeld;
+      t.redeemed   += redeemed;
+      t.remaining  += remaining;
+    }
+
+    // Subtotal row per tier
+    for (const [tier, totals] of Object.entries(tierTotals)) {
+      csvRows.push({
+        "Cycle":              cycle,
+        "Employee Name":      `SUBTOTAL — ${tier}`,
+        "Email":              "",
+        "Tier":               tier,
+        "Authorized (AED)":   totals.authorized,
+        "Active Holds (AED)": totals.activeHeld,
+        "Redeemed (AED)":     totals.redeemed,
+        "Remaining (AED)":    totals.remaining,
+      });
+    }
+  }
+
+  sendCSV(res, "meridian-billing-ledger.csv", toCSV(csvRows));
+});
+
 router.get("/v1/operations/audit", async (_req, res): Promise<void> => {
   const rows = await db
     .select({

@@ -32,14 +32,14 @@ import {
   useDeleteProviderAvailability,
   useGetProviderAnalytics,
   getGetProviderAnalyticsQueryKey,
+  setDefaultHeaders,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlatformShell } from "@/components/platform-shell";
+import { DataState, PlatformShell } from "@/components/platform-shell";
 import { cn } from "@/lib/utils";
 
-// Explicit per-request role header — more reliable than setDefaultHeaders in a
-// multi-portal SPA where all page modules are eagerly imported at startup.
-const P = { headers: { "x-loup-demo-role": "provider" } } as const;
+// Set provider role header for all api-client-react calls from this portal.
+setDefaultHeaders({ "x-loup-demo-role": "provider" });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function money(v: number) {
@@ -60,8 +60,8 @@ const STATUS_BADGE: Record<string, string> = {
   confirmed:   "bg-primary/15 text-primary border-primary/25",
   en_route:    "bg-blue-500/15 text-blue-400 border-blue-500/25",
   arrived:     "bg-blue-400/15 text-blue-300 border-blue-400/25",
-  in_progress: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
-  completed:   "bg-emerald-500/10 text-emerald-400/70 border-emerald-500/20",
+  in_progress: "bg-[hsl(var(--platform-mint))/0.15] text-[hsl(var(--platform-mint))] border-[hsl(var(--platform-mint))/0.25]",
+  completed:   "bg-[hsl(var(--platform-mint))/0.1] text-[hsl(var(--platform-mint))/0.7] border-[hsl(var(--platform-mint))/0.2]",
   rejected:    "bg-destructive/10 text-destructive border-destructive/20",
   cancelled:   "bg-muted text-muted-foreground border-border/40",
   disputed:    "bg-orange-500/15 text-orange-400 border-orange-500/25",
@@ -81,20 +81,20 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const NEXT_ACTION_LABEL: Record<string, string> = {
-  accepted:    "Confirm Availability",
-  confirmed:   "Mark On the Way",
-  en_route:    "Mark Arrived",
-  arrived:     "Mark Started",
+  accepted:  "Confirm Availability",
+  confirmed: "Mark On the Way",
+  en_route:  "Mark Arrived",
+  arrived:   "Mark Started",
   in_progress: "Mark Completed",
 };
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 type Tab = "dashboard" | "orders" | "availability" | "analytics";
 const TABS: { id: Tab; label: string; icon: typeof BarChart3 }[] = [
-  { id: "dashboard",    label: "Dashboard",    icon: BarChart3    },
+  { id: "dashboard",    label: "Dashboard",    icon: BarChart3  },
   { id: "orders",       label: "Orders",       icon: PackageCheck },
-  { id: "availability", label: "Availability", icon: Calendar     },
-  { id: "analytics",   label: "Analytics",    icon: TrendingUp   },
+  { id: "availability", label: "Availability", icon: Calendar   },
+  { id: "analytics",   label: "Analytics",    icon: TrendingUp },
 ];
 
 // ── Order card ────────────────────────────────────────────────────────────────
@@ -120,10 +120,10 @@ interface ProviderOrderCardProps {
 
 function OrderCard({ order, scope, onRefresh }: ProviderOrderCardProps) {
   const qc = useQueryClient();
-  const [showRejectForm, setShowRejectForm] = useState(false);
-  const [showIssueForm,  setShowIssueForm]  = useState(false);
-  const [rejectReason,   setRejectReason]   = useState("");
-  const [issueDesc,      setIssueDesc]      = useState("");
+  const [showRejectForm, setShowRejectForm]  = useState(false);
+  const [showIssueForm,  setShowIssueForm]   = useState(false);
+  const [rejectReason,   setRejectReason]    = useState("");
+  const [issueDesc,      setIssueDesc]       = useState("");
 
   const refetchAll = () => {
     void qc.invalidateQueries({ queryKey: getListProviderOrdersQueryKey() });
@@ -131,10 +131,10 @@ function OrderCard({ order, scope, onRefresh }: ProviderOrderCardProps) {
     onRefresh();
   };
 
-  const accepter = useAcceptProviderOrder({ mutation: { onSuccess: refetchAll }, request: P });
-  const rejecter = useRejectProviderOrder({ mutation: { onSuccess: () => { setShowRejectForm(false); refetchAll(); } }, request: P });
-  const advancer = useAdvanceProviderOrder({ mutation: { onSuccess: refetchAll }, request: P });
-  const reporter = useReportProviderOrderIssue({ mutation: { onSuccess: () => { setShowIssueForm(false); refetchAll(); } }, request: P });
+  const accepter  = useAcceptProviderOrder({ mutation: { onSuccess: refetchAll } });
+  const rejecter  = useRejectProviderOrder({ mutation: { onSuccess: () => { setShowRejectForm(false); refetchAll(); } } });
+  const advancer  = useAdvanceProviderOrder({ mutation: { onSuccess: refetchAll } });
+  const reporter  = useReportProviderOrderIssue({ mutation: { onSuccess: () => { setShowIssueForm(false); refetchAll(); } } });
 
   const nextActionLabel = NEXT_ACTION_LABEL[order.status];
   const isWorking = accepter.isPending || rejecter.isPending || advancer.isPending || reporter.isPending;
@@ -168,6 +168,7 @@ function OrderCard({ order, scope, onRefresh }: ProviderOrderCardProps) {
       {/* Action bar */}
       {scope !== "completed" && scope !== "rejected" && (
         <div className="px-4 pb-4 flex flex-wrap gap-2 border-t border-border/30 pt-3">
+          {/* Pending: Accept / Reject */}
           {scope === "pending" && (
             <>
               <button
@@ -191,6 +192,7 @@ function OrderCard({ order, scope, onRefresh }: ProviderOrderCardProps) {
             </>
           )}
 
+          {/* Active: Next status advance */}
           {nextActionLabel && (scope === "active" || scope === "upcoming") && (
             <button
               type="button"
@@ -203,6 +205,7 @@ function OrderCard({ order, scope, onRefresh }: ProviderOrderCardProps) {
             </button>
           )}
 
+          {/* Report issue (any active order) */}
           {(scope === "active" || scope === "upcoming") && (
             <button
               type="button"
@@ -222,7 +225,7 @@ function OrderCard({ order, scope, onRefresh }: ProviderOrderCardProps) {
         <div className="px-4 pb-4 border-t border-border/30 pt-3 bg-destructive/5">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-destructive mb-2">Reason for rejection</p>
           <div className="flex gap-2">
-            <input value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Optional — customer will be notified" className="flex-1 rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-sm" data-testid={`input-reject-reason-${order.id}`} />
+            <input value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Optional — customer will be notified" className="flex-1 input-std text-sm" data-testid={`input-reject-reason-${order.id}`} />
             <button type="button" disabled={rejecter.isPending} onClick={() => rejecter.mutate({ id: order.id, data: rejectReason ? { reason: rejectReason } : {} })} className="rounded-lg bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground disabled:opacity-50" data-testid={`button-reject-confirm-${order.id}`}>
               {rejecter.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm"}
             </button>
@@ -235,7 +238,7 @@ function OrderCard({ order, scope, onRefresh }: ProviderOrderCardProps) {
         <div className="px-4 pb-4 border-t border-border/30 pt-3 bg-orange-500/5">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-400 mb-2">Describe the issue</p>
           <div className="flex gap-2">
-            <input value={issueDesc} onChange={e => setIssueDesc(e.target.value)} placeholder="What's wrong with this booking?" className="flex-1 rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-sm" data-testid={`input-issue-desc-${order.id}`} />
+            <input value={issueDesc} onChange={e => setIssueDesc(e.target.value)} placeholder="What's wrong with this booking?" className="flex-1 input-std text-sm" data-testid={`input-issue-desc-${order.id}`} />
             <button type="button" disabled={reporter.isPending || !issueDesc} onClick={() => reporter.mutate({ id: order.id, data: { description: issueDesc } })} className="rounded-lg bg-orange-500 px-3 py-2 text-sm font-medium text-white disabled:opacity-50" data-testid={`button-issue-confirm-${order.id}`}>
               {reporter.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
             </button>
@@ -248,15 +251,10 @@ function OrderCard({ order, scope, onRefresh }: ProviderOrderCardProps) {
 
 // ── Dashboard tab ─────────────────────────────────────────────────────────────
 function DashboardTab() {
-  const dash = useGetProviderDashboard({ query: { queryKey: getGetProviderDashboardQueryKey() }, request: P });
+  const dash = useGetProviderDashboard({ query: { queryKey: getGetProviderDashboardQueryKey() } });
 
   if (dash.isLoading) return <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="h-24 animate-pulse rounded-xl bg-white/5" />)}</div>;
-  if (dash.isError)   return (
-    <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-6 text-center">
-      <p className="text-destructive text-sm">Dashboard data unavailable</p>
-      <button type="button" onClick={() => dash.refetch()} className="mt-3 text-xs text-primary hover:underline">Retry</button>
-    </div>
-  );
+  if (dash.isError) return <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-6 text-center"><p className="text-destructive text-sm">Dashboard data unavailable</p><button type="button" onClick={() => dash.refetch()} className="mt-3 text-xs text-primary hover:underline">Retry</button></div>;
 
   const d = dash.data!;
   return (
@@ -264,10 +262,10 @@ function DashboardTab() {
       {/* KPI strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 rounded-2xl overflow-hidden border border-white/[0.07]">
         {[
-          { label: "Pending",       value: String(d.pendingCount),                                              sub: "awaiting acceptance",           accent: "text-yellow-400" },
-          { label: "Active",        value: String(d.acceptedCount + d.confirmedCount + d.activeCount),          sub: "accepted + confirmed + live",   accent: "text-primary"   },
-          { label: "This month",    value: String(d.completedThisMonth),                                        sub: `${d.cancelledThisMonth} cancelled`, accent: "text-emerald-400" },
-          { label: "Settlement est.", value: money(d.estimatedSettlement),                                       sub: "completed bookings",            accent: "text-amber-400" },
+          { label: "Pending",   value: String(d.pendingCount),   sub: "awaiting acceptance",            accent: "text-yellow-400" },
+          { label: "Active",    value: String(d.acceptedCount + d.confirmedCount + d.activeCount), sub: "accepted + confirmed + live",  accent: "text-primary" },
+          { label: "This month", value: String(d.completedThisMonth), sub: `${d.cancelledThisMonth} cancelled`, accent: "text-[hsl(var(--platform-mint))]" },
+          { label: "Settlement est.", value: money(d.estimatedSettlement), sub: "completed bookings",    accent: "text-[hsl(var(--platform-brass))]" },
         ].map((item, i) => (
           <div key={i} className="bg-background/60 px-5 py-4">
             <p className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-semibold">{item.label}</p>
@@ -278,14 +276,14 @@ function DashboardTab() {
       </div>
 
       {/* Performance metrics */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6">
+      <div className="glass-card rounded-2xl p-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40 mb-5">Performance</p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Avg rating",   value: `${d.averageRating.toFixed(1)} / 5`, bar: d.averageRating / 5 },
-            { label: "Fulfilment",   value: pct(d.fulfilmentRate),               bar: d.fulfilmentRate / 100 },
-            { label: "Cancellation", value: pct(d.cancellationRate),             bar: d.cancellationRate / 100, inverted: true },
-            { label: "SLA (15-min)", value: pct(d.slaRate),                      bar: d.slaRate / 100 },
+            { label: "Avg rating",     value: `${d.averageRating.toFixed(1)} / 5`, bar: d.averageRating / 5 },
+            { label: "Fulfilment",     value: pct(d.fulfilmentRate),               bar: d.fulfilmentRate / 100 },
+            { label: "Cancellation",   value: pct(d.cancellationRate),             bar: d.cancellationRate / 100, inverted: true },
+            { label: "SLA (15-min)",   value: pct(d.slaRate),                      bar: d.slaRate / 100 },
           ].map(item => (
             <div key={item.label} className="rounded-xl bg-accent/20 p-4">
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-medium">{item.label}</p>
@@ -298,25 +296,26 @@ function DashboardTab() {
         </div>
       </div>
 
-      <p className="text-[11px] text-muted-foreground/50">Settlement estimate is the sum of completed booking fees for the current billing period. Actual payout depends on Loup's settlement schedule and applicable deductions.</p>
+      {/* SLA note */}
+      <p className="text-[11px] text-muted-foreground/50">Settlement estimate is the sum of completed booking fees for the current billing period. Actual payout depends on Loup's settlement schedule and any applicable deductions.</p>
     </div>
   );
 }
 
 // ── Orders tab ────────────────────────────────────────────────────────────────
 const ORDER_SCOPES: { id: OrderScope; label: string }[] = [
-  { id: "pending",   label: "New"       },
-  { id: "upcoming",  label: "Upcoming"  },
-  { id: "active",    label: "Active"    },
+  { id: "pending",   label: "New" },
+  { id: "upcoming",  label: "Upcoming" },
+  { id: "active",    label: "Active" },
   { id: "completed", label: "Completed" },
-  { id: "rejected",  label: "Declined"  },
+  { id: "rejected",  label: "Declined" },
 ];
 
 function OrdersTab() {
   const [scope, setScope] = useState<OrderScope>("pending");
   const orders = useListProviderOrders(
     { scope },
-    { query: { queryKey: getListProviderOrdersQueryKey({ scope }) }, request: P },
+    { query: { queryKey: getListProviderOrdersQueryKey({ scope }) } }
   );
 
   return (
@@ -331,7 +330,7 @@ function OrdersTab() {
             data-testid={`tab-orders-${s.id}`}
             className={cn(
               "rounded-lg px-3.5 py-2 text-sm font-medium transition-all duration-150",
-              scope === s.id ? "bg-foreground text-background shadow-sm" : "text-white/40 hover:text-white hover:bg-white/5",
+              scope === s.id ? "bg-foreground text-background shadow-sm" : "text-white/40 hover:text-white hover:bg-white/5"
             )}
           >
             {s.label}
@@ -339,13 +338,11 @@ function OrdersTab() {
         ))}
       </div>
 
+      {/* Order list */}
       {orders.isLoading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-28 animate-pulse rounded-xl bg-white/5" />)}</div>
       ) : orders.isError ? (
-        <div className="rounded-xl border border-destructive/20 p-6 text-center">
-          <p className="text-destructive text-sm">Failed to load orders</p>
-          <button type="button" onClick={() => orders.refetch()} className="mt-2 text-xs text-primary">Retry</button>
-        </div>
+        <div className="rounded-xl border border-destructive/20 p-6 text-center"><p className="text-destructive text-sm">Failed to load orders</p><button type="button" onClick={() => orders.refetch()} className="mt-2 text-xs text-primary">Retry</button></div>
       ) : orders.data?.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/10 p-10 text-center" data-testid={`empty-orders-${scope}`}>
           <PackageCheck className="mx-auto h-7 w-7 text-muted-foreground mb-2" />
@@ -368,17 +365,17 @@ const DUBAI_ZONES = ["Jumeirah 3", "Downtown Dubai", "Dubai Hills", "Al Qouz", "
 
 function AvailabilityTab() {
   const qc = useQueryClient();
-  const slots   = useListProviderAvailability({ query: { queryKey: getListProviderAvailabilityQueryKey() }, request: P });
-  const creator = useCreateProviderAvailability({ mutation: { onSuccess: () => { void qc.invalidateQueries({ queryKey: getListProviderAvailabilityQueryKey() }); setShowForm(false); resetForm(); } }, request: P });
-  const deleter = useDeleteProviderAvailability({ mutation: { onSuccess: () => void qc.invalidateQueries({ queryKey: getListProviderAvailabilityQueryKey() }) }, request: P });
+  const slots   = useListProviderAvailability({ query: { queryKey: getListProviderAvailabilityQueryKey() } });
+  const creator = useCreateProviderAvailability({ mutation: { onSuccess: () => { void qc.invalidateQueries({ queryKey: getListProviderAvailabilityQueryKey() }); setShowForm(false); resetForm(); } } });
+  const deleter = useDeleteProviderAvailability({ mutation: { onSuccess: () => void qc.invalidateQueries({ queryKey: getListProviderAvailabilityQueryKey() }) } });
 
-  const [showForm,   setShowForm]   = useState(false);
-  const [dayOfWeek,  setDayOfWeek]  = useState(1);
-  const [startTime,  setStartTime]  = useState("08:00");
-  const [endTime,    setEndTime]    = useState("18:00");
-  const [maxCap,     setMaxCap]     = useState(10);
-  const [zones,      setZones]      = useState<string[]>(["Jumeirah 3", "Dubai Hills"]);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showForm,   setShowForm]    = useState(false);
+  const [dayOfWeek,  setDayOfWeek]   = useState(1);
+  const [startTime,  setStartTime]   = useState("08:00");
+  const [endTime,    setEndTime]     = useState("18:00");
+  const [maxCap,     setMaxCap]      = useState(10);
+  const [zones,      setZones]       = useState<string[]>(["Jumeirah 3", "Dubai Hills"]);
+  const [deletingId, setDeletingId]  = useState<number | null>(null);
 
   const resetForm = () => { setDayOfWeek(1); setStartTime("08:00"); setEndTime("18:00"); setMaxCap(10); setZones(["Jumeirah 3", "Dubai Hills"]); };
   const toggleZone = (z: string) => setZones(prev => prev.includes(z) ? prev.filter(x => x !== z) : [...prev, z]);
@@ -397,27 +394,27 @@ function AvailabilityTab() {
         <div className="rounded-xl border border-primary/20 bg-background/40 backdrop-blur-sm p-5 space-y-4">
           <div className="flex flex-wrap gap-4">
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground block mb-1">Day</label>
-              <select value={dayOfWeek} onChange={e => setDayOfWeek(parseInt(e.target.value))} className="rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-sm" data-testid="select-availability-day">
+              <label className="label-xs">Day</label>
+              <select value={dayOfWeek} onChange={e => setDayOfWeek(parseInt(e.target.value))} className="input-std mt-1" data-testid="select-availability-day">
                 {DAY_NAMES.map((d, i) => <option key={i} value={i}>{d}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground block mb-1">Start</label>
-              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-sm" data-testid="input-availability-start" />
+              <label className="label-xs">Start</label>
+              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="input-std mt-1" data-testid="input-availability-start" />
             </div>
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground block mb-1">End</label>
-              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-sm" data-testid="input-availability-end" />
+              <label className="label-xs">End</label>
+              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="input-std mt-1" data-testid="input-availability-end" />
             </div>
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground block mb-1">Max capacity</label>
-              <input type="number" min={1} max={50} value={maxCap} onChange={e => setMaxCap(parseInt(e.target.value) || 1)} className="rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-sm w-24" data-testid="input-availability-capacity" />
+              <label className="label-xs">Max capacity</label>
+              <input type="number" min={1} max={50} value={maxCap} onChange={e => setMaxCap(parseInt(e.target.value) || 1)} className="input-std mt-1 w-24" data-testid="input-availability-capacity" />
             </div>
           </div>
 
           <div>
-            <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground block mb-2">Service zones</label>
+            <label className="label-xs mb-2 block">Service zones</label>
             <div className="flex flex-wrap gap-2">
               {DUBAI_ZONES.map(z => (
                 <button
@@ -498,10 +495,10 @@ function AvailabilityTab() {
 
 // ── Analytics tab ─────────────────────────────────────────────────────────────
 function AnalyticsTab() {
-  const analytics = useGetProviderAnalytics({ query: { queryKey: getGetProviderAnalyticsQueryKey() }, request: P });
+  const analytics = useGetProviderAnalytics({ query: { queryKey: getGetProviderAnalyticsQueryKey() } });
 
   if (analytics.isLoading) return <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="h-32 animate-pulse rounded-xl bg-white/5" />)}</div>;
-  if (analytics.isError)   return <div className="rounded-xl border border-destructive/20 p-6 text-center text-sm text-destructive">Failed to load analytics</div>;
+  if (analytics.isError) return <div className="rounded-xl border border-destructive/20 p-6 text-center text-sm text-destructive">Failed to load analytics</div>;
 
   const a = analytics.data!;
   const maxService = Math.max(...a.demandByService.map(d => d.bookings), 1);
@@ -512,10 +509,10 @@ function AnalyticsTab() {
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 rounded-2xl overflow-hidden border border-white/[0.07]">
         {[
-          { label: "Completion",    value: pct(a.completionRate),        accent: "text-emerald-400" },
-          { label: "Avg rating",    value: `${a.averageRating.toFixed(1)} / 5`, accent: "text-amber-400" },
-          { label: "Repeat rate",   value: pct(a.repeatBookingRate),     accent: "text-primary" },
-          { label: "Capacity util.", value: pct(a.capacityUtilization),  accent: "text-white" },
+          { label: "Completion",    value: pct(a.completionRate),     accent: "text-[hsl(var(--platform-mint))]" },
+          { label: "Avg rating",    value: `${a.averageRating.toFixed(1)} / 5`, accent: "text-[hsl(var(--platform-brass))]" },
+          { label: "Repeat rate",   value: pct(a.repeatBookingRate),  accent: "text-primary" },
+          { label: "Capacity util.", value: pct(a.capacityUtilization), accent: "text-white" },
         ].map((kpi, i) => (
           <div key={i} className="bg-background/60 px-5 py-4">
             <p className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-semibold">{kpi.label}</p>
@@ -527,7 +524,7 @@ function AnalyticsTab() {
       {/* Charts row */}
       <div className="grid gap-5 lg:grid-cols-2">
         {/* Demand by service */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6">
+        <div className="glass-card rounded-2xl p-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40 mb-5">Demand by service</p>
           {a.demandByService.length === 0 ? (
             <p className="text-sm text-muted-foreground">No data yet</p>
@@ -540,7 +537,7 @@ function AnalyticsTab() {
                     <span className="text-white/40 shrink-0">{item.bookings} · {money(item.revenue)}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-accent">
-                    <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${(item.bookings / maxService) * 100}%` }} />
+                    <div className="h-full rounded-full bg-primary bar-grow" style={{ "--target-width": `${(item.bookings / maxService) * 100}%` } as React.CSSProperties} />
                   </div>
                 </div>
               ))}
@@ -549,7 +546,7 @@ function AnalyticsTab() {
         </div>
 
         {/* Demand by day of week */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6">
+        <div className="glass-card rounded-2xl p-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40 mb-5">Demand by day</p>
           <div className="space-y-3">
             {a.demandByDay.map(item => (
@@ -559,7 +556,7 @@ function AnalyticsTab() {
                   <span className="text-white/40">{item.bookings}</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-accent">
-                  <div className="h-full rounded-full bg-amber-400 transition-all duration-500" style={{ width: `${(item.bookings / maxDay) * 100}%` }} />
+                  <div className="h-full rounded-full bg-[hsl(var(--platform-brass))] bar-grow" style={{ "--target-width": `${(item.bookings / maxDay) * 100}%` } as React.CSSProperties} />
                 </div>
               </div>
             ))}
@@ -569,7 +566,7 @@ function AnalyticsTab() {
 
       {/* Demand by zone */}
       {a.demandByZone.length > 0 && (
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6">
+        <div className="glass-card rounded-2xl p-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40 mb-4">Geographic demand</p>
           <div className="flex flex-wrap gap-2">
             {a.demandByZone.map(item => (
@@ -586,18 +583,20 @@ function AnalyticsTab() {
       )}
 
       {/* Demand forecast */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6">
+      <div className="glass-card rounded-2xl p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40 mb-1">Operational demand forecast</p>
-            <p className="font-serif text-3xl font-semibold text-amber-400">{a.forecast.estimate} <span className="text-lg font-normal text-white/50">bookings</span></p>
+            <p className="font-serif text-3xl font-semibold text-[hsl(var(--platform-brass))]">{a.forecast.estimate} <span className="text-lg font-normal text-white/50">bookings</span></p>
             <p className="mt-2 text-[13px] text-muted-foreground">Confidence: {pct(a.forecast.confidence * 100)}</p>
           </div>
-          <TrendingUp className="h-8 w-8 text-amber-400/40 shrink-0 mt-1" />
+          <div className="shrink-0">
+            <TrendingUp className="h-8 w-8 text-[hsl(var(--platform-brass))/0.5]" />
+          </div>
         </div>
         <div className="mt-4 rounded-xl bg-accent/20 border border-border/30 px-4 py-3">
           <p className="text-[11px] text-muted-foreground leading-relaxed">{a.forecast.method}</p>
-          <p className="text-[10px] text-muted-foreground/50 mt-1">Updated: {new Date(a.forecast.updatedAt).toLocaleString()}</p>
+          <p className="text-[10px] text-muted-foreground/50 mt-1">Last updated: {new Date(a.forecast.updatedAt).toLocaleString()}</p>
         </div>
       </div>
     </div>
@@ -607,19 +606,19 @@ function AnalyticsTab() {
 // ── Root page ─────────────────────────────────────────────────────────────────
 export default function Vendor() {
   const [tab, setTab] = useState<Tab>("dashboard");
-  const dash = useGetProviderDashboard({ query: { queryKey: getGetProviderDashboardQueryKey() }, request: P });
+  const dash = useGetProviderDashboard({ query: { queryKey: getGetProviderDashboardQueryKey() } });
   const providerName = dash.data?.providerName ?? "Provider workspace";
   const pendingCount = dash.data?.pendingCount ?? 0;
 
   return (
     <PlatformShell role="provider">
       {/* Compact horizontal header + tabs */}
-      <div className="mb-6">
+      <div className="mb-6 platform-reveal">
         <div className="flex flex-wrap items-center justify-between gap-4">
           {/* Identity */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 border border-emerald-500/25">
-              <Building2 className="h-4 w-4 text-emerald-400" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--platform-mint))/0.15] border border-[hsl(var(--platform-mint))/0.25]">
+              <Building2 className="h-4.5 w-4.5 text-[hsl(var(--platform-mint))]" />
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/40 leading-none">Service operations</p>

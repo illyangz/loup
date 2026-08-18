@@ -536,27 +536,49 @@ function BenefitsTab() {
 function ReportsTab() {
   const BASE = import.meta.env.BASE_URL;
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const reportDefs = [
-    { label: "Employee eligibility roster",  desc: "Name, email, tier, eligibility and campus for all employees.",  path: "v1/employer/employees",     file: "roster.json"        },
-    { label: "Allowance utilization report", desc: "Authorized, reserved, and redeemed totals by campus and tier.", path: "v1/employer/utilization",   file: "utilization.json"   },
-    { label: "Benefit plan summary",         desc: "All configured plans with tier allowances and employee counts.", path: "v1/employer/benefit-plans", file: "benefit-plans.json" },
-    { label: "Integrations status",          desc: "Connected SSO providers and data sources.",                     path: "v1/employer/integrations",  file: "integrations.json"  },
+    {
+      label: "Employee eligibility roster",
+      desc:  "Name, email, department, campus, tier, eligibility, allowance amount, and benefit start/end dates.",
+      path:  "v1/employer/export/roster",
+      file:  "meridian-employee-roster.csv",
+      cols:  "Name · Email · Department · Campus · Tier · Eligibility · Allowance · Start/End date",
+    },
+    {
+      label: "Allowance utilization by campus",
+      desc:  "Campus-level breakdown of authorized, reserved, and redeemed allowances.",
+      path:  "v1/employer/export/utilization",
+      file:  "meridian-utilization.csv",
+      cols:  "Campus · Employees · Authorized · Reserved · Redeemed · Remaining",
+    },
+    {
+      label: "Billing & payroll ledger",
+      desc:  "Per-employee ledger entries grouped by benefit cycle with subtotals per tier.",
+      path:  "v1/employer/export/billing",
+      file:  "meridian-billing-ledger.csv",
+      cols:  "Cycle · Name · Email · Tier · Authorized · Reserved · Redeemed · Remaining",
+    },
   ];
 
   async function handleExport(path: string, filename: string) {
     setDownloading(path);
+    setErrors(e => ({ ...e, [path]: "" }));
     try {
       const res = await fetch(`${BASE}api/${path}`, { headers: { "x-loup-demo-role": "institution" } });
-      if (!res.ok) throw new Error(`${res.status}`);
-      const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const text = await res.text();
+      const blob = new Blob([text], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = filename; a.click();
       URL.revokeObjectURL(url);
-    } catch { /* swallow */ }
-    finally { setDownloading(null); }
+    } catch (err) {
+      setErrors(e => ({ ...e, [path]: err instanceof Error ? err.message : "Download failed" }));
+    } finally {
+      setDownloading(null);
+    }
   }
 
   return (
@@ -566,25 +588,32 @@ function ReportsTab() {
       {/* Reports as a horizontal table-style list */}
       <div className="rounded-xl border border-border/50 bg-background/30 overflow-hidden">
         {reportDefs.map((exp, i) => (
-          <div key={exp.label} className={cn("flex items-center gap-4 px-5 py-4 hover:bg-accent/20 transition-colors", i < reportDefs.length - 1 && "border-b border-border/40")} data-testid={`row-export-${i}`}>
+          <div key={exp.label} className={cn("flex items-start gap-4 px-5 py-4 hover:bg-accent/20 transition-colors", i < reportDefs.length - 1 && "border-b border-border/40")} data-testid={`row-export-${i}`}>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-[14px]">{exp.label}</p>
-              <p className="text-[12px] text-muted-foreground mt-0.5 truncate">{exp.desc}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-medium text-[14px]">{exp.label}</p>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-primary/60 bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5">.csv</span>
+              </div>
+              <p className="text-[12px] text-muted-foreground mt-0.5">{exp.desc}</p>
+              <p className="text-[11px] text-muted-foreground/50 mt-1 font-mono">{exp.cols}</p>
+              {errors[exp.path] && (
+                <p className="mt-1 text-[11px] text-destructive">{errors[exp.path]}</p>
+              )}
             </div>
             <button
               type="button"
               disabled={downloading === exp.path}
               onClick={() => handleExport(exp.path, exp.file)}
-              className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-border/60 px-3.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-colors disabled:opacity-50"
+              className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-border/60 px-3.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-colors disabled:opacity-50 mt-0.5"
               data-testid={`link-export-${exp.label.toLowerCase().replace(/\s+/g, "-")}`}
             >
               {downloading === exp.path ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              Export
+              Download CSV
             </button>
           </div>
         ))}
       </div>
-      <p className="text-[12px] text-muted-foreground">Each export returns JSON. Production Loup generates branded Excel or CSV files.</p>
+      <p className="text-[12px] text-muted-foreground">Files open directly in Excel and Google Sheets.</p>
     </div>
   );
 }

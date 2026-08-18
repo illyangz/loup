@@ -25,6 +25,7 @@ router.use(pushRouter);
 router.use(platformRouter);
 router.use(providerRouter);
 router.use(adminRouter);
+router.use(providerRouter);
 router.use(openaiRouter);
 
 export default router;

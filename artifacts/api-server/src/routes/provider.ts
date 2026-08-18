@@ -260,318 +260,158 @@ router.get("/v1/provider/orders", requireProviderRole, async (req, res): Promise
 
 // ── Accept ────────────────────────────────────────────────────────────────────
 router.post("/v1/provider/orders/:id/accept", requireProviderRole, async (req, res): Promise<void> => {
-  try {
-    const id = parseInt(String(req.params["id"] ?? "0"), 10);
-    const provider = await resolveProviderContext();
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  const provider = await resolveProviderContext();
 
-    const [booking] = await db
-      .select()
-      .from(bookingsTable)
-      .where(and(eq(bookingsTable.id, id), eq(bookingsTable.providerId, provider.id)));
+  const [booking] = await db
+    .select()
+    .from(bookingsTable)
+    .where(and(eq(bookingsTable.id, id), eq(bookingsTable.providerId, provider.id)));
 
-    if (!booking) { res.status(404).json({ error: "Order not found" }); return; }
-    if (booking.status !== "pending") {
-      res.status(400).json({ error: `Cannot accept an order with status '${booking.status}'` });
-      return;
-    }
-
-    // Atomic transition: WHERE status = 'pending' acts as an optimistic lock.
-    // If a concurrent request already moved the booking away from 'pending',
-    // the UPDATE affects 0 rows and we return 409 instead of silently double-accepting.
-    try {
-      await db.transaction(async (tx) => {
-        const updated = await tx
-          .update(bookingsTable)
-          .set({ status: "accepted" })
-          .where(and(
-            eq(bookingsTable.id, id),
-            eq(bookingsTable.status, "pending"),
-            eq(bookingsTable.providerId, provider.id),
-          ))
-          .returning({ id: bookingsTable.id });
-
-        if (updated.length === 0) {
-          throw Object.assign(new Error("Concurrent modification"), { code: "CONFLICT" });
-        }
-
-        await tx.insert(bookingEventsTable).values({
-          bookingId: id,
-          status: "accepted",
-          note: `${provider.name} accepted the booking`,
-          occurredAt: new Date(),
-        });
-      });
-    } catch (err: unknown) {
-      if ((err as { code?: string }).code === "CONFLICT") {
-        res.status(409).json({ error: "Order status changed by a concurrent request; please refresh and try again" });
-        return;
-      }
-      throw err;
-    }
-
-    await writeHistory(id, "pending", "accepted", "provider", "Provider accepted the order");
-    req.log.info({ bookingId: id }, "Provider accepted order");
-
-    const order = await toProviderOrder(id);
-    res.json(order);
-  } catch (err) {
-    logger.error({ err }, "acceptProviderOrder failed");
-    res.status(500).json({ error: "Failed to accept order" });
+  if (!booking) { res.status(404).json({ error: "Order not found" }); return; }
+  if (booking.status !== "pending") {
+    res.status(400).json({ error: `Cannot accept an order with status '${booking.status}'` });
+    return;
   }
+
+  await db.update(bookingsTable).set({ status: "accepted" }).where(eq(bookingsTable.id, id));
+  await db.insert(bookingEventsTable).values({
+    bookingId: id,
+    status: "accepted",
+    note: `${provider.name} accepted the booking`,
+    occurredAt: new Date(),
+  });
+  await writeHistory(id, "pending", "accepted", "provider", "Provider accepted the order");
+  req.log.info({ bookingId: id }, "Provider accepted order");
+
+  const order = await toProviderOrder(id);
+  res.json(order);
 });
 
 // ── Reject ────────────────────────────────────────────────────────────────────
 router.post("/v1/provider/orders/:id/reject", requireProviderRole, async (req, res): Promise<void> => {
-  try {
-    const id = parseInt(String(req.params["id"] ?? "0"), 10);
-    const provider = await resolveProviderContext();
-    const { reason } = (req.body ?? {}) as { reason?: string };
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  const provider = await resolveProviderContext();
+  const { reason } = (req.body ?? {}) as { reason?: string };
 
-    const [booking] = await db
-      .select()
-      .from(bookingsTable)
-      .where(and(eq(bookingsTable.id, id), eq(bookingsTable.providerId, provider.id)));
+  const [booking] = await db
+    .select()
+    .from(bookingsTable)
+    .where(and(eq(bookingsTable.id, id), eq(bookingsTable.providerId, provider.id)));
 
-    if (!booking) { res.status(404).json({ error: "Order not found" }); return; }
-
-    const rejectableStatuses = ["pending", "accepted"] as const;
-    if (!(rejectableStatuses as readonly string[]).includes(booking.status)) {
-      res.status(400).json({ error: `Cannot reject an order with status '${booking.status}'` });
-      return;
-    }
-
-    const prevStatus = booking.status;
-    const note = reason ? `Rejected by provider: ${reason}` : "Rejected by provider";
-
-    try {
-      await db.transaction(async (tx) => {
-        const updated = await tx
-          .update(bookingsTable)
-          .set({ status: "rejected" })
-          .where(and(
-            eq(bookingsTable.id, id),
-            eq(bookingsTable.status, prevStatus),
-            eq(bookingsTable.providerId, provider.id),
-          ))
-          .returning({ id: bookingsTable.id });
-
-        if (updated.length === 0) {
-          throw Object.assign(new Error("Concurrent modification"), { code: "CONFLICT" });
-        }
-
-        await tx.insert(bookingEventsTable).values({
-          bookingId: id,
-          status: "rejected",
-          note,
-          occurredAt: new Date(),
-        });
-      });
-    } catch (err: unknown) {
-      if ((err as { code?: string }).code === "CONFLICT") {
-        res.status(409).json({ error: "Order status changed by a concurrent request; please refresh and try again" });
-        return;
-      }
-      throw err;
-    }
-
-    await writeHistory(id, prevStatus, "rejected", "provider", note);
-    await writeReleaseLedger(id); // already idempotent via idempotencyKey
-    req.log.info({ bookingId: id }, "Provider rejected order");
-
-    const order = await toProviderOrder(id);
-    res.json(order);
-  } catch (err) {
-    logger.error({ err }, "rejectProviderOrder failed");
-    res.status(500).json({ error: "Failed to reject order" });
+  if (!booking) { res.status(404).json({ error: "Order not found" }); return; }
+  if (booking.status !== "pending" && booking.status !== "accepted") {
+    res.status(400).json({ error: `Cannot reject an order with status '${booking.status}'` });
+    return;
   }
+
+  await db.update(bookingsTable).set({ status: "rejected" }).where(eq(bookingsTable.id, id));
+  const note = reason ? `Rejected by provider: ${reason}` : "Rejected by provider";
+  await db.insert(bookingEventsTable).values({ bookingId: id, status: "rejected", note, occurredAt: new Date() });
+  await writeHistory(id, booking.status, "rejected", "provider", note);
+  await writeReleaseLedger(id);
+  req.log.info({ bookingId: id }, "Provider rejected order");
+
+  const order = await toProviderOrder(id);
+  res.json(order);
 });
 
 // ── Advance ───────────────────────────────────────────────────────────────────
 router.post("/v1/provider/orders/:id/advance", requireProviderRole, async (req, res): Promise<void> => {
-  try {
-    const id = parseInt(String(req.params["id"] ?? "0"), 10);
-    const provider = await resolveProviderContext();
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  const provider = await resolveProviderContext();
 
-    const [booking] = await db
-      .select()
-      .from(bookingsTable)
-      .where(and(eq(bookingsTable.id, id), eq(bookingsTable.providerId, provider.id)));
+  const [booking] = await db
+    .select()
+    .from(bookingsTable)
+    .where(and(eq(bookingsTable.id, id), eq(bookingsTable.providerId, provider.id)));
 
-    if (!booking) { res.status(404).json({ error: "Order not found" }); return; }
+  if (!booking) { res.status(404).json({ error: "Order not found" }); return; }
 
-    const current = booking.status as string;
-    if ((TERMINAL_STATUSES as readonly string[]).includes(current)) {
-      res.status(400).json({ error: `Booking is in terminal status '${current}'` });
-      return;
-    }
-
-    const index = STATUS_CHAIN.indexOf(current as (typeof STATUS_CHAIN)[number]);
-    if (index === -1 || index >= STATUS_CHAIN.length - 1) {
-      res.status(400).json({ error: "This order cannot advance further" });
-      return;
-    }
-
-    const next = STATUS_CHAIN[index + 1]!;
-    const etaByStatus: Record<string, number | null> = {
-      confirmed: null, en_route: 15, arrived: null, in_progress: null, completed: null,
-    };
-    const noteByStatus: Record<string, string> = {
-      confirmed:   `${provider.name} confirmed availability for this booking`,
-      en_route:    `${provider.name} is on the way to your address`,
-      arrived:     `${provider.name} has arrived`,
-      in_progress: "Work has started",
-      completed:   `Job completed — AED ${booking.priceEstimate} added to your bill`,
-    };
-
-    // Atomic transition: status change, booking event, bill item, and statement
-    // totals are all committed in a single transaction.
-    //
-    // WHERE status = current acts as an optimistic lock: two concurrent advance
-    // requests both read status='in_progress', compute next='completed', then
-    // race to UPDATE. Only the first succeeds (1 row affected); the second gets
-    // 0 rows → CONFLICT → 409. This prevents the crash-after-commit scenario
-    // where a completed status is written before billing, leaving an unbilled
-    // booking in a terminal state that can never be retried.
-    try {
-      await db.transaction(async (tx) => {
-        const updated = await tx
-          .update(bookingsTable)
-          .set({ status: next, etaMinutes: etaByStatus[next] ?? null })
-          .where(and(
-            eq(bookingsTable.id, id),
-            eq(bookingsTable.status, current),       // optimistic lock
-            eq(bookingsTable.providerId, provider.id),
-          ))
-          .returning({ id: bookingsTable.id });
-
-        if (updated.length === 0) {
-          throw Object.assign(new Error("Concurrent modification"), { code: "CONFLICT" });
-        }
-
-        await tx.insert(bookingEventsTable).values({
-          bookingId: id,
-          status: next,
-          note: noteByStatus[next] ?? "Status updated by provider",
-          occurredAt: new Date(),
-        });
-
-        // Completion billing runs inside the transaction so status and bill
-        // item are committed atomically. If billing fails the status reverts,
-        // leaving the booking in the previous non-terminal state for retrying.
-        if (next === "completed") {
-          await addCompletionBillItem(
-            { id: booking.id, householdId: booking.householdId, priceEstimate: booking.priceEstimate },
-            tx,
-          );
-        }
-      });
-    } catch (err: unknown) {
-      if ((err as { code?: string }).code === "CONFLICT") {
-        res.status(409).json({ error: "Order status changed by a concurrent request; please refresh and try again" });
-        return;
-      }
-      throw err;
-    }
-
-    // Post-transition effects outside the transaction.
-    // writeHistory: non-financial, benign if duplicated.
-    // writeRedemptionLedger: already idempotent via idempotencyKey + onConflictDoNothing.
-    await writeHistory(id, current, next, "provider");
-    if (next === "completed") {
-      await writeRedemptionLedger(id, booking.priceEstimate);
-    }
-
-    req.log.info({ bookingId: id, from: current, to: next }, "Provider advanced order");
-    const order = await toProviderOrder(id);
-    res.json(order);
-  } catch (err) {
-    logger.error({ err }, "advanceProviderOrder failed");
-    res.status(500).json({ error: "Failed to advance order" });
+  const current = booking.status as string;
+  if ((TERMINAL_STATUSES as readonly string[]).includes(current)) {
+    res.status(400).json({ error: `Booking is in terminal status '${current}'` });
+    return;
   }
-});
 
-// Valid states from which a provider may open a dispute.
-// Terminal states (completed, cancelled, rejected, disputed) are excluded:
-//   - completed: the booking is billed and allowance redeemed; a dispute would
-//     require a compensating financial reversal, which is out of scope here.
-//   - cancelled / rejected: already terminal with no active work to dispute.
-//   - disputed: already open.
-const DISPUTABLE_STATUSES = new Set([
-  "pending", "accepted", "confirmed", "en_route", "arrived", "in_progress",
-]);
+  const index = STATUS_CHAIN.indexOf(current as (typeof STATUS_CHAIN)[number]);
+  if (index === -1 || index >= STATUS_CHAIN.length - 1) {
+    res.status(400).json({ error: "This order cannot advance further" });
+    return;
+  }
+
+  const next = STATUS_CHAIN[index + 1]!;
+  const etaByStatus: Record<string, number | null> = {
+    confirmed: null,
+    en_route: 15,
+    arrived: null,
+    in_progress: null,
+    completed: null,
+  };
+  const noteByStatus: Record<string, string> = {
+    confirmed: `${provider.name} confirmed availability for this booking`,
+    en_route: `${provider.name} is on the way to your address`,
+    arrived: `${provider.name} has arrived`,
+    in_progress: "Work has started",
+    completed: `Job completed — AED ${booking.priceEstimate} added to your bill`,
+  };
+
+  await db
+    .update(bookingsTable)
+    .set({ status: next, etaMinutes: etaByStatus[next] ?? null })
+    .where(eq(bookingsTable.id, id));
+
+  await db.insert(bookingEventsTable).values({
+    bookingId: id,
+    status: next,
+    note: noteByStatus[next] ?? "Status updated by provider",
+    occurredAt: new Date(),
+  });
+  await writeHistory(id, current, next, "provider");
+
+  if (next === "completed") {
+    await addCompletionBillItem({ id: booking.id, householdId: booking.householdId, priceEstimate: booking.priceEstimate });
+    await writeRedemptionLedger(id, booking.priceEstimate);
+  }
+
+  req.log.info({ bookingId: id, from: current, to: next }, "Provider advanced order");
+  const order = await toProviderOrder(id);
+  res.json(order);
+});
 
 // ── Report issue ──────────────────────────────────────────────────────────────
 router.post("/v1/provider/orders/:id/report-issue", requireProviderRole, async (req, res): Promise<void> => {
-  try {
-    const id = parseInt(String(req.params["id"] ?? "0"), 10);
-    const provider = await resolveProviderContext();
-    const { description } = (req.body ?? {}) as { description?: string };
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  const provider = await resolveProviderContext();
+  const { description } = (req.body ?? {}) as { description?: string };
 
-    const [booking] = await db
-      .select()
-      .from(bookingsTable)
-      .where(and(eq(bookingsTable.id, id), eq(bookingsTable.providerId, provider.id)));
+  const [booking] = await db
+    .select()
+    .from(bookingsTable)
+    .where(and(eq(bookingsTable.id, id), eq(bookingsTable.providerId, provider.id)));
 
-    if (!booking) { res.status(404).json({ error: "Order not found" }); return; }
+  if (!booking) { res.status(404).json({ error: "Order not found" }); return; }
 
-    if (!DISPUTABLE_STATUSES.has(booking.status)) {
-      res.status(400).json({
-        error: `Cannot open a dispute for a booking with status '${booking.status}'. ` +
-               `Disputes can only be raised for active orders (pending, accepted, confirmed, en_route, arrived, in_progress).`,
-      });
-      return;
-    }
+  // Mark as disputed and open a support incident
+  await db.update(bookingsTable).set({ status: "disputed" }).where(eq(bookingsTable.id, id));
+  await db.insert(bookingEventsTable).values({
+    bookingId: id,
+    status: "disputed",
+    note: description ? `Issue reported: ${description}` : "Issue reported by provider",
+    occurredAt: new Date(),
+  });
+  await writeHistory(id, booking.status, "disputed", "provider", description ?? "Issue reported");
 
-    const prevStatus = booking.status;
-    const noteText = description ? `Issue reported: ${description}` : "Issue reported by provider";
+  await db.insert(supportIncidentsTable).values({
+    bookingId: id,
+    category: "quality",
+    description: description ?? "Provider reported an issue with this booking",
+    status: "open",
+  });
 
-    try {
-      await db.transaction(async (tx) => {
-        const updated = await tx
-          .update(bookingsTable)
-          .set({ status: "disputed" })
-          .where(and(
-            eq(bookingsTable.id, id),
-            eq(bookingsTable.status, prevStatus),
-            eq(bookingsTable.providerId, provider.id),
-          ))
-          .returning({ id: bookingsTable.id });
-
-        if (updated.length === 0) {
-          throw Object.assign(new Error("Concurrent modification"), { code: "CONFLICT" });
-        }
-
-        await tx.insert(bookingEventsTable).values({
-          bookingId: id,
-          status: "disputed",
-          note: noteText,
-          occurredAt: new Date(),
-        });
-
-        await tx.insert(supportIncidentsTable).values({
-          bookingId: id,
-          category: "quality",
-          description: description ?? "Provider reported an issue with this booking",
-          status: "open",
-        });
-      });
-    } catch (err: unknown) {
-      if ((err as { code?: string }).code === "CONFLICT") {
-        res.status(409).json({ error: "Order status changed by a concurrent request; please refresh and try again" });
-        return;
-      }
-      throw err;
-    }
-
-    await writeHistory(id, prevStatus, "disputed", "provider", description ?? "Issue reported");
-    req.log.info({ bookingId: id }, "Provider reported issue");
-
-    const order = await toProviderOrder(id);
-    res.json(order);
-  } catch (err) {
-    logger.error({ err }, "reportProviderIssue failed");
-    res.status(500).json({ error: "Failed to report issue" });
-  }
+  req.log.info({ bookingId: id }, "Provider reported issue");
+  const order = await toProviderOrder(id);
+  res.json(order);
 });
 
 // ── Dashboard KPIs ────────────────────────────────────────────────────────────
@@ -661,35 +501,12 @@ router.get("/v1/provider/availability", requireProviderRole, async (_req, res): 
   })));
 });
 
-const HH_MM = /^\d{2}:\d{2}$/;
-
 router.post("/v1/provider/availability", requireProviderRole, async (req, res): Promise<void> => {
   const { dayOfWeek, startTime, endTime, zones, maxCapacity, serviceId } = req.body as {
     dayOfWeek: number; startTime: string; endTime: string; zones?: string[]; maxCapacity?: number; serviceId?: number;
   };
-
-  // Server-side validation
-  const errs: string[] = [];
-  if (dayOfWeek === undefined || !Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
-    errs.push("dayOfWeek must be an integer from 0 (Sunday) to 6 (Saturday)");
-  }
-  if (!startTime || !HH_MM.test(startTime)) {
-    errs.push("startTime must be in HH:MM format (e.g. '08:00')");
-  }
-  if (!endTime || !HH_MM.test(endTime)) {
-    errs.push("endTime must be in HH:MM format (e.g. '18:00')");
-  }
-  if (startTime && endTime && HH_MM.test(startTime) && HH_MM.test(endTime) && startTime >= endTime) {
-    errs.push("startTime must be before endTime");
-  }
-  if (maxCapacity !== undefined && (!Number.isInteger(maxCapacity) || maxCapacity < 1 || maxCapacity > 200)) {
-    errs.push("maxCapacity must be an integer between 1 and 200");
-  }
-  if (zones !== undefined && (!Array.isArray(zones) || zones.length === 0 || zones.some(z => typeof z !== "string" || z.trim() === ""))) {
-    errs.push("zones must be a non-empty array of non-blank strings");
-  }
-  if (errs.length > 0) {
-    res.status(400).json({ error: errs.join("; ") });
+  if (dayOfWeek === undefined || !startTime || !endTime) {
+    res.status(400).json({ error: "dayOfWeek, startTime, and endTime are required" });
     return;
   }
   const provider = await resolveProviderContext();
