@@ -273,7 +273,7 @@ export default function Book() {
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-white/40">Your saving</span>
-                      <span className="text-emerald-400">−{aed(preview.institutionalSaving)}</span>
+                      <span className="text-emerald-400">−{aed(preview.institutionalSaving ?? 0)}</span>
                     </div>
                   </>
                 ) : (

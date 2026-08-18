@@ -135,6 +135,12 @@ export interface EmployerEmployee {
   benefitTier: string;
   eligibilityStatus: string;
   householdEligible: boolean;
+  campusId?: number;
+  campusName?: string;
+  tierId?: number;
+  tierName?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface EmployeeImportInput {
@@ -688,6 +694,81 @@ export interface BillStatementSummary {
 
 export interface PaymentInput {
   paymentMethodId: number;
+}
+
+export interface CampusBreakdown {
+  campusId: number;
+  campusName: string;
+  employeeCount: number;
+  activeEmployees: number;
+  totalAuthorized: number;
+  totalRedeemed: number;
+  totalReserved: number;
+  privacyGuarded: boolean;
+}
+
+export interface EmployeeUpdateInput {
+  eligibilityStatus?: string;
+  benefitTier?: string;
+  tierId?: number;
+  campusId?: number;
+  department?: string;
+  householdEligible?: boolean;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface AddEmployeeInput {
+  name: string;
+  workEmail: string;
+  externalEmployeeId?: string;
+  department: string;
+  benefitTier: string;
+  campusId?: number;
+  tierId?: number;
+  householdEligible?: boolean;
+}
+
+export interface BenefitTierSummary {
+  id: number;
+  name: string;
+  monthlyAllowance: number;
+  description: string;
+  active: boolean;
+  employeeCount: number;
+}
+
+export interface BenefitPlanSummary {
+  id: number;
+  name: string;
+  period: string;
+  renewalFrequency: string;
+  expirationPolicy: string;
+  rolloverEnabled: boolean;
+  householdAccess: boolean;
+  topUpPermitted: boolean;
+  active: boolean;
+  employeeCount: number;
+  monthlyLiability: number;
+  tiers: BenefitTierSummary[];
+}
+
+export type BenefitPlanInputTiersItem = {
+  name: string;
+  monthlyAllowance: number;
+  description: string;
+};
+
+export interface BenefitPlanInput {
+  name: string;
+  period: string;
+  renewalFrequency: string;
+  expirationPolicy: string;
+  rolloverEnabled: boolean;
+  householdAccess: boolean;
+  topUpPermitted: boolean;
+  /** @minItems 1 */
+  tiers: BenefitPlanInputTiersItem[];
 }
 
 export interface OpenaiConversation {

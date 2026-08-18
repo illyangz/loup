@@ -6,19 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface EmployerEmployee {
-  id: number;
-  externalEmployeeId: string;
+export interface AddEmployeeInput {
   name: string;
   workEmail: string;
+  externalEmployeeId?: string;
   department: string;
   benefitTier: string;
-  eligibilityStatus: string;
-  householdEligible: boolean;
   campusId?: number;
-  campusName?: string;
   tierId?: number;
-  tierName?: string;
-  startDate?: string;
-  endDate?: string;
+  householdEligible?: boolean;
 }

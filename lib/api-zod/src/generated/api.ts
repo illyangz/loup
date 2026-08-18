@@ -944,7 +944,13 @@ export const ListEmployerEmployeesResponseItem = zod.object({
   "department": zod.string(),
   "benefitTier": zod.string(),
   "eligibilityStatus": zod.string(),
-  "householdEligible": zod.boolean()
+  "householdEligible": zod.boolean(),
+  "campusId": zod.number().int().optional(),
+  "campusName": zod.string().optional(),
+  "tierId": zod.number().int().optional(),
+  "tierName": zod.string().optional(),
+  "startDate": zod.string().optional(),
+  "endDate": zod.string().optional()
 })
 export const ListEmployerEmployeesResponse = zod.array(ListEmployerEmployeesResponseItem)
 
@@ -997,6 +1003,161 @@ export const GetEmployerIntegrationsResponse = zod.object({
   "widgetScript": zod.string(),
   "widgetSnippet": zod.string(),
   "apiMode": zod.string()
+})
+
+
+/**
+ * @summary Per-campus utilization breakdown with privacy guards (groups < 5 suppressed)
+ */
+export const GetEmployerCampusBreakdownResponseItem = zod.object({
+  "campusId": zod.number().int(),
+  "campusName": zod.string(),
+  "employeeCount": zod.number().int(),
+  "activeEmployees": zod.number().int(),
+  "totalAuthorized": zod.number(),
+  "totalRedeemed": zod.number(),
+  "totalReserved": zod.number(),
+  "privacyGuarded": zod.boolean()
+})
+export const GetEmployerCampusBreakdownResponse = zod.array(GetEmployerCampusBreakdownResponseItem)
+
+
+/**
+ * @summary Update an employee tier, eligibility, campus, or department
+ */
+export const UpdateEmployerEmployeeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UpdateEmployerEmployeeBody = zod.object({
+  "eligibilityStatus": zod.string().optional(),
+  "benefitTier": zod.string().optional(),
+  "tierId": zod.number().int().optional(),
+  "campusId": zod.number().int().optional(),
+  "department": zod.string().optional(),
+  "householdEligible": zod.boolean().optional(),
+  "startDate": zod.string().optional(),
+  "endDate": zod.string().optional()
+})
+
+export const UpdateEmployerEmployeeResponse = zod.object({
+  "id": zod.number().int(),
+  "externalEmployeeId": zod.string(),
+  "name": zod.string(),
+  "workEmail": zod.string(),
+  "department": zod.string(),
+  "benefitTier": zod.string(),
+  "eligibilityStatus": zod.string(),
+  "householdEligible": zod.boolean(),
+  "campusId": zod.number().int().optional(),
+  "campusName": zod.string().optional(),
+  "tierId": zod.number().int().optional(),
+  "tierName": zod.string().optional(),
+  "startDate": zod.string().optional(),
+  "endDate": zod.string().optional()
+})
+
+
+/**
+ * @summary Manually add an employee to the roster
+ */
+export const AddEmployerEmployeeBody = zod.object({
+  "name": zod.string(),
+  "workEmail": zod.string(),
+  "externalEmployeeId": zod.string().optional(),
+  "department": zod.string(),
+  "benefitTier": zod.string(),
+  "campusId": zod.number().int().optional(),
+  "tierId": zod.number().int().optional(),
+  "householdEligible": zod.boolean().optional()
+})
+
+export const AddEmployerEmployeeResponse = zod.object({
+  "id": zod.number().int(),
+  "externalEmployeeId": zod.string(),
+  "name": zod.string(),
+  "workEmail": zod.string(),
+  "department": zod.string(),
+  "benefitTier": zod.string(),
+  "eligibilityStatus": zod.string(),
+  "householdEligible": zod.boolean(),
+  "campusId": zod.number().int().optional(),
+  "campusName": zod.string().optional(),
+  "tierId": zod.number().int().optional(),
+  "tierName": zod.string().optional(),
+  "startDate": zod.string().optional(),
+  "endDate": zod.string().optional()
+})
+
+
+/**
+ * @summary List benefit plans for the institution with tiers and live cost summary
+ */
+export const ListBenefitPlansResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "period": zod.string(),
+  "renewalFrequency": zod.string(),
+  "expirationPolicy": zod.string(),
+  "rolloverEnabled": zod.boolean(),
+  "householdAccess": zod.boolean(),
+  "topUpPermitted": zod.boolean(),
+  "active": zod.boolean(),
+  "employeeCount": zod.number().int(),
+  "monthlyLiability": zod.number(),
+  "tiers": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "monthlyAllowance": zod.number(),
+  "description": zod.string(),
+  "active": zod.boolean(),
+  "employeeCount": zod.number().int()
+}))
+})
+export const ListBenefitPlansResponse = zod.array(ListBenefitPlansResponseItem)
+
+
+/**
+ * @summary Create a new benefit plan with tiers
+ */
+
+
+
+export const CreateBenefitPlanBody = zod.object({
+  "name": zod.string(),
+  "period": zod.string(),
+  "renewalFrequency": zod.string(),
+  "expirationPolicy": zod.string(),
+  "rolloverEnabled": zod.boolean(),
+  "householdAccess": zod.boolean(),
+  "topUpPermitted": zod.boolean(),
+  "tiers": zod.array(zod.object({
+  "name": zod.string(),
+  "monthlyAllowance": zod.number(),
+  "description": zod.string()
+})).min(1)
+})
+
+export const CreateBenefitPlanResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "period": zod.string(),
+  "renewalFrequency": zod.string(),
+  "expirationPolicy": zod.string(),
+  "rolloverEnabled": zod.boolean(),
+  "householdAccess": zod.boolean(),
+  "topUpPermitted": zod.boolean(),
+  "active": zod.boolean(),
+  "employeeCount": zod.number().int(),
+  "monthlyLiability": zod.number(),
+  "tiers": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "monthlyAllowance": zod.number(),
+  "description": zod.string(),
+  "active": zod.boolean(),
+  "employeeCount": zod.number().int()
+}))
 })
 
 

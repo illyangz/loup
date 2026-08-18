@@ -17,6 +17,16 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _defaultHeaders: Record<string, string> = {};
+
+/**
+ * Set static headers that are merged into every request made by customFetch.
+ * Useful for sending portal-scoped role headers (e.g. x-loup-demo-role).
+ * Call with an empty object to clear previously set headers.
+ */
+export function setDefaultHeaders(headers: Record<string, string>): void {
+  _defaultHeaders = { ...headers };
+}
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -347,6 +357,13 @@ export async function customFetch<T = unknown>(
 
   if (responseType === "json" && !headers.has("accept")) {
     headers.set("accept", DEFAULT_JSON_ACCEPT);
+  }
+
+  // Merge static default headers (e.g. portal role headers) set via setDefaultHeaders.
+  for (const [key, value] of Object.entries(_defaultHeaders)) {
+    if (!headers.has(key)) {
+      headers.set(key, value);
+    }
   }
 
   // Attach bearer token when an auth getter is configured and no

@@ -806,6 +806,111 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IntegrationDetails"
+  /v1/employer/campus-breakdown:
+    get:
+      operationId: getEmployerCampusBreakdown
+      tags: [platform]
+      summary: Per-campus utilization breakdown with privacy guards (groups < 5 suppressed)
+      responses:
+        "200":
+          description: Campus breakdowns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CampusBreakdown"
+  /v1/employer/employees/{id}:
+    patch:
+      operationId: updateEmployerEmployee
+      tags: [platform]
+      summary: Update an employee tier, eligibility, campus, or department
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeUpdateInput"
+      responses:
+        "200":
+          description: Updated employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployerEmployee"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/employer/employees/add:
+    post:
+      operationId: addEmployerEmployee
+      tags: [platform]
+      summary: Manually add an employee to the roster
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddEmployeeInput"
+      responses:
+        "201":
+          description: Created employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployerEmployee"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/employer/benefit-plans:
+    get:
+      operationId: listBenefitPlans
+      tags: [platform]
+      summary: List benefit plans for the institution with tiers and live cost summary
+      responses:
+        "200":
+          description: Benefit plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BenefitPlanSummary"
+    post:
+      operationId: createBenefitPlan
+      tags: [platform]
+      summary: Create a new benefit plan with tiers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BenefitPlanInput"
+      responses:
+        "201":
+          description: Created benefit plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenefitPlanSummary"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
   /v1/vendor/today:
     get:
       operationId: getVendorToday
@@ -1112,6 +1217,12 @@ components:
         benefitTier: { type: string }
         eligibilityStatus: { type: string }
         householdEligible: { type: boolean }
+        campusId: { type: integer }
+        campusName: { type: string }
+        tierId: { type: integer }
+        tierName: { type: string }
+        startDate: { type: string }
+        endDate: { type: string }
     EmployeeImportInput:
       type: object
       required: [csv]
@@ -2078,6 +2189,91 @@ components:
           type: integer
       required:
         - paymentMethodId
+    CampusBreakdown:
+      type: object
+      required: [campusId, campusName, employeeCount, activeEmployees, totalAuthorized, totalRedeemed, totalReserved, privacyGuarded]
+      properties:
+        campusId: { type: integer }
+        campusName: { type: string }
+        employeeCount: { type: integer }
+        activeEmployees: { type: integer }
+        totalAuthorized: { type: number }
+        totalRedeemed: { type: number }
+        totalReserved: { type: number }
+        privacyGuarded: { type: boolean }
+    EmployeeUpdateInput:
+      type: object
+      properties:
+        eligibilityStatus: { type: string }
+        benefitTier: { type: string }
+        tierId: { type: integer }
+        campusId: { type: integer }
+        department: { type: string }
+        householdEligible: { type: boolean }
+        startDate: { type: string }
+        endDate: { type: string }
+    AddEmployeeInput:
+      type: object
+      required: [name, workEmail, department, benefitTier]
+      properties:
+        name: { type: string }
+        workEmail: { type: string }
+        externalEmployeeId: { type: string }
+        department: { type: string }
+        benefitTier: { type: string }
+        campusId: { type: integer }
+        tierId: { type: integer }
+        householdEligible: { type: boolean }
+    BenefitPlanSummary:
+      type: object
+      required: [id, name, period, renewalFrequency, expirationPolicy, rolloverEnabled, householdAccess, topUpPermitted, active, tiers, monthlyLiability, employeeCount]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        period: { type: string }
+        renewalFrequency: { type: string }
+        expirationPolicy: { type: string }
+        rolloverEnabled: { type: boolean }
+        householdAccess: { type: boolean }
+        topUpPermitted: { type: boolean }
+        active: { type: boolean }
+        employeeCount: { type: integer }
+        monthlyLiability: { type: number }
+        tiers:
+          type: array
+          items:
+            $ref: "#/components/schemas/BenefitTierSummary"
+    BenefitTierSummary:
+      type: object
+      required: [id, name, monthlyAllowance, description, active, employeeCount]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        monthlyAllowance: { type: number }
+        description: { type: string }
+        active: { type: boolean }
+        employeeCount: { type: integer }
+    BenefitPlanInput:
+      type: object
+      required: [name, period, renewalFrequency, expirationPolicy, rolloverEnabled, householdAccess, topUpPermitted, tiers]
+      properties:
+        name: { type: string }
+        period: { type: string }
+        renewalFrequency: { type: string }
+        expirationPolicy: { type: string }
+        rolloverEnabled: { type: boolean }
+        householdAccess: { type: boolean }
+        topUpPermitted: { type: boolean }
+        tiers:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [name, monthlyAllowance, description]
+            properties:
+              name: { type: string }
+              monthlyAllowance: { type: number }
+              description: { type: string }
     OpenaiConversation:
       type: object
       properties:
