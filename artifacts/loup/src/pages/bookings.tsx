@@ -1,7 +1,6 @@
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo } from "react"
 import { Link } from "wouter"
 import { useListBookings, useGetHousehold, ListBookingsScope } from "@workspace/api-client-react"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
@@ -23,8 +22,7 @@ export default function Bookings() {
 
   const { data: bookingsAll, isLoading: isLoadingAll, error: errorAll, refetch: refetchAll } = useListBookings({ scope: "all" })
   const { data: household, isLoading: isLoadingHousehold, error: errorHousehold, refetch: refetchHousehold } = useGetHousehold()
-  
-  // Need a separate query for the rail list to respect the scope correctly while calendar uses "all"
+
   const { data: bookingsList, isLoading: isLoadingList, error: errorList, refetch: refetchList } = useListBookings(
     { scope: listScope },
     { query: { enabled: true, queryKey: ["bookings", listScope] } }
@@ -37,7 +35,6 @@ export default function Bookings() {
     end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 0 }),
   }), [currentMonth])
 
-  // Calendar logic uses bookingsAll
   const filteredBookingsAll = useMemo(() => {
     if (!bookingsAll) return []
     if (selectedMemberId) return bookingsAll.filter(b => b.memberId === selectedMemberId)
@@ -59,14 +56,12 @@ export default function Bookings() {
     return bookingsByDate.get(key) || []
   }, [bookingsByDate, selectedDate])
 
-  // Rail list uses filtered bookingsList
   const filteredListBookings = useMemo(() => {
     if (!bookingsList) return []
     let filtered = bookingsList
     if (selectedMemberId) {
       filtered = filtered.filter(b => b.memberId === selectedMemberId)
     }
-    // Sort logic depends on scope
     if (listScope === "past") {
       filtered = [...filtered].sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
     } else {
@@ -78,7 +73,6 @@ export default function Bookings() {
   const changeMonth = (diff: number) => {
     setCurrentMonth(prev => {
       const next = diff > 0 ? addMonths(prev, diff) : subMonths(prev, Math.abs(diff));
-      // clamp selected date to new month
       const currentSelectedDay = getDate(selectedDate);
       const daysInNext = getDaysInMonth(next);
       const clampedDay = Math.min(currentSelectedDay, daysInNext);
@@ -95,6 +89,19 @@ export default function Bookings() {
     setSelectedDate(new Date())
   }
 
+  const getStatusBadgeClass = (status: string) => {
+    if (["confirmed", "en_route", "arrived", "in_progress"].includes(status)) {
+      return "bg-primary/15 text-primary border border-primary/25 hover:bg-primary/20"
+    }
+    if (status === "completed") {
+      return "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
+    }
+    if (status === "cancelled") {
+      return "bg-destructive/10 text-destructive/70 border border-destructive/20"
+    }
+    return "bg-secondary text-muted-foreground border border-border/50"
+  }
+
   const renderBookingCard = (booking: any) => {
     const Icon = ICONS[booking.categoryIcon] || Sparkles
     const isLive = isLiveStatus(booking.status)
@@ -102,34 +109,31 @@ export default function Bookings() {
     const member = household?.members.find(m => m.id === booking.memberId)
     const color = getMemberColor(booking.memberId, member?.isCurrentUser, household?.members)
     const bg = getMemberBg(booking.memberId, member?.isCurrentUser, household?.members)
-    
+
     return (
-      <Link key={booking.id} href={`/bookings/${booking.id}`} className="block">
-        <Card className={`border-border hover:border-primary/50 transition-all hover:shadow-md cursor-pointer group rounded-2xl ${isLive ? 'border-primary/30 bg-primary/5' : ''} ${isPast ? 'opacity-60 bg-secondary/20' : ''}`}>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105 ${isLive ? 'bg-primary text-primary-foreground animate-pulse-slow' : 'bg-background text-foreground'}`}>
-              <Icon className="h-6 w-6" strokeWidth={1.5} />
+      <Link key={booking.id} href={`/bookings/${booking.id}`} className="block group">
+        <div className={`glass-card rounded-2xl cursor-pointer ${isLive ? 'border-primary/30' : ''} ${isPast ? 'opacity-60' : ''}`}>
+          <div className="p-4 flex items-center gap-4">
+            <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
+              isLive
+                ? 'bg-primary/15 border border-primary/25 text-primary'
+                : 'bg-white/[0.04] border border-white/[0.08] text-foreground'
+            }`}>
+              <Icon className={`h-6 w-6 ${isLive ? 'animate-pulse' : ''}`} strokeWidth={1.5} />
             </div>
-            
+
             <div className="flex-1 min-w-0">
               <div className="flex justify-between items-start mb-1">
                 <h3 className={`font-medium truncate transition-colors ${isPast && booking.status === 'cancelled' ? 'line-through text-muted-foreground' : 'group-hover:text-primary'}`}>
                   {booking.serviceName}
                 </h3>
-                <Badge 
-                  variant={
-                    booking.status === "completed" ? "secondary" : 
-                    booking.status === "cancelled" ? "outline" : 
-                    isLive ? "default" : "outline"
-                  } 
-                  className="capitalize text-[10px] py-0 px-2 h-5"
-                >
+                <span className={`capitalize text-[10px] py-0.5 px-2 rounded-full font-bold uppercase tracking-wide shrink-0 ml-2 ${getStatusBadgeClass(booking.status)}`}>
                   {booking.status.replace("_", " ")}
-                </Badge>
+                </span>
               </div>
-              
+
               <div className="flex items-center gap-2 mt-1">
-                <div className="text-xs font-bold tracking-wide text-foreground/80 flex items-center gap-1">
+                <div className="text-xs font-bold tracking-wide text-foreground/80">
                   {format(new Date(booking.scheduledAt), "h:mm a")}
                 </div>
                 <span className="text-border">•</span>
@@ -142,22 +146,19 @@ export default function Bookings() {
                     {member?.initials || "?"}
                   </AvatarFallback>
                 </Avatar>
-                {/* Fixed contrast for dark text on light backgrounds or using standard foreground if no background chip */}
-                <span className="text-[10px] font-medium" style={{ color: 'var(--foreground)' }}>
-                  <span className="px-1.5 py-0.5 rounded-md" style={{ backgroundColor: bg, color }}>
-                    {member?.name.split(" ")[0]}
-                  </span>
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md" style={{ backgroundColor: bg, color }}>
+                  {member?.name.split(" ")[0]}
                 </span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </Link>
     )
   }
 
   const renderErrorState = (onRetry: () => void) => (
-    <div className="text-center py-10 px-4 border border-destructive/20 bg-destructive/5 rounded-3xl">
+    <div className="glass-card text-center py-10 px-4 rounded-3xl border-destructive/20">
       <AlertCircle className="h-8 w-8 text-destructive/70 mx-auto mb-3" />
       <h3 className="font-serif text-xl mb-2 text-destructive">Connection interrupted</h3>
       <p className="text-sm text-destructive/80 mb-4 max-w-sm mx-auto">We're having trouble retrieving the household schedule. Please give us a moment to reconnect.</p>
@@ -204,40 +205,40 @@ export default function Bookings() {
           <h1 className="text-3xl lg:text-4xl font-serif tracking-tight flex items-center gap-3">
             Calendar
           </h1>
-          <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-xl">
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={prevMonth}>
+          <div className="flex items-center gap-1 glass-card p-1 rounded-xl">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/[0.06]" onClick={prevMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-sm font-bold uppercase tracking-widest min-w-[130px] text-center">
               {format(currentMonth, "MMM yyyy")}
             </span>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={nextMonth}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/[0.06]" onClick={nextMonth}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button variant="outline" size="sm" className="h-8 rounded-lg hidden sm:flex font-semibold" onClick={goToToday}>Today</Button>
+          <Button variant="outline" size="sm" className="h-8 rounded-lg hidden sm:flex font-semibold border-border/50 hover:border-primary/40 hover:text-primary" onClick={goToToday}>Today</Button>
         </div>
-        
+
         {/* Legend / Filter */}
         {household?.members && (
-          <div className="flex flex-wrap items-center gap-2 bg-card/50 p-1.5 rounded-2xl border border-border/50">
+          <div className="flex flex-wrap items-center gap-2 glass-card p-1.5 rounded-2xl">
             {household.members.map(member => {
               const isSelected = selectedMemberId === member.id
               const color = getMemberColor(member.id, member.isCurrentUser, household.members)
               const bg = getMemberBg(member.id, member.isCurrentUser, household.members)
-              
+
               return (
                 <button
                   key={member.id}
                   onClick={() => setSelectedMemberId(isSelected ? null : member.id)}
                   className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all ${
-                    isSelected ? 'ring-1 ring-border shadow-sm' : 'border-transparent hover:bg-secondary/80'
+                    isSelected ? 'ring-1 ring-border shadow-sm' : 'border-transparent hover:bg-white/[0.05]'
                   } ${selectedMemberId && !isSelected ? 'opacity-40 grayscale' : ''}`}
                   style={{ backgroundColor: isSelected ? bg : undefined }}
                 >
                   <Avatar className="h-5 w-5 border border-background shadow-sm">
-                    <AvatarFallback 
-                      className="text-[9px] font-serif italic" 
+                    <AvatarFallback
+                      className="text-[9px] font-serif italic"
                       style={{ backgroundColor: bg, color: color }}
                     >
                       {member.initials}
@@ -257,7 +258,7 @@ export default function Bookings() {
         {/* Main Stage: Calendar */}
         <main className="flex-1 w-full min-w-0">
           {hasCalendarError ? renderErrorState(handleCalendarRetry) : (
-            <div className="bg-card/40 rounded-[2rem] border border-border/50 p-2 sm:p-4 shadow-sm">
+            <div className="glass-card rounded-[2rem] p-2 sm:p-4">
               {/* Days of week */}
               <div className="grid grid-cols-7 gap-1 lg:gap-2 mb-2">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
@@ -292,21 +293,21 @@ export default function Bookings() {
                       aria-label={`${format(day, "MMMM d")}, ${dayBookings.length} bookings`}
                       aria-pressed={isSelected}
                       aria-selected={isSelected}
-                      className={`cursor-pointer min-h-[70px] sm:min-h-[90px] lg:min-h-[130px] p-1 lg:p-2 rounded-2xl border transition-all flex flex-col items-center sm:items-start gap-1 
-                        ${isCurrentMonth ? "bg-card hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" : "bg-transparent opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"} 
-                        ${isSelected ? "border-primary shadow-sm ring-1 ring-primary/20" : "border-border/40 hover:border-primary/30"} 
-                        ${isTodayDate && !isSelected ? "border-primary/50 bg-primary/5" : ""}
+                      className={`cursor-pointer min-h-[70px] sm:min-h-[90px] lg:min-h-[130px] p-1 lg:p-2 rounded-2xl border transition-all flex flex-col items-center sm:items-start gap-1
+                        ${isCurrentMonth ? "bg-white/[0.03] hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" : "bg-transparent opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"}
+                        ${isSelected ? "border-primary shadow-sm ring-1 ring-primary/20 bg-primary/5" : "border-border/30 hover:border-primary/30"}
+                        ${isTodayDate && !isSelected ? "border-primary/40 bg-primary/[0.03]" : ""}
                       `}
                     >
                       <div className="w-full flex justify-center sm:justify-start">
                         <span className={`text-xs sm:text-sm font-medium w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full shrink-0 ${
-                          isTodayDate ? (isSelected ? "bg-primary text-primary-foreground shadow-sm" : "bg-primary/20 text-primary") : 
+                          isTodayDate ? (isSelected ? "bg-primary text-primary-foreground shadow-sm" : "bg-primary/20 text-primary") :
                           isSelected ? "bg-foreground text-background shadow-sm" : "text-foreground/80"
                         }`}>
                           {format(day, "d")}
                         </span>
                       </div>
-                      
+
                       <div className="flex-1 w-full flex flex-col gap-0.5 sm:gap-1 overflow-hidden mt-1 pointer-events-none sm:pointer-events-auto">
                         {/* Desktop: chips */}
                         <div className="hidden sm:flex flex-col gap-1 w-full px-0.5">
@@ -316,12 +317,12 @@ export default function Bookings() {
                             const bg = getMemberBg(booking.memberId, member?.isCurrentUser, household?.members)
                             const isPast = booking.status === "completed" || booking.status === "cancelled"
                             const isLive = isLiveStatus(booking.status)
-                            
+
                             return (
-                              <Link 
+                              <Link
                                 key={booking.id}
-                                href={`/bookings/${booking.id}`} 
-                                className={`text-[9px] lg:text-[10px] font-medium truncate px-1.5 py-1 rounded-md flex items-center gap-1.5 hover:brightness-95 transition-all w-full border border-transparent ${isPast ? 'opacity-50' : ''} ${isLive ? 'border-primary/30 shadow-sm' : ''}`}
+                                href={`/bookings/${booking.id}`}
+                                className={`text-[9px] lg:text-[10px] font-medium truncate px-1.5 py-1 rounded-md flex items-center gap-1.5 hover:brightness-110 transition-all w-full border border-transparent ${isPast ? 'opacity-50' : ''} ${isLive ? 'border-primary/20' : ''}`}
                                 style={{ backgroundColor: bg, color: color }}
                                 onClick={(e) => e.stopPropagation()}
                               >
@@ -339,7 +340,7 @@ export default function Bookings() {
                           )}
                         </div>
 
-                        {/* Mobile: dots (container pointer-events-none prevents clicks on dots from bubbling strangely) */}
+                        {/* Mobile: dots */}
                         <div className="flex sm:hidden flex-wrap justify-center gap-1 mt-1 px-1">
                           {isLoadingAll ? null : dayBookings.slice(0, 4).map(booking => {
                             const member = household?.members.find(m => m.id === booking.memberId)
@@ -347,8 +348,8 @@ export default function Bookings() {
                             const isPast = booking.status === "completed" || booking.status === "cancelled"
                             const isLive = isLiveStatus(booking.status)
                             return (
-                              <span 
-                                key={booking.id} 
+                              <span
+                                key={booking.id}
                                 className={`w-1.5 h-1.5 rounded-full ${isPast ? 'opacity-40' : ''} ${isLive ? 'ring-2 ring-primary/30 animate-pulse' : ''}`}
                                 style={{ backgroundColor: color }}
                               />
@@ -369,30 +370,30 @@ export default function Bookings() {
           {/* Mobile Day Details & Rail (shown below calendar on mobile) */}
           <div className="lg:hidden mt-8 space-y-8">
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-border/50 pb-3">
+              <div className="flex items-center justify-between border-b border-border/40 pb-3">
                 <h3 className="font-serif text-2xl">
                   {isToday(selectedDate) ? "Today" : format(selectedDate, "EEEE, MMMM d")}
                 </h3>
-                <Badge variant="secondary" className="text-primary">{selectedDateBookings.length}</Badge>
+                <Badge className="bg-primary/15 text-primary border border-primary/25">{selectedDateBookings.length}</Badge>
               </div>
-              
+
               <div className="space-y-3">
                 {isLoadingAll ? (
                   Array.from({ length: 2 }).map((_, i) => (
-                    <Card key={i} className="border-border rounded-2xl">
-                      <CardContent className="p-4 flex gap-4 items-center">
+                    <div key={i} className="glass-card rounded-2xl">
+                      <div className="p-4 flex gap-4 items-center">
                         <Skeleton className="h-12 w-12 rounded-xl shrink-0" />
                         <div className="flex-1 space-y-2">
                           <Skeleton className="h-5 w-1/2" />
                           <Skeleton className="h-4 w-1/3" />
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   ))
                 ) : hasCalendarError ? (
                   renderErrorState(handleCalendarRetry)
                 ) : selectedDateBookings.length === 0 ? (
-                  <div className="text-center py-10 border-2 border-dashed border-border rounded-3xl bg-card/20">
+                  <div className="glass-card text-center py-10 rounded-3xl border-dashed">
                     <CalendarClock className="h-8 w-8 text-muted-foreground mx-auto mb-3 opacity-50" />
                     <p className="text-sm text-muted-foreground font-medium">The schedule is clear.</p>
                   </div>
@@ -403,15 +404,15 @@ export default function Bookings() {
             </div>
 
             {/* Mobile Scoped List */}
-            <div className="bg-secondary/30 rounded-[2rem] p-5 border border-border/50">
+            <div className="glass-card rounded-[2rem] p-5">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-serif text-2xl text-foreground">{getScopeTitle()}</h3>
                 <ScopeSelector />
               </div>
-              
+
               <div className="space-y-3">
                 {errorList ? renderErrorState(() => refetchList()) : isLoadingList ? (
-                   Array.from({ length: 3 }).map((_, i) => (
+                  Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="flex gap-3">
                       <Skeleton className="w-2 h-2 mt-1 rounded-full shrink-0" />
                       <div className="space-y-2 flex-1">
@@ -430,12 +431,12 @@ export default function Bookings() {
                     const isPast = booking.status === "completed" || booking.status === "cancelled"
                     const member = household?.members.find(m => m.id === booking.memberId)
                     const color = getMemberColor(booking.memberId, member?.isCurrentUser, household?.members)
-                    
+
                     return (
                       <Link key={booking.id} href={`/bookings/${booking.id}`} className={`block group relative ${isPast ? 'opacity-60' : ''}`}>
                         <div className="flex items-start gap-4">
                           <div className="relative flex flex-col items-center">
-                            <div className={`mt-1 w-2.5 h-2.5 rounded-full ring-4 ring-background z-10 ${isLive ? 'bg-primary animate-pulse' : 'bg-primary/40'}`} style={{ backgroundColor: !isLive ? color : undefined }} />
+                            <div className={`mt-1 w-2.5 h-2.5 rounded-full ring-4 ring-background z-10 ${isLive ? 'bg-primary animate-pulse' : ''}`} style={{ backgroundColor: !isLive ? color : undefined }} />
                             {i !== Math.min(filteredListBookings.length, 5) - 1 && (
                               <div className="absolute top-3 w-px h-full bg-border -bottom-4" />
                             )}
@@ -465,18 +466,18 @@ export default function Bookings() {
             </div>
           </div>
         </main>
-        
+
         {/* Desktop Rail */}
         <aside className="hidden lg:flex w-[380px] xl:w-[420px] shrink-0 flex-col gap-8">
           {/* Day Detail Card */}
-          <div className="bg-card/60 backdrop-blur-sm rounded-[2rem] p-6 xl:p-8 border border-border/60 golden-shadow-sm sticky top-28 transition-all">
+          <div className="glass-card rounded-[2rem] p-6 xl:p-8 golden-shadow-sm sticky top-28 transition-all">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-serif text-3xl text-foreground">
                 {isToday(selectedDate) ? "Today's Plan" : format(selectedDate, "MMM d")}
               </h3>
-              <Badge variant="secondary" className="text-primary">{selectedDateBookings.length} Visits</Badge>
+              <Badge className="bg-primary/15 text-primary border border-primary/25">{selectedDateBookings.length} Visits</Badge>
             </div>
-            
+
             <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 pb-4 scrollbar-none">
               {isLoadingAll ? (
                 Array.from({ length: 3 }).map((_, i) => (
@@ -494,17 +495,17 @@ export default function Bookings() {
               )}
             </div>
           </div>
-          
+
           {/* Scoped preview list */}
-          <div className="bg-secondary/30 rounded-[2rem] p-6 xl:p-8 border border-border/50 transition-all">
+          <div className="glass-card rounded-[2rem] p-6 xl:p-8 transition-all">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-serif text-2xl text-foreground">{getScopeTitle()}</h3>
               <ScopeSelector />
             </div>
-            
+
             <div className="space-y-5">
               {errorList ? renderErrorState(() => refetchList()) : isLoadingList ? (
-                 Array.from({ length: 3 }).map((_, i) => (
+                Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="flex gap-3">
                     <Skeleton className="w-2 h-2 mt-1 rounded-full shrink-0" />
                     <div className="space-y-2 flex-1">
@@ -523,12 +524,12 @@ export default function Bookings() {
                   const isPast = booking.status === "completed" || booking.status === "cancelled"
                   const member = household?.members.find(m => m.id === booking.memberId)
                   const color = getMemberColor(booking.memberId, member?.isCurrentUser, household?.members)
-                  
+
                   return (
                     <Link key={booking.id} href={`/bookings/${booking.id}`} className={`block group relative ${isPast ? 'opacity-60' : ''}`}>
                       <div className="flex items-start gap-4">
                         <div className="relative flex flex-col items-center">
-                          <div className={`mt-1 w-2.5 h-2.5 rounded-full ring-4 ring-background z-10 ${isLive ? 'bg-primary animate-pulse' : 'bg-primary/40'}`} style={{ backgroundColor: !isLive ? color : undefined }} />
+                          <div className={`mt-1 w-2.5 h-2.5 rounded-full ring-4 ring-background z-10 ${isLive ? 'bg-primary animate-pulse' : ''}`} style={{ backgroundColor: !isLive ? color : undefined }} />
                           {i !== Math.min(filteredListBookings.length, 5) - 1 && (
                             <div className="absolute top-3 w-px h-full bg-border -bottom-8" />
                           )}

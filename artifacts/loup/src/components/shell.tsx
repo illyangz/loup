@@ -43,7 +43,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background pb-[calc(80px+env(safe-area-inset-bottom,0px))] lg:pb-0 relative">
-      <div className="absolute inset-0 bg-sunlight pointer-events-none" />
+      <div className="ambient-field" />
 
       {/* Desktop Top Bar */}
       <header className="hidden lg:flex h-20 border-b border-border/50 px-6 xl:px-8 items-center justify-between bg-card/60 backdrop-blur-3xl sticky top-0 z-50 shadow-sm">
