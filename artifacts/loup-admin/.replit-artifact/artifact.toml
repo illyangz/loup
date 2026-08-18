@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/loup-admin/"
+title = "Loup Admin"
+description = "A dedicated back-office portal for the Loup operations team to manage institutions, providers, the service catalog, bookings, and the allowance ledger. Separate from the employee-facing app, with a sidebar layout and management-focused UI."
+version = "1.0.0"
+id = "artifacts/loup-admin"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/loup-admin/" ]
+localPort = 20453
+
+[services.development]
+run = "pnpm --filter @workspace/loup-admin run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/loup-admin", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/loup-admin/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20453"
+BASE_PATH = "/loup-admin/"
