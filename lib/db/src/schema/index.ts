@@ -4,6 +4,7 @@ export * from "./bookings";
 export * from "./billing";
 export * from "./pack";
 export * from "./push";
+export * from "./education";
 export * from "./platform";
 export * from "./conversations";
 export * from "./messages";

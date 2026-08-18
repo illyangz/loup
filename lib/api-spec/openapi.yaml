@@ -921,7 +921,7 @@ components:
       properties:
         role:
           type: string
-          enum: [employee, employer, vendor, operations]
+          enum: [employee, institution, provider, admin]
         label:
           type: string
         description:

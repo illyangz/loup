@@ -32,10 +32,13 @@ export const LIVE_STATUSES = [
 // The platform exposes three customer-facing categories. Legacy catalog rows
 // for AC Cooling and Handyman are grouped into Home Maintenance.
 export const BOOKABLE_CATEGORY_SLUGS = [
-  "home-cleaning",
-  "laundry",
-  "ac-cooling",
-  "handyman",
+  "household-admin",
+  "personal-wellbeing",
+  "fitness-recovery",
+  "mobility-convenience",
+  "family-support",
+  "personal-development",
+  "recreation-lifestyle",
 ] as const;
 
 export function currentMonthLabel(): string {

@@ -12,6 +12,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { membersTable } from "./household";
+import { campusesTable, benefitTiersTable, benefitPlansTable, institutionsTable } from "./education";
 
 export const employersTable = pgTable("employers", {
   id: serial("id").primaryKey(),
@@ -60,6 +61,10 @@ export const employeesTable = pgTable("employees", {
   linkedMemberId: integer("linked_member_id").references(() => membersTable.id),
   startDate: date("start_date", { mode: "string" }).notNull(),
   endDate: date("end_date", { mode: "string" }),
+  // Education pivot: nullable FKs into the education hierarchy
+  institutionId: integer("institution_id").references(() => institutionsTable.id),
+  campusId: integer("campus_id").references(() => campusesTable.id),
+  tierId: integer("tier_id").references(() => benefitTiersTable.id),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -78,6 +83,12 @@ export const allowanceLedgerTable = pgTable("allowance_ledger", {
   referenceType: text("reference_type"),
   referenceId: integer("reference_id"),
   note: text("note"),
+  // Education pivot: nullable context columns (existing rows keep NULLs)
+  institutionId: integer("institution_id").references(() => institutionsTable.id),
+  benefitPlanId: integer("benefit_plan_id").references(() => benefitPlansTable.id),
+  benefitTierId: integer("benefit_tier_id").references(() => benefitTiersTable.id),
+  idempotencyKey: text("idempotency_key").unique(),
+  createdByRole: text("created_by_role"), // employee | institution | admin | system
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

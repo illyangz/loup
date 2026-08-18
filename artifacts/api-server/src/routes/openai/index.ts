@@ -13,76 +13,55 @@ const router: IRouter = Router();
 //
 // Injected on every request so the AI always has live allowance context.
 // In a real deployment this data would be fetched per-authenticated-user.
-// For the demo it mirrors the seeded Omar Mansour / Nexa Technologies data.
+// For the demo it mirrors the seeded Omar Mansour / Meridian Education Group data.
 //
 function buildSystemPrompt() {
-  const services = [
-    {
-      name: "Home Cleaning",
-      publicPrice: 199,
-      corporatePrice: 179,
-      employerContribution: 120,
-      employeeCopayment: 59,
-      duration: "3 hours",
-      description: "Signature deep clean — kitchen, bathrooms, all rooms.",
-    },
-    {
-      name: "Laundry & Pressing",
-      publicPrice: 95,
-      corporatePrice: 85,
-      employerContribution: 50,
-      employeeCopayment: 35,
-      duration: "Collection + delivery",
-      description: "Collect, wash, press, return within 24 h.",
-    },
-    {
-      name: "Home Maintenance",
-      publicPrice: 249,
-      corporatePrice: 224,
-      employerContribution: 150,
-      employeeCopayment: 74,
-      duration: "1.5 hours",
-      description: "AC servicing, plumbing, electrical, general repairs.",
-    },
+  const categories = [
+    { name: "Household & Life Admin",     examples: "home cleaning, laundry, AC repair",                       startingFrom: 85  },
+    { name: "Personal Wellbeing",         examples: "beauty, nursing, IV therapy",                              startingFrom: 120 },
+    { name: "Fitness & Recovery",         examples: "physio, personal training, yoga",                          startingFrom: 150 },
+    { name: "Mobility & Convenience",     examples: "grocery runs, errands, pharmacy",                          startingFrom: 49  },
+    { name: "Family & Dependent Support", examples: "babysitting, school pickups, elder companionship",         startingFrom: 99  },
+    { name: "Personal Development",       examples: "private tutoring, language coaching, mentoring",           startingFrom: 120 },
+    { name: "Recreation & Lifestyle",     examples: "cooking classes, food photography workshops, experiences", startingFrom: 175 },
   ];
 
   const allowance = {
-    authorized: 500,
-    reserved: 120,
+    authorized: 750,
+    reserved: 249,
     redeemed: 85,
-    available: 295,
+    available: 416,
     renewalDate: "1 September 2026",
+    tier: "Faculty",
+    institution: "Meridian Education Group",
   };
 
-  const serviceLines = services
-    .map(
-      (s) =>
-        `  • ${s.name}: copay AED ${s.employeeCopayment} (employer covers AED ${s.employerContribution}, public rate AED ${s.publicPrice}). ${s.description}`,
-    )
+  const categoryLines = categories
+    .map((c) => `  • ${c.name} — from AED ${c.startingFrom} (e.g. ${c.examples})`)
     .join("\n");
 
-  return `You are the Loup Benefit Advisor — an intelligent assistant embedded inside the Loup household services platform. Your job is to help the employee get the most value from their employer-provided household services allowance.
+  return `You are the Loup Benefit Advisor — an intelligent concierge embedded in the Loup employee lifestyle platform. Your job is to help the employee get the most value from their institution-provided monthly benefit allowance.
 
-## Employee context (Omar Mansour, Nexa Technologies)
+## Employee context (Omar Mansour, ${allowance.institution} — ${allowance.tier} tier)
 - Allowance authorized this cycle: AED ${allowance.authorized}
 - Already redeemed: AED ${allowance.redeemed}
-- Reserved (in-progress bookings): AED ${allowance.reserved}
+- Reserved (active bookings): AED ${allowance.reserved}
 - **Available to spend right now: AED ${allowance.available}**
-- Renews: ${allowance.renewalDate} — unused allowance is forfeited at renewal.
+- Renews: ${allowance.renewalDate} — unused allowance is forfeited at renewal, so use it before the month ends.
 
-## Available services and employee copayments
-${serviceLines}
+## Eligible service categories and starting prices
+${categoryLines}
 
 ## How to help
-1. When asked how to maximize the allowance, recommend a concrete combination of services that fits within AED ${allowance.available} in copayments.
-2. Always show the maths: service name, copay per booking, total.
-3. Highlight employer savings — every service saves the employee significant money vs. the public rate.
-4. If the employee has remaining balance after a combination, suggest what else they could add.
-5. Be concise and actionable — 3–5 bullet points, then a short summary line.
-6. Never invent services outside the three listed above.
-7. Tone: warm, smart, like a savvy friend who knows the numbers.
+1. When asked how to maximize the allowance, recommend a concrete mix of services that fits within AED ${allowance.available}.
+2. Always show the maths: category, service example, estimated cost, running total.
+3. Highlight the benefit: each booking is paid from the AED 750 allowance — the employee pays nothing extra unless they exceed it.
+4. If balance remains after a combination, suggest what else they could add.
+5. Be concise and actionable — 3–5 bullet points, then a short summary.
+6. Never invent service categories beyond the seven listed above.
+7. Tone: warm, smart, like a knowledgeable friend who knows Dubai and cares about the employee's wellbeing.
 
-When no specific question is asked, open with "Here's the best way to use your AED ${allowance.available} before ${allowance.renewalDate}:" and give the optimal combination.`;
+When no specific question is asked, open with "Here is the best way to use your AED ${allowance.available} before ${allowance.renewalDate}:" and give an optimal combination.`;
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────

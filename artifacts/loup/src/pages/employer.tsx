@@ -28,7 +28,7 @@ export default function Employer() {
     setMounted(true);
   }, []);
 
-  return <PlatformShell role="employer">
+  return <PlatformShell role="institution">
     <PlatformHeader 
       kicker="Benefits governance" 
       title={overview.data?.employerName ?? "Employer workspace"} 

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Route, Switch, Router as WouterRouter } from 'wouter';
+import { Route, Switch, Redirect, Router as WouterRouter } from 'wouter';
 import { Shell } from '@/components/shell';
 import { ThemeProvider } from '@/hooks/use-theme';
 import NotFound from '@/pages/not-found';
@@ -14,11 +14,11 @@ import Bookings from '@/pages/bookings';
 import BookingDetail from '@/pages/booking-detail';
 import Household from '@/pages/household';
 import Billing from '@/pages/billing';
-import Login from '@/pages/login';
+import Landing from '@/pages/landing';
 import Employee from '@/pages/employee';
-import Employer from '@/pages/employer';
-import Vendor from '@/pages/vendor';
-import Operations from '@/pages/operations';
+import Institution from '@/pages/employer';
+import Provider from '@/pages/vendor';
+import Admin from '@/pages/operations';
 import ApiDocs from '@/pages/api-docs';
 import EmbedDemo from '@/pages/embed-demo';
 import Support from '@/pages/support';
@@ -44,15 +44,22 @@ function BillingRoute() { return <Shell><Billing /></Shell>; }
 function Router() {
   return (
     <Switch>
-      <Route path="/login" component={Login} />
+      {/* Demo landing — default entry point */}
+      <Route path="/" component={Landing} />
+
+      {/* Platform workspaces — new canonical paths */}
       <Route path="/employee" component={Employee} />
-      <Route path="/employer" component={Employer} />
-      <Route path="/vendor" component={Vendor} />
-      <Route path="/operations" component={Operations} />
-      <Route path="/api-docs" component={ApiDocs} />
-      <Route path="/embed/demo" component={EmbedDemo} />
-      <Route path="/support" component={Support} />
-       <Route path="/" component={Login} />
+      <Route path="/institution" component={Institution} />
+      <Route path="/provider" component={Provider} />
+      <Route path="/admin" component={Admin} />
+
+      {/* Legacy redirects — old paths kept for backward compatibility */}
+      <Route path="/employer"><Redirect to="/institution" /></Route>
+      <Route path="/vendor"><Redirect to="/provider" /></Route>
+      <Route path="/operations"><Redirect to="/admin" /></Route>
+      <Route path="/login"><Redirect to="/" /></Route>
+
+      {/* Consumer app routes */}
       <Route path="/browse" component={BrowseRoute} />
       <Route path="/providers/:id" component={ProviderProfileRoute} />
       <Route path="/book/:providerId" component={BookRoute} />
@@ -60,6 +67,12 @@ function Router() {
       <Route path="/bookings/:id" component={BookingDetailRoute} />
       <Route path="/household" component={HouseholdRoute} />
       <Route path="/billing" component={BillingRoute} />
+
+      {/* Utility */}
+      <Route path="/api-docs" component={ApiDocs} />
+      <Route path="/embed/demo" component={EmbedDemo} />
+      <Route path="/support" component={Support} />
+
       <Route component={NotFound} />
     </Switch>
   );

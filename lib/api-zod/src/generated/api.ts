@@ -758,7 +758,7 @@ export const ListBillingHistoryResponse = zod.array(ListBillingHistoryResponseIt
  * @summary Available simulated demo roles
  */
 export const ListDemoRolesResponseItem = zod.object({
-  "role": zod.enum(['employee', 'employer', 'vendor', 'operations']),
+  "role": zod.enum(['employee', 'institution', 'provider', 'admin']),
   "label": zod.string(),
   "description": zod.string(),
   "href": zod.string()

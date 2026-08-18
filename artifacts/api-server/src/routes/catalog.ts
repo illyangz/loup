@@ -24,36 +24,21 @@ import { BOOKABLE_CATEGORY_SLUGS } from "../lib/loup";
 const router: IRouter = Router();
 
 const PLATFORM_CATEGORIES = [
-  {
-    slug: "home-cleaning",
-    name: "Home Cleaning",
-    tagline: "A considered reset for the rooms you live in.",
-    icon: "sparkles",
-  },
-  {
-    slug: "laundry",
-    name: "Laundry & Pressing",
-    tagline: "Fresh laundry, folded and ready to return to.",
-    icon: "shirt",
-  },
-  {
-    slug: "home-maintenance",
-    name: "Home Maintenance",
-    tagline: "Keep the essential systems of home quietly working.",
-    icon: "wrench",
-  },
+  { slug: "household-admin",      name: "Household & Life Admin",       tagline: "Home running smoothly, morning to evening.",              icon: "Home"       },
+  { slug: "personal-wellbeing",   name: "Personal Wellbeing",           tagline: "Beauty, nursing and wellness at your door.",              icon: "HeartPulse" },
+  { slug: "fitness-recovery",     name: "Fitness & Recovery",           tagline: "Physio, training and yoga — wherever you are.",           icon: "Dumbbell"   },
+  { slug: "mobility-convenience", name: "Mobility & Convenience",       tagline: "Errands and grocery runs, handled.",                      icon: "Car"        },
+  { slug: "family-support",       name: "Family & Dependent Support",   tagline: "Childcare, tutoring and care companions.",                icon: "Baby"       },
+  { slug: "personal-development", name: "Personal Development",         tagline: "Coaching, tutoring and language learning.",               icon: "BookOpen"   },
+  { slug: "recreation-lifestyle", name: "Recreation & Lifestyle",       tagline: "Cooking classes, workshops and experiences.",             icon: "Sparkles"   },
 ] as const;
 
-const CATEGORY_ALIASES: Record<string, readonly string[]> = {
-  "home-cleaning": ["home-cleaning"],
-  laundry: ["laundry"],
-  "home-maintenance": ["ac-cooling", "handyman"],
-};
+// Each platform slug maps 1-to-1 with the DB category slug (no aliasing needed)
+const CATEGORY_ALIASES: Record<string, readonly string[]> = Object.fromEntries(
+  PLATFORM_CATEGORIES.map((c) => [c.slug, [c.slug]]),
+);
 
 function platformCategory(slug: string) {
-  if (slug === "ac-cooling" || slug === "handyman") {
-    return PLATFORM_CATEGORIES[2]!;
-  }
   return PLATFORM_CATEGORIES.find((category) => category.slug === slug);
 }
 

@@ -10,9 +10,9 @@ export type DemoRoleRole = typeof DemoRoleRole[keyof typeof DemoRoleRole];
 
 export const DemoRoleRole = {
   employee: 'employee',
-  employer: 'employer',
-  vendor: 'vendor',
-  operations: 'operations',
+  institution: 'institution',
+  provider: 'provider',
+  admin: 'admin',
 } as const;
 
 export interface DemoRole {
