@@ -43,6 +43,7 @@ import {
   // AI advisor tables
   conversations as conversationsTable,
   aiMessages as aiMessagesTable,
+  providerAvailabilityTable,
 } from "@workspace/db";
 
 const now = new Date();
@@ -90,6 +91,7 @@ async function main() {
   await db.delete(paymentMethodsTable);
 
   // Catalog
+  await db.delete(providerAvailabilityTable);
   await db.delete(servicesTable);
   await db.delete(providersTable);
   await db.delete(categoriesTable);
@@ -748,6 +750,20 @@ async function main() {
       deliveredAt: daysAgo(1),
       status: "delivered",
     },
+  ]);
+
+  // ─── Provider availability (Marina Shine Cleaning) ────────────────────────
+
+  const marinaId = prov["Marina Shine Cleaning"]!;
+  // SUN=0, MON=1, TUE=2, WED=3, THU=4, FRI=5, SAT=6
+  // Working days: Sun–Thu (standard UAE business week) + Saturday mornings
+  await db.insert(providerAvailabilityTable).values([
+    { providerId: marinaId, dayOfWeek: 0, startTime: "08:00", endTime: "18:00", zones: ["Jumeirah 3", "Downtown Dubai", "Dubai Hills"], maxCapacity: 8, active: true },
+    { providerId: marinaId, dayOfWeek: 1, startTime: "08:00", endTime: "18:00", zones: ["Jumeirah 3", "Downtown Dubai", "Dubai Hills", "Al Qouz"], maxCapacity: 10, active: true },
+    { providerId: marinaId, dayOfWeek: 2, startTime: "08:00", endTime: "18:00", zones: ["Jumeirah 3", "Downtown Dubai", "Dubai Hills", "Al Qouz"], maxCapacity: 10, active: true },
+    { providerId: marinaId, dayOfWeek: 3, startTime: "08:00", endTime: "18:00", zones: ["Jumeirah 3", "Downtown Dubai", "Dubai Hills", "Al Qouz"], maxCapacity: 10, active: true },
+    { providerId: marinaId, dayOfWeek: 4, startTime: "08:00", endTime: "16:00", zones: ["Jumeirah 3", "Dubai Hills"], maxCapacity: 6, active: true },
+    { providerId: marinaId, dayOfWeek: 6, startTime: "09:00", endTime: "14:00", zones: ["Jumeirah 3", "Downtown Dubai"], maxCapacity: 4, active: true },
   ]);
 
   console.log("Seed complete.");

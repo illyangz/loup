@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import {
   db,
   addressesTable,
@@ -15,12 +15,16 @@ import {
 
 export const STATUS_CHAIN = [
   "pending",
+  "accepted",
   "confirmed",
   "en_route",
   "arrived",
   "in_progress",
   "completed",
 ] as const;
+
+/** Terminal statuses that cannot advance further */
+export const TERMINAL_STATUSES = ["completed", "cancelled", "rejected", "disputed"] as const;
 
 export const LIVE_STATUSES = [
   "confirmed",
@@ -61,6 +65,7 @@ const bookingSelection = {
   memberName: membersTable.name,
   addressId: bookingsTable.addressId,
   addressLabel: addressesTable.label,
+  zone: addressesTable.area,
   scheduledAt: bookingsTable.scheduledAt,
   status: bookingsTable.status,
   priceEstimate: bookingsTable.priceEstimate,
@@ -131,8 +136,14 @@ export async function getHouseholdId(): Promise<number> {
   return member.householdId;
 }
 
-export async function ensureOpenStatement(householdId: number) {
-  const [open] = await db
+/** Structural type satisfied by both a db instance and a drizzle tx callback argument */
+type DbOrTx = Pick<typeof db, "select" | "insert" | "update" | "delete">;
+
+export async function ensureOpenStatement(
+  householdId: number,
+  txOrDb: DbOrTx = db,
+) {
+  const [open] = await txOrDb
     .select()
     .from(statementsTable)
     .where(
@@ -146,7 +157,7 @@ export async function ensureOpenStatement(householdId: number) {
   if (open) {
     return open;
   }
-  const [created] = await db
+  const [created] = await txOrDb
     .insert(statementsTable)
     .values({
       householdId,
@@ -317,23 +328,47 @@ export async function postPackMessage(
   return message!;
 }
 
-export async function addCompletionBillItem(booking: {
-  id: number;
-  householdId: number;
-  priceEstimate: number;
-}) {
-  const statement = await ensureOpenStatement(booking.householdId);
-  await db.insert(billItemsTable).values({
-    statementId: statement.id,
-    bookingId: booking.id,
-    amount: booking.priceEstimate,
-    date: new Date(),
-  });
-  await db
+/**
+ * Write the completion bill item and update the statement running totals.
+ *
+ * Integrity guarantees:
+ *   - Pass `txOrDb` = the active transaction so the status change, bill-item
+ *     insert, and total update are committed atomically. If any step fails the
+ *     entire transaction rolls back, leaving the booking in its previous
+ *     non-terminal state so a retry can start cleanly.
+ *   - The INSERT uses the unique index on bill_items.booking_id
+ *     (ON CONFLICT DO NOTHING) as an extra safety net against accidental
+ *     double-calls within the same transaction.
+ *   - The total/itemCount update uses a subquery that re-aggregates from the
+ *     actual items, making it idempotent regardless of call order or retries:
+ *     running it twice produces the same result as running it once.
+ */
+export async function addCompletionBillItem(
+  booking: { id: number; householdId: number; priceEstimate: number },
+  txOrDb: DbOrTx = db,
+) {
+  const statement = await ensureOpenStatement(booking.householdId, txOrDb);
+
+  // Idempotent insert — the unique index on booking_id prevents a second row.
+  await txOrDb
+    .insert(billItemsTable)
+    .values({
+      statementId: statement.id,
+      bookingId: booking.id,
+      amount: booking.priceEstimate,
+      date: new Date(),
+    })
+    .onConflictDoNothing();
+
+  // Always recompute the denormalised totals from the live item rows.
+  // This is a subquery update, so it is idempotent: running it a second time
+  // after a partial-failure retry produces the exact same values — unlike the
+  // earlier `total + price` increment, which would double-count.
+  await txOrDb
     .update(statementsTable)
     .set({
-      total: statement.total + booking.priceEstimate,
-      itemCount: statement.itemCount + 1,
+      total: sql`(SELECT COALESCE(SUM(amount), 0) FROM bill_items WHERE statement_id = ${statement.id})`,
+      itemCount: sql`(SELECT COUNT(*) FROM bill_items WHERE statement_id = ${statement.id})`,
     })
     .where(eq(statementsTable.id, statement.id));
 }

@@ -10,6 +10,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+
 export const categoriesTable = pgTable("categories", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -87,3 +88,27 @@ export const insertReviewSchema = createInsertSchema(reviewsTable).omit({
 });
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type ReviewRow = typeof reviewsTable.$inferSelect;
+
+// ── Provider availability ─────────────────────────────────────────────────────
+export const providerAvailabilityTable = pgTable("provider_availability", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id")
+    .notNull()
+    .references(() => providersTable.id),
+  /** 0 = Sunday … 6 = Saturday */
+  dayOfWeek: integer("day_of_week").notNull(),
+  /** HH:MM, e.g. "09:00" */
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  /** null = applies to all services this provider offers */
+  serviceId: integer("service_id").references(() => servicesTable.id),
+  /** Dubai service zones, e.g. ["Dubai Hills", "Jumeirah 3"] */
+  zones: text("zones").array().notNull().default([]),
+  maxCapacity: integer("max_capacity").notNull().default(10),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertProviderAvailabilitySchema = createInsertSchema(providerAvailabilityTable).omit({ id: true, createdAt: true });
+export type InsertProviderAvailability = z.infer<typeof insertProviderAvailabilitySchema>;
+export type ProviderAvailabilityRow = typeof providerAvailabilityTable.$inferSelect;

@@ -11,10 +11,13 @@ export type BookingStatus = typeof BookingStatus[keyof typeof BookingStatus];
 
 export const BookingStatus = {
   pending: 'pending',
+  accepted: 'accepted',
   confirmed: 'confirmed',
   en_route: 'en_route',
   arrived: 'arrived',
   in_progress: 'in_progress',
   completed: 'completed',
   cancelled: 'cancelled',
+  rejected: 'rejected',
+  disputed: 'disputed',
 } as const;

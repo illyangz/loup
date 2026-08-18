@@ -947,6 +947,238 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VendorPerformance"
+  /v1/provider/dashboard:
+    get:
+      operationId: getProviderDashboard
+      tags: [platform]
+      summary: Provider dashboard KPIs (real DB data for demo provider)
+      responses:
+        "200":
+          description: Provider dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderDashboard"
+  /v1/provider/orders:
+    get:
+      operationId: listProviderOrders
+      tags: [platform]
+      summary: List orders for the demo provider, filtered by scope
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, active, upcoming, completed, rejected, all]
+      responses:
+        "200":
+          description: Provider orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProviderOrder"
+  /v1/provider/orders/{id}/accept:
+    post:
+      operationId: acceptProviderOrder
+      tags: [platform]
+      summary: Accept a pending order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderOrder"
+        "400":
+          description: Order cannot be accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/provider/orders/{id}/reject:
+    post:
+      operationId: rejectProviderOrder
+      tags: [platform]
+      summary: Reject a pending order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderOrderActionInput"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderOrder"
+        "400":
+          description: Order cannot be rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/provider/orders/{id}/advance:
+    post:
+      operationId: advanceProviderOrder
+      tags: [platform]
+      summary: Advance a provider order to its next lifecycle status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderOrder"
+        "400":
+          description: Order cannot advance further
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/provider/orders/{id}/report-issue:
+    post:
+      operationId: reportProviderOrderIssue
+      tags: [platform]
+      summary: Flag a booking as disputed and open a support incident
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderOrderActionInput"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderOrder"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/provider/availability:
+    get:
+      operationId: listProviderAvailability
+      tags: [platform]
+      summary: List provider availability slots
+      responses:
+        "200":
+          description: Availability slots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProviderAvailabilitySlot"
+    post:
+      operationId: createProviderAvailability
+      tags: [platform]
+      summary: Add a new availability slot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderAvailabilityInput"
+      responses:
+        "201":
+          description: Created slot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderAvailabilitySlot"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/provider/availability/{id}:
+    delete:
+      operationId: deleteProviderAvailability
+      tags: [platform]
+      summary: Remove an availability slot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/provider/analytics:
+    get:
+      operationId: getProviderAnalytics
+      tags: [platform]
+      summary: Provider analytics — demand, KPIs, and operational demand forecast
+      responses:
+        "200":
+          description: Provider analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderAnalytics"
   /v1/operations/overview:
     get:
       operationId: getOperationsOverview
@@ -1330,6 +1562,110 @@ components:
         complaintRate: { type: number }
         serviceRecoveryRate: { type: number }
         capacityAccuracy: { type: number }
+    ProviderOrder:
+      type: object
+      required: [id, serviceName, categoryName, memberName, addressLabel, zone, scheduledAt, status, priceEstimate, instructions, etaMinutes, createdAt]
+      properties:
+        id: { type: integer }
+        serviceName: { type: string }
+        categoryName: { type: string }
+        memberName: { type: string }
+        addressLabel: { type: string }
+        zone: { type: string }
+        scheduledAt: { type: string, format: date-time }
+        status: { type: string }
+        priceEstimate: { type: number }
+        instructions: { type: ["string", "null"] }
+        etaMinutes: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+    ProviderOrderActionInput:
+      type: object
+      properties:
+        reason: { type: string }
+        description: { type: string }
+    ProviderDashboard:
+      type: object
+      required: [providerName, pendingCount, acceptedCount, confirmedCount, activeCount, completedThisMonth, cancelledThisMonth, estimatedSettlement, averageRating, fulfilmentRate, cancellationRate, slaRate]
+      properties:
+        providerName: { type: string }
+        pendingCount: { type: integer }
+        acceptedCount: { type: integer }
+        confirmedCount: { type: integer }
+        activeCount: { type: integer }
+        completedThisMonth: { type: integer }
+        cancelledThisMonth: { type: integer }
+        estimatedSettlement: { type: number }
+        averageRating: { type: number }
+        fulfilmentRate: { type: number }
+        cancellationRate: { type: number }
+        slaRate: { type: number }
+    ProviderAvailabilitySlot:
+      type: object
+      required: [id, dayOfWeek, startTime, endTime, zones, maxCapacity, active]
+      properties:
+        id: { type: integer }
+        dayOfWeek: { type: integer }
+        startTime: { type: string }
+        endTime: { type: string }
+        serviceId: { type: integer }
+        zones:
+          type: array
+          items: { type: string }
+        maxCapacity: { type: integer }
+        active: { type: boolean }
+    ProviderAvailabilityInput:
+      type: object
+      required: [dayOfWeek, startTime, endTime, zones, maxCapacity]
+      properties:
+        dayOfWeek: { type: integer, minimum: 0, maximum: 6 }
+        startTime: { type: string }
+        endTime: { type: string }
+        serviceId: { type: integer }
+        zones:
+          type: array
+          items: { type: string }
+        maxCapacity: { type: integer }
+    ProviderAnalytics:
+      type: object
+      required: [demandByService, demandByDay, demandByZone, completionRate, averageRating, repeatBookingRate, capacityUtilization, forecast]
+      properties:
+        demandByService:
+          type: array
+          items:
+            type: object
+            required: [serviceName, bookings, revenue]
+            properties:
+              serviceName: { type: string }
+              bookings: { type: integer }
+              revenue: { type: number }
+        demandByDay:
+          type: array
+          items:
+            type: object
+            required: [dayLabel, bookings]
+            properties:
+              dayLabel: { type: string }
+              bookings: { type: integer }
+        demandByZone:
+          type: array
+          items:
+            type: object
+            required: [zone, bookings]
+            properties:
+              zone: { type: string }
+              bookings: { type: integer }
+        completionRate: { type: number }
+        averageRating: { type: number }
+        repeatBookingRate: { type: number }
+        capacityUtilization: { type: number }
+        forecast:
+          type: object
+          required: [estimate, confidence, method, updatedAt]
+          properties:
+            estimate: { type: integer }
+            confidence: { type: number }
+            method: { type: string }
+            updatedAt: { type: string, format: date-time }
     OperationsOverview:
       type: object
       required: [forecastBookings, confirmedBookings, unfulfilledDemand, capacityShortages, highRiskBookings, providerIncidents, transactionVolume, spendingAlerts, matching, methodology]
@@ -1781,12 +2117,15 @@ components:
       type: string
       enum:
         - pending
+        - accepted
         - confirmed
         - en_route
         - arrived
         - in_progress
         - completed
         - cancelled
+        - rejected
+        - disputed
     BookingEvent:
       type: object
       properties:

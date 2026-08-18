@@ -36,12 +36,15 @@ export type BookingStatus = typeof BookingStatus[keyof typeof BookingStatus];
 
 export const BookingStatus = {
   pending: 'pending',
+  accepted: 'accepted',
   confirmed: 'confirmed',
   en_route: 'en_route',
   arrived: 'arrived',
   in_progress: 'in_progress',
   completed: 'completed',
   cancelled: 'cancelled',
+  rejected: 'rejected',
+  disputed: 'disputed',
 } as const;
 
 export interface Booking {
@@ -228,6 +231,101 @@ export interface VendorPerformance {
   complaintRate: number;
   serviceRecoveryRate: number;
   capacityAccuracy: number;
+}
+
+export interface ProviderOrder {
+  id: number;
+  serviceName: string;
+  categoryName: string;
+  memberName: string;
+  addressLabel: string;
+  zone: string;
+  scheduledAt: string;
+  status: string;
+  priceEstimate: number;
+  /** @nullable */
+  instructions: string | null;
+  /** @nullable */
+  etaMinutes: number | null;
+  createdAt: string;
+}
+
+export interface ProviderOrderActionInput {
+  reason?: string;
+  description?: string;
+}
+
+export interface ProviderDashboard {
+  providerName: string;
+  pendingCount: number;
+  acceptedCount: number;
+  confirmedCount: number;
+  activeCount: number;
+  completedThisMonth: number;
+  cancelledThisMonth: number;
+  estimatedSettlement: number;
+  averageRating: number;
+  fulfilmentRate: number;
+  cancellationRate: number;
+  slaRate: number;
+}
+
+export interface ProviderAvailabilitySlot {
+  id: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  serviceId?: number;
+  zones: string[];
+  maxCapacity: number;
+  active: boolean;
+}
+
+export interface ProviderAvailabilityInput {
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  serviceId?: number;
+  zones: string[];
+  maxCapacity: number;
+}
+
+export type ProviderAnalyticsDemandByServiceItem = {
+  serviceName: string;
+  bookings: number;
+  revenue: number;
+};
+
+export type ProviderAnalyticsDemandByDayItem = {
+  dayLabel: string;
+  bookings: number;
+};
+
+export type ProviderAnalyticsDemandByZoneItem = {
+  zone: string;
+  bookings: number;
+};
+
+export type ProviderAnalyticsForecast = {
+  estimate: number;
+  confidence: number;
+  method: string;
+  updatedAt: string;
+};
+
+export interface ProviderAnalytics {
+  demandByService: ProviderAnalyticsDemandByServiceItem[];
+  demandByDay: ProviderAnalyticsDemandByDayItem[];
+  demandByZone: ProviderAnalyticsDemandByZoneItem[];
+  completionRate: number;
+  averageRating: number;
+  repeatBookingRate: number;
+  capacityUtilization: number;
+  forecast: ProviderAnalyticsForecast;
 }
 
 export interface MatchDecision {
@@ -839,4 +937,20 @@ export const ListBookingsScope = {
 export type GetCheckoutPreviewParams = {
 serviceId: number;
 };
+
+export type ListProviderOrdersParams = {
+scope?: ListProviderOrdersScope;
+};
+
+export type ListProviderOrdersScope = typeof ListProviderOrdersScope[keyof typeof ListProviderOrdersScope];
+
+
+export const ListProviderOrdersScope = {
+  pending: 'pending',
+  active: 'active',
+  upcoming: 'upcoming',
+  completed: 'completed',
+  rejected: 'rejected',
+  all: 'all',
+} as const;
 

@@ -36,7 +36,7 @@ export const GetHomeSummaryResponse = zod.object({
   "addressId": zod.number().int(),
   "addressLabel": zod.string(),
   "scheduledAt": zod.coerce.date(),
-  "status": zod.enum(['pending', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled']),
+  "status": zod.enum(['pending', 'accepted', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled', 'rejected', 'disputed']),
   "priceEstimate": zod.number(),
   "instructions": zod.string().nullable(),
   "etaMinutes": zod.number().int().nullable(),
@@ -55,7 +55,7 @@ export const GetHomeSummaryResponse = zod.object({
   "addressId": zod.number().int(),
   "addressLabel": zod.string(),
   "scheduledAt": zod.coerce.date(),
-  "status": zod.enum(['pending', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled']),
+  "status": zod.enum(['pending', 'accepted', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled', 'rejected', 'disputed']),
   "priceEstimate": zod.number(),
   "instructions": zod.string().nullable(),
   "etaMinutes": zod.number().int().nullable(),
@@ -259,7 +259,7 @@ export const ListBookingsResponseItem = zod.object({
   "addressId": zod.number().int(),
   "addressLabel": zod.string(),
   "scheduledAt": zod.coerce.date(),
-  "status": zod.enum(['pending', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled']),
+  "status": zod.enum(['pending', 'accepted', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled', 'rejected', 'disputed']),
   "priceEstimate": zod.number(),
   "instructions": zod.string().nullable(),
   "etaMinutes": zod.number().int().nullable(),
@@ -293,7 +293,7 @@ export const CreateBookingResponse = zod.object({
   "addressId": zod.number().int(),
   "addressLabel": zod.string(),
   "scheduledAt": zod.coerce.date(),
-  "status": zod.enum(['pending', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled']),
+  "status": zod.enum(['pending', 'accepted', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled', 'rejected', 'disputed']),
   "priceEstimate": zod.number(),
   "instructions": zod.string().nullable(),
   "etaMinutes": zod.number().int().nullable(),
@@ -321,7 +321,7 @@ export const GetBookingResponse = zod.object({
   "addressId": zod.number().int(),
   "addressLabel": zod.string(),
   "scheduledAt": zod.coerce.date(),
-  "status": zod.enum(['pending', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled']),
+  "status": zod.enum(['pending', 'accepted', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled', 'rejected', 'disputed']),
   "priceEstimate": zod.number(),
   "instructions": zod.string().nullable(),
   "etaMinutes": zod.number().int().nullable(),
@@ -330,7 +330,7 @@ export const GetBookingResponse = zod.object({
   "events": zod.array(zod.object({
   "id": zod.number().int(),
   "bookingId": zod.number().int(),
-  "status": zod.enum(['pending', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled']),
+  "status": zod.enum(['pending', 'accepted', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled', 'rejected', 'disputed']),
   "note": zod.string(),
   "occurredAt": zod.coerce.date()
 })),
@@ -363,7 +363,7 @@ export const UpdateBookingResponse = zod.object({
   "addressId": zod.number().int(),
   "addressLabel": zod.string(),
   "scheduledAt": zod.coerce.date(),
-  "status": zod.enum(['pending', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled']),
+  "status": zod.enum(['pending', 'accepted', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled', 'rejected', 'disputed']),
   "priceEstimate": zod.number(),
   "instructions": zod.string().nullable(),
   "etaMinutes": zod.number().int().nullable(),
@@ -391,7 +391,7 @@ export const AdvanceBookingResponse = zod.object({
   "addressId": zod.number().int(),
   "addressLabel": zod.string(),
   "scheduledAt": zod.coerce.date(),
-  "status": zod.enum(['pending', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled']),
+  "status": zod.enum(['pending', 'accepted', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled', 'rejected', 'disputed']),
   "priceEstimate": zod.number(),
   "instructions": zod.string().nullable(),
   "etaMinutes": zod.number().int().nullable(),
@@ -400,7 +400,7 @@ export const AdvanceBookingResponse = zod.object({
   "events": zod.array(zod.object({
   "id": zod.number().int(),
   "bookingId": zod.number().int(),
-  "status": zod.enum(['pending', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled']),
+  "status": zod.enum(['pending', 'accepted', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled', 'rejected', 'disputed']),
   "note": zod.string(),
   "occurredAt": zod.coerce.date()
 })),
@@ -799,7 +799,7 @@ export const GetEmployeeOverviewResponse = zod.object({
   "addressId": zod.number().int(),
   "addressLabel": zod.string(),
   "scheduledAt": zod.coerce.date(),
-  "status": zod.enum(['pending', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled']),
+  "status": zod.enum(['pending', 'accepted', 'confirmed', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled', 'rejected', 'disputed']),
   "priceEstimate": zod.number(),
   "instructions": zod.string().nullable(),
   "etaMinutes": zod.number().int().nullable(),
@@ -1214,6 +1214,238 @@ export const GetVendorPerformanceResponse = zod.object({
   "complaintRate": zod.number(),
   "serviceRecoveryRate": zod.number(),
   "capacityAccuracy": zod.number()
+})
+
+
+/**
+ * @summary Provider dashboard KPIs (real DB data for demo provider)
+ */
+export const GetProviderDashboardResponse = zod.object({
+  "providerName": zod.string(),
+  "pendingCount": zod.number().int(),
+  "acceptedCount": zod.number().int(),
+  "confirmedCount": zod.number().int(),
+  "activeCount": zod.number().int(),
+  "completedThisMonth": zod.number().int(),
+  "cancelledThisMonth": zod.number().int(),
+  "estimatedSettlement": zod.number(),
+  "averageRating": zod.number(),
+  "fulfilmentRate": zod.number(),
+  "cancellationRate": zod.number(),
+  "slaRate": zod.number()
+})
+
+
+/**
+ * @summary List orders for the demo provider, filtered by scope
+ */
+export const ListProviderOrdersQueryParams = zod.object({
+  "scope": zod.enum(['pending', 'active', 'upcoming', 'completed', 'rejected', 'all']).optional()
+})
+
+export const ListProviderOrdersResponseItem = zod.object({
+  "id": zod.number().int(),
+  "serviceName": zod.string(),
+  "categoryName": zod.string(),
+  "memberName": zod.string(),
+  "addressLabel": zod.string(),
+  "zone": zod.string(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.string(),
+  "priceEstimate": zod.number(),
+  "instructions": zod.string().nullable(),
+  "etaMinutes": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListProviderOrdersResponse = zod.array(ListProviderOrdersResponseItem)
+
+
+/**
+ * @summary Accept a pending order
+ */
+export const AcceptProviderOrderParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const AcceptProviderOrderResponse = zod.object({
+  "id": zod.number().int(),
+  "serviceName": zod.string(),
+  "categoryName": zod.string(),
+  "memberName": zod.string(),
+  "addressLabel": zod.string(),
+  "zone": zod.string(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.string(),
+  "priceEstimate": zod.number(),
+  "instructions": zod.string().nullable(),
+  "etaMinutes": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Reject a pending order
+ */
+export const RejectProviderOrderParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RejectProviderOrderBody = zod.object({
+  "reason": zod.string().optional(),
+  "description": zod.string().optional()
+})
+
+export const RejectProviderOrderResponse = zod.object({
+  "id": zod.number().int(),
+  "serviceName": zod.string(),
+  "categoryName": zod.string(),
+  "memberName": zod.string(),
+  "addressLabel": zod.string(),
+  "zone": zod.string(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.string(),
+  "priceEstimate": zod.number(),
+  "instructions": zod.string().nullable(),
+  "etaMinutes": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Advance a provider order to its next lifecycle status
+ */
+export const AdvanceProviderOrderParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const AdvanceProviderOrderResponse = zod.object({
+  "id": zod.number().int(),
+  "serviceName": zod.string(),
+  "categoryName": zod.string(),
+  "memberName": zod.string(),
+  "addressLabel": zod.string(),
+  "zone": zod.string(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.string(),
+  "priceEstimate": zod.number(),
+  "instructions": zod.string().nullable(),
+  "etaMinutes": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Flag a booking as disputed and open a support incident
+ */
+export const ReportProviderOrderIssueParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ReportProviderOrderIssueBody = zod.object({
+  "reason": zod.string().optional(),
+  "description": zod.string().optional()
+})
+
+export const ReportProviderOrderIssueResponse = zod.object({
+  "id": zod.number().int(),
+  "serviceName": zod.string(),
+  "categoryName": zod.string(),
+  "memberName": zod.string(),
+  "addressLabel": zod.string(),
+  "zone": zod.string(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.string(),
+  "priceEstimate": zod.number(),
+  "instructions": zod.string().nullable(),
+  "etaMinutes": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List provider availability slots
+ */
+export const ListProviderAvailabilityResponseItem = zod.object({
+  "id": zod.number().int(),
+  "dayOfWeek": zod.number().int(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "serviceId": zod.number().int().optional(),
+  "zones": zod.array(zod.string()),
+  "maxCapacity": zod.number().int(),
+  "active": zod.boolean()
+})
+export const ListProviderAvailabilityResponse = zod.array(ListProviderAvailabilityResponseItem)
+
+
+/**
+ * @summary Add a new availability slot
+ */
+export const createProviderAvailabilityBodyDayOfWeekMin = 0;
+export const createProviderAvailabilityBodyDayOfWeekMax = 6;
+
+
+
+export const CreateProviderAvailabilityBody = zod.object({
+  "dayOfWeek": zod.number().int().min(createProviderAvailabilityBodyDayOfWeekMin).max(createProviderAvailabilityBodyDayOfWeekMax),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "serviceId": zod.number().int().optional(),
+  "zones": zod.array(zod.string()),
+  "maxCapacity": zod.number().int()
+})
+
+export const CreateProviderAvailabilityResponse = zod.object({
+  "id": zod.number().int(),
+  "dayOfWeek": zod.number().int(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "serviceId": zod.number().int().optional(),
+  "zones": zod.array(zod.string()),
+  "maxCapacity": zod.number().int(),
+  "active": zod.boolean()
+})
+
+
+/**
+ * @summary Remove an availability slot
+ */
+export const DeleteProviderAvailabilityParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteProviderAvailabilityResponse = zod.object({
+  "error": zod.string()
+})
+
+
+/**
+ * @summary Provider analytics — demand, KPIs, and operational demand forecast
+ */
+export const GetProviderAnalyticsResponse = zod.object({
+  "demandByService": zod.array(zod.object({
+  "serviceName": zod.string(),
+  "bookings": zod.number().int(),
+  "revenue": zod.number()
+})),
+  "demandByDay": zod.array(zod.object({
+  "dayLabel": zod.string(),
+  "bookings": zod.number().int()
+})),
+  "demandByZone": zod.array(zod.object({
+  "zone": zod.string(),
+  "bookings": zod.number().int()
+})),
+  "completionRate": zod.number(),
+  "averageRating": zod.number(),
+  "repeatBookingRate": zod.number(),
+  "capacityUtilization": zod.number(),
+  "forecast": zod.object({
+  "estimate": zod.number().int(),
+  "confidence": zod.number(),
+  "method": zod.string(),
+  "updatedAt": zod.coerce.date()
+})
 })
 
 

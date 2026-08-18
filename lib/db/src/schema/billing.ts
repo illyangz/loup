@@ -6,6 +6,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -39,7 +40,9 @@ export const billItemsTable = pgTable("bill_items", {
     .references(() => bookingsTable.id),
   amount: doublePrecision("amount").notNull(),
   date: timestamp("date", { withTimezone: true }).notNull(),
-});
+}, (t) => [
+  uniqueIndex("bill_items_booking_id_unique").on(t.bookingId),
+]);
 
 export const paymentMethodsTable = pgTable("payment_methods", {
   id: serial("id").primaryKey(),

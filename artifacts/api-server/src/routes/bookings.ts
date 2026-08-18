@@ -41,9 +41,9 @@ import {
 const router: IRouter = Router();
 
 const SCOPE_STATUSES: Record<string, string[]> = {
-  active: ["en_route", "arrived", "in_progress"],
-  upcoming: ["pending", "confirmed"],
-  past: ["completed", "cancelled"],
+  active:   ["en_route", "arrived", "in_progress"],
+  upcoming: ["pending", "accepted", "confirmed"],
+  past:     ["completed", "cancelled", "rejected", "disputed"],
 };
 
 router.get("/bookings", async (req, res): Promise<void> => {

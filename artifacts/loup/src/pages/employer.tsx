@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertCircle, BadgeCheck, Building2, CheckCircle2, ChevronDown,
   Download, FileSpreadsheet, Layers3, Loader2, Plus, Search,
@@ -21,10 +21,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { DataState, PlatformShell } from "@/components/platform-shell";
 import { cn } from "@/lib/utils";
 
-// Set role header for all api-client-react calls from the institution portal.
-// Production: derive from a verified JWT institution claim.
-// Demo: explicit header consumed by requireEmployerRole middleware.
-setDefaultHeaders({ "x-loup-demo-role": "institution" });
+// NOTE: setDefaultHeaders is called inside the root component via useMemo so it
+// runs synchronously on render (before React Query fires its first fetch), and
+// always wins over any other portal's module-level header even when all page
+// modules are eagerly imported at startup.
+
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function money(v: number) {
@@ -590,6 +591,7 @@ function ReportsTab() {
 
 // ── Root page ─────────────────────────────────────────────────────────────────
 export default function Employer() {
+  useMemo(() => setDefaultHeaders({ "x-loup-demo-role": "institution" }), []);
   const [tab, setTab] = useState<Tab>("overview");
   const overview = useGetEmployerOverview({ query: { queryKey: getGetEmployerOverviewQueryKey() } });
   const employerName = overview.data?.employerName ?? "Institution portal";
