@@ -1,0 +1,857 @@
+Act as a Principal Product Engineer, UX Designer and B2B SaaS Architect. Continue developing the existing “Loup” Replit project into a polished, fully interactive MVP for an HI2 incubator application.
+
+Before changing code:
+
+1. Inspect the entire existing repository.
+2. Identify the current stack, routes, database structure and reusable components.
+3. Preserve working functionality and the existing Loup visual identity where practical.
+4. Produce a short implementation plan divided into P0, P1 and P2.
+5. Complete and test all P0 functionality before implementing optional features.
+6. Do not migrate frameworks or rewrite the project unnecessarily.
+7. If the current stack supports the requirements, build on it.
+8. Use PostgreSQL for persistent application data.
+9. Ensure the application runs immediately through Replit’s Run button.
+
+# 1. Product Definition
+
+Loup is a UAE-first B2B2C flexible lifestyle-benefits and service-orchestration platform.
+
+Its initial target market is educational institutions in Dubai, including:
+
+* Schools and school groups
+* Universities and university branch campuses
+* Colleges
+* Nurseries and early-learning groups
+* Vocational institutions
+* Professional-training institutions
+* Education-management companies
+
+Educational institutions allocate a configurable, non-cash service allowance to eligible employees. Employees use the allowance across an approved and expandable service ecosystem according to their individual needs.
+
+If a service costs more than the available employer contribution, the employee can pay the difference personally.
+
+Loup manages:
+
+* Institutional eligibility rules
+* Employee allowances
+* Service discovery
+* Booking
+* Split payments
+* Provider fulfilment
+* Quality monitoring
+* Customer support
+* Privacy-safe employer reporting
+* API-ready integration
+
+Loup is not:
+
+* A coupon or discount marketplace
+* A bank
+* A withdrawable financial wallet
+* A medical or mental-health platform
+* A consumer-only home-services application
+* A peer-to-peer credit marketplace
+* A replacement for an institution’s HR system
+
+The core proposition is:
+
+“Loup gives institutions controlled flexibility and gives employees benefits that adapt to their lives.”
+
+# 2. MVP Objective
+
+The MVP must demonstrate one complete transaction:
+
+1. An educational institution creates a benefit plan.
+2. The institution adds an employee to the plan.
+3. The employee receives a monthly allowance.
+4. The employee selects an approved service.
+5. Loup calculates the employer contribution and employee top-up.
+6. The employee confirms the booking.
+7. A vendor receives and fulfils the order.
+8. The benefit ledger is updated.
+9. The institution sees aggregate, privacy-safe utilization.
+10. Loup operations can monitor the transaction and provider quality.
+
+Every important button in this flow must work. Avoid decorative features with no working behaviour.
+
+# 3. User Roles
+
+Build four role-based interfaces.
+
+## A. Employee Application
+
+Route: /employee
+
+Designed primarily for mobile use.
+
+## B. Institution Portal
+
+Route: /institution
+
+Used by HR, People, Total Rewards, Finance and authorized institutional administrators.
+
+## C. Provider Portal
+
+Route: /provider
+
+Used by approved service-provider partners.
+
+## D. Loup Operations Console
+
+Route: /admin
+
+Used internally by Loup to manage institutions, services, providers, bookings, incidents and platform performance.
+
+Use role-based access control so users cannot access another role’s data or routes.
+
+# 4. Multi-Tenant Education Structure
+
+The data model must support:
+
+* Education groups
+* Individual institutions
+* Multiple campuses
+* Faculties or departments
+* Employee cohorts
+* Benefit plans
+* Different allowance tiers
+
+Example hierarchy:
+
+Education Group
+→ Institution
+→ Campus
+→ Department or cohort
+→ Employee
+
+An institution administrator must only access information belonging to their own organization.
+
+Seed the application with a fictional education group. Do not imply that GEMS, Innoventures, Taaleem or any real institution is a Loup customer.
+
+Use a fictional organization such as:
+
+“Meridian Education Group”
+
+Create:
+
+* One education group
+* Two campuses
+* Three employee benefit tiers
+* At least eight employee accounts
+* Multiple academic, administrative and operational roles
+
+# 5. Employee Application
+
+## Employee dashboard
+
+Show:
+
+* Employee name
+* Institution and campus
+* Current benefit plan
+* Total monthly allowance
+* Available balance
+* Amount redeemed
+* Next renewal date
+* Recent bookings
+* Recommended or recently used categories
+
+Use “Loup Allowance” or “Benefit Balance” instead of presenting it as withdrawable cash.
+
+## Flexible allocation
+
+Allow employees to indicate how they expect to use their balance across approved categories.
+
+The allocation feature should:
+
+* Use sliders or numeric inputs
+* Prevent allocations from exceeding the available allowance
+* Allow the employee to change allocations
+* Treat allocations as preferences, not locked financial transfers
+* Save the allocation to the database
+* Show remaining unallocated value
+
+Service categories must be database-driven and configurable. Do not hardcode Loup as a cleaning or laundry platform.
+
+Seed broad illustrative categories such as:
+
+* Household and life administration
+* Personal wellbeing
+* Fitness and recovery
+* Mobility and convenience
+* Family and dependent support
+* Personal development
+* Recreation and lifestyle
+
+Within those categories, add enough fictional services to demonstrate browsing and booking.
+
+## Service discovery
+
+Employees must be able to:
+
+* Browse categories
+* View services
+* Search
+* Filter by category
+* Filter by availability
+* Filter by price
+* View provider rating
+* View estimated duration
+* View service description
+* View corporate price where available
+* Select a date and time
+
+## Three-step checkout
+
+### Step 1: Service details
+
+* Selected service
+* Provider
+* Date and time
+* Service location
+* Optional notes
+* Selected household profile, if enabled
+
+### Step 2: Funding
+
+Show a clear calculation:
+
+Original service price
+− Negotiated institutional saving
+= Loup service price
+− Employer allowance contribution
+= Employee top-up
+
+The employee must be able to choose how much available allowance to apply, subject to institution rules.
+
+### Step 3: Confirmation
+
+* Full payment summary
+* Allowance contribution
+* Employee top-up
+* Mock card field for the top-up
+* Privacy notice
+* Confirm booking button
+
+Use a simulated payment flow for the MVP. Do not process real money unless payment credentials are already configured.
+
+## Booking management
+
+Employees must be able to:
+
+* View upcoming bookings
+* View completed bookings
+* View cancelled bookings
+* Cancel according to configurable rules
+* Rate completed services
+* Submit a support issue
+* Rebook a completed service
+
+## Household profiles
+
+Include a simple optional feature allowing employees to create managed household profiles if permitted by the institution.
+
+A household profile should contain:
+
+* Display name
+* Relationship
+* Service-access permission
+
+Do not make household access phone-number based. The primary employee creates and manages the users they are authorized to support.
+
+Keep this feature behind an institution-level setting.
+
+# 6. Institution Portal
+
+## Institution dashboard
+
+Show only aggregated and institution-approved information:
+
+* Eligible employees
+* Activated employees
+* Total authorized allowance
+* Total redeemed amount
+* Remaining authorized amount
+* Utilization rate
+* Completed bookings
+* Average employee saving
+* Estimated employee-reported time saved
+* Category-level utilization
+* Campus-level utilization
+* Employee satisfaction
+* Upcoming allowance liability
+
+Clearly distinguish between:
+
+* Authorized funds
+* Redeemed funds
+* Loup platform fees
+* Employee top-ups
+
+## Employee roster
+
+Allow administrators to:
+
+* Add an employee manually
+* Import employees through CSV
+* Assign institution and campus
+* Assign department or cohort
+* Assign a benefit tier
+* Activate or deactivate eligibility
+* Set allowance start and end dates
+* View account status
+
+Do not use employee phone numbers as the primary identity or enrolment mechanism.
+
+Use institutional employee ID and email as the primary enrolment fields.
+
+Provide a downloadable CSV template and clear validation errors for incorrect uploads.
+
+## Benefit-plan builder
+
+Allow authorized institution users to configure:
+
+* Plan name
+* Employee eligibility
+* Monthly or periodic allowance
+* Benefit tiers
+* Permitted categories
+* Employer contribution limits
+* Renewal frequency
+* Expiration rules
+* Rollover settings
+* Employee top-up permission
+* Household-access permission
+* Pilot start and end dates
+
+Include a live summary before saving the plan.
+
+## Privacy controls
+
+Institution administrators must never see:
+
+* Employee home addresses
+* Personal booking notes
+* Exact household information
+* Mock card information
+* Detailed private service history unless required for a legitimate support or billing reason
+
+Where reporting could identify an individual in a very small group, display “insufficient group size” instead of revealing the data.
+
+## Reporting and exports
+
+Allow institution administrators to export:
+
+* Aggregate utilization CSV
+* Billing summary CSV
+* Employee eligibility CSV
+* Allowance reconciliation CSV
+
+Do not export sensitive booking details.
+
+# 7. Provider Portal
+
+The provider portal should be operationally useful but simple.
+
+## Provider dashboard
+
+Show:
+
+* New orders
+* Accepted orders
+* Upcoming orders
+* Completed orders
+* Cancelled orders
+* Estimated settlement
+* Average rating
+* Fulfilment rate
+* Cancellation rate
+* SLA status
+
+## Order management
+
+Providers must be able to:
+
+* Accept or reject an order
+* Confirm availability
+* Mark the order as on the way
+* Mark the service as started
+* Mark the service as completed
+* Report a fulfilment issue
+
+Booking statuses must update across all relevant interfaces.
+
+Use a clear status model:
+
+Pending
+→ Accepted
+→ Confirmed
+→ In progress
+→ Completed
+
+Also support:
+
+* Rejected
+* Cancelled
+* Disputed
+* Refunded
+
+## Availability
+
+Allow providers to set simple availability by:
+
+* Day
+* Time
+* Service
+* Campus or Dubai service zone
+* Maximum order capacity
+
+## Provider analytics
+
+Display:
+
+* Demand by service
+* Demand by day and time
+* Demand by geographic zone
+* Completion rate
+* Customer rating
+* Repeat-booking rate
+* Capacity utilization
+* Predicted next-period demand
+
+For the MVP, prediction can use transparent historical averages and weighted recent demand. Label it as an estimate and show the logic in a tooltip.
+
+Do not present fabricated machine-learning accuracy.
+
+# 8. Loup Operations Console
+
+The internal admin console should allow Loup to:
+
+* Create and manage institutions
+* Create and manage campuses
+* Approve providers
+* Verify fictional license and insurance status
+* Create service categories
+* Add or remove services
+* Define service-category requirements
+* Review all bookings
+* Resolve support incidents
+* Review allowance-ledger entries
+* Monitor payment status
+* View provider performance
+* Suspend or throttle providers
+* Review platform-wide metrics
+
+## Provider quality controls
+
+Implement a simple provider-quality engine.
+
+Track:
+
+* Average rating
+* Cancellation rate
+* Complaint rate
+* Fulfilment rate
+* Number of quality incidents
+
+If a provider:
+
+* Falls below a configurable rating threshold, or
+* Accumulates three unresolved quality incidents,
+
+flag the provider for review and reduce new order routing.
+
+Make thresholds configurable from the admin console.
+
+Do not permanently remove a provider automatically. Require Loup admin review.
+
+# 9. Benefit Ledger
+
+Create an append-only allowance ledger.
+
+The ledger must support:
+
+* Allowance issuance
+* Booking authorization
+* Redemption
+* Release of authorization
+* Cancellation reversal
+* Refund
+* Manual adjustment by authorized Loup operations
+* Allowance expiration
+* Rollover, where institution policy permits
+
+Never update balances by directly overwriting one balance field without recording a ledger transaction.
+
+Each ledger entry should include:
+
+* Unique ID
+* Employee ID
+* Institution ID
+* Benefit-plan ID
+* Transaction type
+* Amount
+* Booking reference
+* Timestamp
+* Expiration date
+* Status
+* Idempotency key
+* Created-by role
+
+The displayed balance must be derived or reconciled from valid ledger entries.
+
+Prevent:
+
+* Negative balances
+* Duplicate redemption
+* Cross-institution access
+* Redemption of expired allowances
+* Use of disallowed categories
+
+# 10. Payments
+
+For the MVP:
+
+* Simulate employer contribution
+* Simulate employee card top-up
+* Store payment status, not real card data
+* Include successful and failed payment states
+* Allow refund simulation
+* Reconcile payment status with booking and ledger status
+
+Design the code so a regulated payment provider can be integrated later.
+
+Do not call the allowance a stored-value account or claim that Loup holds employee money.
+
+# 11. Service and Category Architecture
+
+Services must be configurable from the database.
+
+Each service should include:
+
+* Category
+* Name
+* Description
+* Provider
+* Retail price
+* Institutional price
+* Duration
+* Availability
+* Dubai service zones
+* Rating
+* Active status
+* Regulatory-risk level
+* Household eligibility
+* Institution eligibility
+
+An administrator should be able to add a new category or service without changing frontend code.
+
+The architecture must support controlled future expansion without defining Loup by the initial catalogue.
+
+# 12. Predictive and Operational Layer
+
+The predictive layer is internal and provider-facing, not an employee AI assistant.
+
+Create an “Operations Insights” module showing:
+
+* Expected bookings for the next seven days
+* Demand by category
+* Demand by Dubai zone
+* Peak booking periods
+* Provider capacity gaps
+* At-risk bookings
+* Provider quality warnings
+* Estimated contribution margin by category
+
+Use simple, explainable calculations based on seeded historical data.
+
+For example:
+
+Forecast demand
+= 60% recent four-week average
++ 40% previous-period average
+
+Show:
+
+* Forecast value
+* Historical basis
+* Confidence indicator
+* Last updated time
+
+Label all predictions as operational estimates.
+
+# 13. API and Integration Readiness
+
+The MVP can use CSV for onboarding, but the backend should expose documented REST APIs for:
+
+* Institutions
+* Campuses
+* Employees
+* Eligibility
+* Benefit plans
+* Allowances
+* Service categories
+* Services
+* Providers
+* Bookings
+* Ledger entries
+* Aggregate reporting
+
+Add mock webhooks for:
+
+* Employee activated
+* Allowance issued
+* Booking created
+* Booking accepted
+* Booking completed
+* Booking cancelled
+* Payment completed
+* Refund processed
+
+Use:
+
+* Authentication
+* Role-based authorization
+* Input validation
+* Tenant isolation
+* Idempotency for financial and booking operations
+* Clear error responses
+
+Add an API documentation route or README section with sample requests.
+
+# 14. Database Model
+
+Create a clean relational schema covering at least:
+
+* education_groups
+* institutions
+* campuses
+* departments
+* users
+* roles
+* employee_profiles
+* household_profiles
+* benefit_plans
+* benefit_tiers
+* employee_eligibility
+* allowance_ledger
+* service_categories
+* services
+* providers
+* provider_services
+* provider_availability
+* bookings
+* booking_status_history
+* payment_records
+* ratings
+* support_incidents
+* provider_quality_flags
+* webhook_events
+
+Add foreign keys, timestamps and appropriate indexes.
+
+Use migrations or a repeatable schema-creation process.
+
+# 15. User Experience and Visual Design
+
+Preserve and refine Loup’s premium visual identity from the current prototype:
+
+* Dark espresso background
+* Warm orange accent
+* Cream typography
+* Refined but readable display font for headings
+* Clear sans-serif font for body text
+* Soft rounded cards
+* Minimal borders
+* Strong spacing
+* Mobile-first employee interface
+
+Improve accessibility:
+
+* Sufficient color contrast
+* Visible focus states
+* Keyboard navigation
+* Form labels
+* Accessible buttons
+* Clear error messages
+* Loading, empty and success states
+* Responsive layouts
+
+The institution, provider and admin portals should use the same brand system but prioritize dashboard readability.
+
+Do not overload dashboards with charts. Every chart must answer a real operational question.
+
+# 16. Demo Data
+
+Seed the system with:
+
+* One fictional education group
+* Two institutions or campuses
+* Three benefit tiers
+* At least eight employees
+* At least six providers
+* At least seven service categories
+* At least twelve services
+* Historical bookings
+* Upcoming bookings
+* Completed bookings
+* One cancelled booking
+* One disputed booking
+* Ratings and quality incidents
+* Allowance-ledger history
+* Forecasting data
+
+Create clear demo credentials for:
+
+* Employee
+* Institution administrator
+* Provider
+* Loup administrator
+
+Include the credentials on a demo landing page and in the README.
+
+# 17. Demo Mode
+
+Create a root route:
+
+/
+
+The page should explain Loup in one sentence and provide four demo-entry buttons:
+
+* View Employee App
+* View Institution Portal
+* View Provider Portal
+* View Loup Operations
+
+Add a “Reset demo data” function available only in development mode.
+
+The primary demonstration should be possible without manually creating accounts.
+
+# 18. Priority Levels
+
+## P0 — Must work completely
+
+* Role-based login and navigation
+* Multi-tenant institution structure
+* Employee allowance dashboard
+* Database-driven service catalogue
+* Service booking
+* Split-payment calculation
+* Append-only allowance ledger
+* Provider order fulfilment
+* Institution aggregate dashboard
+* CSV employee import
+* Admin service and provider management
+* Seeded demo data
+* Mobile responsiveness
+* README and demo credentials
+
+## P1 — Implement after P0 is stable
+
+* Benefit-plan builder
+* Household profiles
+* Booking cancellation and refunds
+* Provider availability
+* Support incidents
+* Provider quality flags
+* CSV exports
+* Basic REST API documentation
+* Mock webhooks
+* Explainable operational forecasting
+
+## P2 — Only if time remains
+
+* More advanced forecasting visualizations
+* Mock single sign-on
+* Enhanced API sandbox
+* Additional service-category configuration
+* Automated onboarding walkthroughs
+* More detailed contribution-margin analysis
+
+Do not sacrifice P0 reliability to complete P2 features.
+
+# 19. Explicit Exclusions
+
+Do not build:
+
+* Peer-to-peer allowance trading
+* Credit resale
+* Withdrawable wallet balances
+* Cryptocurrency
+* A government regulatory portal
+* Medical diagnosis
+* Mental-health scoring
+* Employee productivity surveillance
+* Direct employer access to personal booking details
+* Uncontrolled employee-provider chat
+* A hardcoded catalogue limited to household services
+* Unnecessary autonomous AI features
+
+# 20. Testing and Quality Requirements
+
+Test the following end-to-end flows:
+
+## Flow 1: Institution onboarding
+
+Institution admin imports an employee and assigns a benefit tier.
+
+## Flow 2: Employee booking
+
+Employee selects a service, applies the allowance, pays a mock top-up and confirms the booking.
+
+## Flow 3: Provider fulfilment
+
+Provider accepts and completes the booking.
+
+## Flow 4: Ledger reconciliation
+
+The correct allowance is authorized, redeemed or reversed according to booking status.
+
+## Flow 5: Institution reporting
+
+The completed transaction appears in aggregate reporting without exposing private employee information.
+
+## Flow 6: Quality incident
+
+Employee reports an issue, Loup admin reviews it and the provider’s quality score updates.
+
+Add automated tests for:
+
+* Allowance validation
+* Split-payment calculation
+* Duplicate redemption prevention
+* Expiration rules
+* Tenant isolation
+* Role permissions
+* Booking status transitions
+* Cancellation reversal
+* CSV validation
+
+Fix all critical console errors, broken routes and non-functional buttons.
+
+# 21. Final Deliverables
+
+When implementation is complete, provide:
+
+1. A summary of the existing code that was retained.
+2. A list of implemented P0, P1 and P2 features.
+3. The final file structure.
+4. Database schema summary.
+5. Demo credentials.
+6. Instructions for running the application.
+7. Instructions for resetting demo data.
+8. Known limitations.
+9. Recommended next steps for a real pilot.
+10. A short five-minute demo script.
+
+The final application should feel like a credible, pilot-ready education-sector benefits product rather than a collection of disconnected mockup screens.
+
+Optimize for:
+
+* A clear institutional business case
+* A seamless employee journey
+* Reliable transaction logic
+* Privacy
+* Category expandability
+* Provider accountability
+* Demonstrability to HI2 evaluators
