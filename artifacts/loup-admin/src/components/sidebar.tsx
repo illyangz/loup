@@ -7,8 +7,9 @@ import {
   BookOpen, 
   Calendar, 
   Wallet,
-  Command,
+  BarChart2,
   ShieldAlert,
+  Command,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -22,6 +23,7 @@ export function Sidebar() {
     { href: "/bookings", label: "Bookings", icon: Calendar },
     { href: "/ledger", label: "Ledger", icon: Wallet },
     { href: "/incidents", label: "Incidents", icon: ShieldAlert },
+    { href: "/analytics", label: "Analytics", icon: BarChart2 },
   ];
 
   return (

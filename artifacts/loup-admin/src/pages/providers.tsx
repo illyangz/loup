@@ -80,7 +80,7 @@ export default function Providers() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {provider.hasOpenFlag && provider.qualityFlags.filter(f => f.status === "open").map(flag => (
+                      {provider.hasOpenFlag && provider.qualityFlags.map(flag => (
                          <Button 
                            key={flag.id}
                            variant="outline" 

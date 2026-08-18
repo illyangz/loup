@@ -116,6 +116,18 @@ export type LedgerEntry = {
   createdAt: string;
 };
 
+export type AdminAnalytics = {
+  bookingsPerDay: { date: string; count: number }[];
+  revenueByCategory: { categoryName: string; revenue: number; bookingCount: number }[];
+  redemptionByInstitution: {
+    institutionId: number;
+    institutionName: string;
+    authorizedAmount: number;
+    redeemedAmount: number;
+    redemptionRate: number;
+  }[];
+};
+
 export type AdminIncident = {
   id: number;
   bookingId: number | null;

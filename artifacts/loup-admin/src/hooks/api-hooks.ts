@@ -9,6 +9,7 @@ import {
   AdminService, 
   AdminBooking, 
   LedgerEntry,
+  AdminAnalytics,
   AdminIncident,
 } from "@/lib/api";
 
@@ -185,6 +186,14 @@ export function useRefundLedgerEntry() {
     mutationFn: (id: number) => 
       adminFetch(`/v1/admin/ledger/${id}/refund`, { method: "POST" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "ledger"] })
+  });
+}
+
+export function useAnalytics() {
+  return useQuery<AdminAnalytics>({
+    queryKey: ["admin", "analytics"],
+    queryFn: () => adminFetch("/v1/admin/analytics"),
+    refetchInterval: 60_000,
   });
 }
 

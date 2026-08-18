@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, asc } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, sql, sum } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import {
   db,
@@ -12,6 +12,7 @@ import {
   servicesTable,
   bookingsTable,
   bookingEventsTable,
+  billItemsTable,
   allowanceLedgerTable,
   providerQualityFlagsTable,
   supportIncidentsTable,
@@ -19,7 +20,6 @@ import {
   bookingStatusHistoryTable,
 } from "@workspace/db";
 import { fetchBookingViews } from "../lib/loup";
-
 const router: IRouter = Router();
 
 // ── Role guard ────────────────────────────────────────────────────────────────
@@ -76,19 +76,30 @@ router.get("/v1/admin/institutions", async (_req, res): Promise<void> => {
     db.select({ id: employeesTable.id, institutionId: employeesTable.institutionId }).from(employeesTable),
   ]);
 
-  const result = institutions.map(inst => ({
-    id: inst.id,
-    name: inst.name,
-    slug: inst.slug,
-    type: inst.type,
-    city: inst.city,
-    country: inst.country,
-    active: inst.active,
-    campusCount: campuses.filter(c => c.institutionId === inst.id).length,
-    campuses: campuses.filter(c => c.institutionId === inst.id).map(c => ({ id: c.id, name: c.name })),
-    employeeCount: employees.filter(e => e.institutionId === inst.id).length,
-    createdAt: inst.createdAt.toISOString(),
-  }));
+  const result = providers.map(p => {
+    const provFlags = freshFlags.filter(f => f.providerId === p.id);
+    const openFlags = provFlags.filter(f => f.status === "pending_review" || f.status === "under_review");
+    return {
+      id: p.id,
+      name: p.name,
+      tagline: p.tagline,
+      categoryId: p.categoryId,
+      categoryName: catMap.get(p.categoryId) ?? "Unknown",
+      rating: p.rating,
+      reviewCount: p.reviewCount,
+      jobsCompleted: p.jobsCompleted,
+      yearsOnPlatform: p.yearsOnPlatform,
+      verified: p.verified,
+      availableNow: p.availableNow,
+      startingPrice: p.startingPrice,
+      badges: p.badges,
+      status: p.verified ? "active" : "pending",
+      openFlagCount: openFlags.length,
+      hasOpenFlag: openFlags.length > 0,
+      reducedRouting: openFlags.length > 0,
+      qualityFlags: openFlags.map(f => ({ id: f.id, flagType: f.flagType, currentValue: f.currentValue, threshold: f.threshold })),
+    };
+  });
 
   res.json(result);
 });
@@ -109,12 +120,13 @@ router.patch("/v1/admin/institutions/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id ?? "0");
   const { name, active, city } = req.body as { name?: string; active?: boolean; city?: string };
 
-  const updates: Record<string, unknown> = {};
+  const updates: Record<string, unknown> = { status };
   if (name !== undefined) updates.name = name;
-  if (active !== undefined) updates.active = active;
-  if (city !== undefined) updates.city = city;
+  if (description !== undefined) updates.description = description;
+  if (price !== undefined) updates.price = price;
+  if (durationMinutes !== undefined) updates.durationMinutes = durationMinutes;
 
-  const [updated] = await db.update(institutionsTable).set(updates).where(eq(institutionsTable.id, id)).returning();
+  const [updated] = await db.update(bookingsTable).set({ status }).where(eq(bookingsTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Institution not found" }); return; }
   res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
 });
@@ -124,7 +136,7 @@ router.post("/v1/admin/institutions/:id/campuses", async (req, res): Promise<voi
   const { name, city = "Dubai" } = req.body as { name: string; city?: string };
   if (!name) { res.status(400).json({ error: "name is required" }); return; }
 
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Date.now();
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now();
   const [campus] = await db.insert(campusesTable).values({ institutionId, name, slug, city, active: true }).returning();
   res.status(201).json({ ...campus, createdAt: campus!.createdAt.toISOString() });
 });
@@ -194,13 +206,13 @@ router.patch("/v1/admin/providers/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id ?? "0");
   const { action, verified, availableNow } = req.body as { action?: "approve" | "suspend"; verified?: boolean; availableNow?: boolean };
 
-  const updates: Record<string, unknown> = {};
-  if (action === "approve") updates.verified = true;
-  else if (action === "suspend") updates.verified = false;
-  if (verified !== undefined) updates.verified = verified;
-  if (availableNow !== undefined) updates.availableNow = availableNow;
+  const updates: Record<string, unknown> = { status };
+  if (name !== undefined) updates.name = name;
+  if (description !== undefined) updates.description = description;
+  if (price !== undefined) updates.price = price;
+  if (durationMinutes !== undefined) updates.durationMinutes = durationMinutes;
 
-  const [updated] = await db.update(providersTable).set(updates).where(eq(providersTable.id, id)).returning();
+  const [updated] = await db.update(bookingsTable).set({ status }).where(eq(bookingsTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Provider not found" }); return; }
   res.json(updated);
 });
@@ -213,7 +225,7 @@ router.get("/v1/admin/quality-flags", async (_req, res): Promise<void> => {
     db.select({ id: providersTable.id, name: providersTable.name }).from(providersTable),
   ]);
 
-  const provMap = new Map(providerRows.map(p => [p.id, p.name]));
+  const provMap = new Map(providerRows.map(p => [p.id, p]));
   res.json(flags.map(f => ({
     id: f.id,
     providerId: f.providerId,
@@ -229,13 +241,16 @@ router.get("/v1/admin/quality-flags", async (_req, res): Promise<void> => {
 
 router.patch("/v1/admin/quality-flags/:id", async (req, res): Promise<void> => {
   const flagId = parseInt(req.params.id ?? "0");
-  const { status } = req.body as { status: string };
+  const { status } = req.query as { status?: string };
   if (!status) { res.status(400).json({ error: "status is required" }); return; }
 
   const updates: Record<string, unknown> = { status };
-  if (status === "resolved" || status === "dismissed") updates.reviewedAt = new Date();
+  if (name !== undefined) updates.name = name;
+  if (description !== undefined) updates.description = description;
+  if (price !== undefined) updates.price = price;
+  if (durationMinutes !== undefined) updates.durationMinutes = durationMinutes;
 
-  const [updated] = await db.update(providerQualityFlagsTable).set(updates).where(eq(providerQualityFlagsTable.id, flagId)).returning();
+  const [updated] = await db.update(bookingsTable).set({ status }).where(eq(bookingsTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Flag not found" }); return; }
   res.json({ ...updated, reviewedAt: updated.reviewedAt?.toISOString() ?? null, createdAt: updated.createdAt.toISOString() });
 });
@@ -272,12 +287,13 @@ router.patch("/v1/admin/categories/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id ?? "0");
   const { name, tagline, startingPrice } = req.body as { name?: string; tagline?: string; startingPrice?: number };
 
-  const updates: Record<string, unknown> = {};
+  const updates: Record<string, unknown> = { status };
   if (name !== undefined) updates.name = name;
-  if (tagline !== undefined) updates.tagline = tagline;
-  if (startingPrice !== undefined) updates.startingPrice = startingPrice;
+  if (description !== undefined) updates.description = description;
+  if (price !== undefined) updates.price = price;
+  if (durationMinutes !== undefined) updates.durationMinutes = durationMinutes;
 
-  const [updated] = await db.update(categoriesTable).set(updates).where(eq(categoriesTable.id, id)).returning();
+  const [updated] = await db.update(bookingsTable).set({ status }).where(eq(bookingsTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Category not found" }); return; }
   res.json(updated);
 });
@@ -323,13 +339,13 @@ router.patch("/v1/admin/services/:id", async (req, res): Promise<void> => {
     name?: string; description?: string; price?: number; durationMinutes?: number;
   };
 
-  const updates: Record<string, unknown> = {};
+  const updates: Record<string, unknown> = { status };
   if (name !== undefined) updates.name = name;
   if (description !== undefined) updates.description = description;
   if (price !== undefined) updates.price = price;
   if (durationMinutes !== undefined) updates.durationMinutes = durationMinutes;
 
-  const [updated] = await db.update(servicesTable).set(updates).where(eq(servicesTable.id, id)).returning();
+  const [updated] = await db.update(bookingsTable).set({ status }).where(eq(bookingsTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Service not found" }); return; }
   res.json(updated);
 });
@@ -354,7 +370,7 @@ router.get("/v1/admin/bookings", async (req, res): Promise<void> => {
 
 router.patch("/v1/admin/bookings/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id ?? "0");
-  const { status } = req.body as { status: string };
+  const { status } = req.query as { status?: string };
   if (!status) { res.status(400).json({ error: "status is required" }); return; }
 
   const [updated] = await db.update(bookingsTable).set({ status }).where(eq(bookingsTable.id, id)).returning();
@@ -374,9 +390,9 @@ router.get("/v1/admin/ledger", async (req, res): Promise<void> => {
 
   const empMap = new Map(employees.map(e => [e.id, e]));
 
-  const filtered = institution
-    ? ledger.filter(l => empMap.get(l.employeeId)?.institutionId?.toString() === institution)
-    : ledger;
+  const filtered = status
+    ? incidents.filter(i => i.status === status)
+    : incidents;
 
   res.json(filtered.map(l => ({
     id: l.id,
@@ -614,6 +630,109 @@ router.post("/v1/admin/ledger/:id/refund", async (req, res): Promise<void> => {
   }).returning();
 
   res.status(201).json({ ...reversed, createdAt: reversed!.createdAt.toISOString() });
+});
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+
+router.get("/v1/admin/analytics", async (_req, res): Promise<void> => {
+  // Window: today (UTC midnight) and the preceding 29 days = exactly 30 calendar days
+  // windowStart inclusive, windowEnd exclusive (tomorrow midnight)
+  const todayUTC = new Date();
+  todayUTC.setUTCHours(0, 0, 0, 0);
+  const windowEnd = new Date(todayUTC);
+  windowEnd.setUTCDate(windowEnd.getUTCDate() + 1); // exclusive upper bound: tomorrow midnight
+  const windowStart = new Date(todayUTC);
+  windowStart.setUTCDate(windowStart.getUTCDate() - 29);
+
+  // 1. Bookings per day — SQL GROUP BY date, [windowStart, windowEnd)
+  const bookingDayCounts = await db
+    .select({
+      day: sql<string>`DATE(${bookingsTable.createdAt} AT TIME ZONE 'UTC')`,
+      cnt: count(),
+    })
+    .from(bookingsTable)
+    .where(and(gte(bookingsTable.createdAt, windowStart), lt(bookingsTable.createdAt, windowEnd)))
+    .groupBy(sql`DATE(${bookingsTable.createdAt} AT TIME ZONE 'UTC')`)
+    .orderBy(sql`DATE(${bookingsTable.createdAt} AT TIME ZONE 'UTC')`);
+
+  // Pre-populate all 30 slots (day -29 through today) then overwrite with real counts
+  const dayMap = new Map<string, number>();
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(windowStart);
+    d.setUTCDate(d.getUTCDate() + i);
+    dayMap.set(d.toISOString().slice(0, 10), 0);
+  }
+  for (const row of bookingDayCounts) {
+    if (dayMap.has(row.day)) dayMap.set(row.day, Number(row.cnt));
+  }
+  const bookingsPerDay = Array.from(dayMap.entries()).map(([date, count]) => ({ date, count }));
+
+  // 2. Revenue by category — SQL JOIN + GROUP BY, bill_items.date in [windowStart, windowEnd)
+  const revRows = await db
+    .select({
+      categoryName: categoriesTable.name,
+      revenue: sum(billItemsTable.amount),
+      bookingCount: count(),
+    })
+    .from(billItemsTable)
+    .innerJoin(bookingsTable, eq(bookingsTable.id, billItemsTable.bookingId))
+    .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
+    .innerJoin(providersTable, eq(providersTable.id, servicesTable.providerId))
+    .innerJoin(categoriesTable, eq(categoriesTable.id, providersTable.categoryId))
+    .where(and(gte(billItemsTable.date, windowStart), lt(billItemsTable.date, windowEnd)))
+    .groupBy(categoriesTable.id, categoriesTable.name)
+    .orderBy(desc(sum(billItemsTable.amount)));
+
+  const revenueByCategory = revRows.map(r => ({
+    categoryName: r.categoryName,
+    revenue: Math.round(Number(r.revenue ?? 0) * 100) / 100,
+    bookingCount: Number(r.bookingCount),
+  }));
+
+  // 3. Allowance redemption by institution — conditional SUM, ledger.createdAt in [windowStart, windowEnd)
+  const redemptionRows = await db
+    .select({
+      institutionId: sql<number>`COALESCE(${allowanceLedgerTable.institutionId}, ${employeesTable.institutionId})`,
+      institutionName: institutionsTable.name,
+      authorizedAmount: sum(
+        sql<number>`CASE WHEN ${allowanceLedgerTable.entryType} = 'authorized' THEN ${allowanceLedgerTable.amount} ELSE 0 END`
+      ),
+      redeemedAmount: sum(
+        sql<number>`CASE WHEN ${allowanceLedgerTable.entryType} = 'redeemed' THEN ${allowanceLedgerTable.amount} ELSE 0 END`
+      ),
+    })
+    .from(allowanceLedgerTable)
+    .innerJoin(employeesTable, eq(employeesTable.id, allowanceLedgerTable.employeeId))
+    .leftJoin(
+      institutionsTable,
+      eq(institutionsTable.id, sql`COALESCE(${allowanceLedgerTable.institutionId}, ${employeesTable.institutionId})`)
+    )
+    .where(
+      and(
+        gte(allowanceLedgerTable.createdAt, windowStart),
+        lt(allowanceLedgerTable.createdAt, windowEnd),
+        sql`COALESCE(${allowanceLedgerTable.institutionId}, ${employeesTable.institutionId}) IS NOT NULL`
+      )
+    )
+    .groupBy(
+      sql`COALESCE(${allowanceLedgerTable.institutionId}, ${employeesTable.institutionId})`,
+      institutionsTable.name
+    )
+    .orderBy(desc(sum(allowanceLedgerTable.amount)));
+
+  const redemptionByInstitution = redemptionRows.map(r => {
+    const authorized = Number(r.authorizedAmount ?? 0);
+    const redeemed = Number(r.redeemedAmount ?? 0);
+    return {
+      institutionId: Number(r.institutionId),
+      institutionName: r.institutionName ?? `Institution ${r.institutionId}`,
+      authorizedAmount: Math.round(authorized * 100) / 100,
+      redeemedAmount: Math.round(redeemed * 100) / 100,
+      redemptionRate: authorized > 0 ? Math.round((redeemed / authorized) * 10000) / 100 : 0,
+    };
+  });
+
+  res.json({ bookingsPerDay, revenueByCategory, redemptionByInstitution });
 });
 
 export default router;
