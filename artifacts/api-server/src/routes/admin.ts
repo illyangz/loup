@@ -20,23 +20,15 @@ import {
   membersTable,
   bookingStatusHistoryTable,
 } from "@workspace/db";
-import { fetchBookingViews } from "../lib/loup";
+import { estimateMonthlyPlatformRevenue, fetchBookingViews, writeWebhookEvent } from "../lib/loup";
+import { requireRole } from "../lib/auth";
 const router: IRouter = Router();
 
 // ── Role guard ────────────────────────────────────────────────────────────────
 // Production: admin endpoints are blocked until real auth (signed JWT admin claim) is implemented.
 // Demo/dev: header-based check is explicitly confined to the development environment.
 function requireAdminRole(req: Request, res: Response, next: NextFunction): void {
-  if (process.env.NODE_ENV === "production") {
-    res.status(403).json({ error: "Admin access requires authentication (production mode)" });
-    return;
-  }
-  const role = (req.headers["x-loup-demo-role"] as string | undefined)?.toLowerCase();
-  if (role !== "admin") {
-    res.status(403).json({ error: "Forbidden: admin role required. Pass x-loup-demo-role: admin" });
-    return;
-  }
-  next();
+  void requireRole("admin")(req, res, next);
 }
 
 router.use(requireAdminRole);
@@ -59,6 +51,7 @@ router.get("/v1/admin/overview", async (_req, res): Promise<void> => {
   todayStart.setHours(0, 0, 0, 0);
   const bookingsToday = allBookings.filter(b => new Date(b.createdAt) >= todayStart).length;
   const platformRevenue = ledger.filter(l => l.entryType === "redeemed").reduce((s, l) => s + l.amount, 0);
+  const fee = await estimateMonthlyPlatformRevenue();
 
   res.json({
     totalInstitutions: institutions.length,
@@ -68,6 +61,9 @@ router.get("/v1/admin/overview", async (_req, res): Promise<void> => {
     qualityWarningsCount: openFlags.length,
     activeProviders: providerRows.length,
     openIncidentsCount: openIncidents.length,
+    platformFeeRatePct: fee.byInstitution[0]?.feeRatePct ?? 8,
+    perEmployeeMonthlyFee: fee.byInstitution[0]?.perEmployeeMonthlyFee ?? 0,
+    estimatedMonthlyPlatformRevenue: fee.total,
   });
 });
 
@@ -682,6 +678,13 @@ router.post("/v1/admin/ledger/:id/refund", async (req, res): Promise<void> => {
     note: `Admin refund of entry #${entry.id}`,
     createdByRole: "admin",
   }).returning();
+
+  await writeWebhookEvent("refund.processed", {
+    refundEntryId: reversed!.id,
+    originalEntryId: entry.id,
+    amount: entry.amount,
+    employerId: entry.employerId,
+  });
 
   res.status(201).json({ ...reversed, createdAt: reversed!.createdAt.toISOString() });
 });

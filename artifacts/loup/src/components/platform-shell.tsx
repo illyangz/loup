@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Activity, ArrowUpRight, BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChevronRight, CircleHelp, Command, Gauge, Layers3, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, ShieldCheck, Sparkles, Sun, UsersRound, X } from "lucide-react";
+import { Activity, ArrowUpRight, BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChevronRight, CircleHelp, Command, Gauge, Layers3, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, ShieldCheck, Sparkles, Sun, UsersRound, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
+import { signOut } from "@/lib/demo-auth";
 
 type PlatformRole = "employee" | "institution" | "provider" | "admin";
 
@@ -48,7 +49,7 @@ function ThemeButton() {
 }
 
 export function PlatformShell({ role, children }: { role: PlatformRole; children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const meta = roleMeta[role];
@@ -118,6 +119,7 @@ export function PlatformShell({ role, children }: { role: PlatformRole; children
           <div className="flex items-center gap-3 platform-reveal" style={{ animationDelay: '100ms' }}>
             <Link href="/api-docs" className="hidden items-center gap-2 rounded-full px-3 py-2 text-xs text-white/40 hover:bg-white/5 hover:text-white sm:flex transition-colors" data-testid="link-header-api-docs"><Command className="h-3.5 w-3.5" /> Read the API</Link>
             <ThemeButton />
+            <button type="button" onClick={() => { void signOut(); setLocation("/"); }} className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs text-white/40 hover:bg-white/5 hover:text-white transition-colors" data-testid="button-platform-signout" aria-label="Sign out and switch workspace"><LogOut className="h-4 w-4" /> Sign out</button>
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--platform-plum))] text-xs font-semibold text-white shadow-sm ring-1 ring-[hsl(0_0%_100%/0.1)]" aria-label="Demo user avatar" data-testid="avatar-platform-user">ME</div>
           </div>
         </header>

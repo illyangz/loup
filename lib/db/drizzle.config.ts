@@ -1,14 +1,17 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
-}
+const schemaPath = path.join(__dirname, "./src/schema/index.ts");
+
+// Prefer a real Postgres connection when provided (Replit / Neon / production).
+// Otherwise push against the embedded PGlite database — no server required.
+const url = process.env.DATABASE_URL ?? process.env.PGLITE_DATA_DIR ?? path.join(__dirname, "../../data/loup-pglite");
 
 export default defineConfig({
-  schema: path.join(__dirname, "./src/schema/index.ts"),
+  schema: schemaPath,
   dialect: "postgresql",
+  ...(process.env.DATABASE_URL ? {} : { driver: "pglite" as const }),
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url,
   },
 });

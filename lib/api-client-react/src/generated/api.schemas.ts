@@ -22,6 +22,49 @@ export interface DemoRole {
   href: string;
 }
 
+export type DemoLoginRole = typeof DemoLoginRole[keyof typeof DemoLoginRole];
+
+
+export const DemoLoginRole = {
+  employee: 'employee',
+  institution: 'institution',
+  provider: 'provider',
+  admin: 'admin',
+} as const;
+
+export interface DemoLogin {
+  role: DemoLoginRole;
+  /** Optional tenant slug for the institution role (meridian, al-noor). Defaults to meridian. */
+  slug?: string;
+}
+
+export type DemoLoginPrincipalRole = typeof DemoLoginPrincipalRole[keyof typeof DemoLoginPrincipalRole];
+
+
+export const DemoLoginPrincipalRole = {
+  employee: 'employee',
+  institution: 'institution',
+  provider: 'provider',
+  admin: 'admin',
+} as const;
+
+export interface DemoLoginPrincipal {
+  role: DemoLoginPrincipalRole;
+  name: string;
+  employerId?: number;
+  institutionId?: number;
+  providerId?: number;
+  memberId?: number;
+  employeeId?: number;
+  label?: string;
+}
+
+export interface DemoLoginResult {
+  token: string;
+  expiresInSeconds: number;
+  principal: DemoLoginPrincipal;
+}
+
 export interface AllowanceSummary {
   authorized: number;
   reserved: number;
@@ -127,6 +170,9 @@ export interface EmployerOverview {
   invoiceEstimate: number;
   completionRate: number;
   satisfaction: number;
+  platformFeeRatePct: number;
+  perEmployeeMonthlyFee: number;
+  estimatedMonthlyPlatformRevenue: number;
 }
 
 export interface EmployerEmployee {
@@ -869,6 +915,39 @@ export interface BenefitPlanInput {
   tiers: BenefitPlanInputTiersItem[];
 }
 
+export interface AdminIncident {
+  id: number;
+  bookingId: number | null;
+  bookingStatus: string | null;
+  bookingScheduledAt: string | null;
+  bookingPriceEstimate: number | null;
+  employeeId: number | null;
+  employeeName: string | null;
+  providerName: string | null;
+  memberName: string | null;
+  category: string;
+  description: string;
+  status: string;
+  resolution: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export type AdminIncidentUpdateStatus = typeof AdminIncidentUpdateStatus[keyof typeof AdminIncidentUpdateStatus];
+
+
+export const AdminIncidentUpdateStatus = {
+  open: 'open',
+  investigating: 'investigating',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
+export interface AdminIncidentUpdate {
+  status: AdminIncidentUpdateStatus;
+  resolution?: string;
+}
+
 export interface OpenaiConversation {
   id: number;
   title: string;
@@ -952,5 +1031,22 @@ export const ListProviderOrdersScope = {
   completed: 'completed',
   rejected: 'rejected',
   all: 'all',
+} as const;
+
+export type ListAdminIncidentsParams = {
+/**
+ * Filter by incident status (default all)
+ */
+status?: ListAdminIncidentsStatus;
+};
+
+export type ListAdminIncidentsStatus = typeof ListAdminIncidentsStatus[keyof typeof ListAdminIncidentsStatus];
+
+
+export const ListAdminIncidentsStatus = {
+  open: 'open',
+  investigating: 'investigating',
+  resolved: 'resolved',
+  closed: 'closed',
 } as const;
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   AlertCircle, BadgeCheck, Building2, CheckCircle2, ChevronDown,
   Download, FileSpreadsheet, Layers3, Loader2, Plus, Search,
@@ -15,16 +15,11 @@ import {
   useAddEmployerEmployee,
   useListBenefitPlans, getListBenefitPlansQueryKey,
   useCreateBenefitPlan,
-  setDefaultHeaders,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { DataState, PlatformShell } from "@/components/platform-shell";
 import { cn } from "@/lib/utils";
-
-// NOTE: setDefaultHeaders is called inside the root component via useMemo so it
-// runs synchronously on render (before React Query fires its first fetch), and
-// always wins over any other portal's module-level header even when all page
-// modules are eagerly imported at startup.
+import { authHeaders } from "@/lib/demo-auth";
 
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -77,6 +72,25 @@ function OverviewTab() {
             { label: "Completion rate",      value: `${overview.data.completionRate.toFixed(1)}%`, sub: `${overview.data.satisfaction.toFixed(1)} / 5 satisfaction`, accent: "text-[hsl(var(--platform-mint))]" },
             { label: "Invoice estimate",     value: money(overview.data.invoiceEstimate), sub: "redeemed + reserved", accent: "text-[hsl(var(--platform-plum))]" },
           ]} />
+
+          {/* Loup platform fee (P0-4) */}
+          <div className="glass-card rounded-2xl p-6 platform-reveal" style={{ animationDelay: "40ms" }}>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40 mb-1.5">Loup platform fee</p>
+                <p className="font-serif text-2xl font-semibold text-white">
+                  {overview.data.platformFeeRatePct}% <span className="text-white/40 text-base font-normal">of redemptions</span>
+                  {overview.data.perEmployeeMonthlyFee > 0 && (
+                    <> + <span className="text-[hsl(var(--platform-brass))]">AED {overview.data.perEmployeeMonthlyFee}</span> <span className="text-white/40 text-base font-normal">/ employee / month</span></>
+                  )}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40 mb-1.5">Estimated monthly platform revenue</p>
+                <p className="font-serif text-2xl font-semibold text-[hsl(var(--platform-mint))]">{money(overview.data.estimatedMonthlyPlatformRevenue)}</p>
+              </div>
+            </div>
+          </div>
 
           {/* Allowance + category mix */}
           <div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
@@ -566,7 +580,7 @@ function ReportsTab() {
     setDownloading(path);
     setErrors(e => ({ ...e, [path]: "" }));
     try {
-      const res = await fetch(`${BASE}api/${path}`, { headers: { "x-loup-demo-role": "institution" } });
+      const res = await fetch(`${BASE}api/${path}`, { headers: authHeaders() });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       const text = await res.text();
       const blob = new Blob([text], { type: "text/csv" });
@@ -620,7 +634,6 @@ function ReportsTab() {
 
 // ── Root page ─────────────────────────────────────────────────────────────────
 export default function Employer() {
-  useMemo(() => setDefaultHeaders({ "x-loup-demo-role": "institution" }), []);
   const [tab, setTab] = useState<Tab>("overview");
   const overview = useGetEmployerOverview({ query: { queryKey: getGetEmployerOverviewQueryKey() } });
   const employerName = overview.data?.employerName ?? "Institution portal";

@@ -23,6 +23,9 @@ export type AdminOverview = {
   qualityWarningsCount: number;
   activeProviders: number;
   openIncidentsCount: number;
+  platformFeeRatePct: number;
+  perEmployeeMonthlyFee: number;
+  estimatedMonthlyPlatformRevenue: number;
 };
 
 export type AdminInstitution = {

@@ -10,6 +10,7 @@ import pushRouter from "./push";
 import platformRouter from "./platform";
 import adminRouter from "./admin";
 import providerRouter from "./provider";
+import webhooksRouter from "./webhooks";
 import openaiRouter from "./openai/index";
 
 const router: IRouter = Router();
@@ -25,6 +26,7 @@ router.use(pushRouter);
 router.use(platformRouter);
 router.use(providerRouter);
 router.use(adminRouter);
+router.use(webhooksRouter);
 router.use(providerRouter);
 router.use(openaiRouter);
 

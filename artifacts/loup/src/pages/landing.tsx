@@ -1,5 +1,5 @@
-import { ArrowRight, LockKeyhole, RefreshCw } from "lucide-react";
-import { useLocation } from "wouter";
+import { ArrowRight, Code2, LockKeyhole, RefreshCw } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { useGetHomeSummary } from "@workspace/api-client-react";
 
 const isDev = import.meta.env.DEV;
@@ -115,6 +115,20 @@ export default function Landing() {
             Open my workspace
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
+
+          {/* Embed snippet (P0-5) */}
+          <div className="rounded-xl border border-white/[0.08] bg-black/25 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                <Code2 className="h-3 w-3" /> Embed the widget in two lines
+              </p>
+              <Link href="/embed/demo" className="text-[11px] font-medium text-[hsl(var(--primary))] hover:brightness-125 transition-all" data-testid="link-embed-preview">
+                Live preview →
+              </Link>
+            </div>
+            <pre className="font-mono text-[11px] leading-relaxed text-white/60 overflow-x-auto">{`<!-- Loup employee benefits widget -->
+<script src="/embed/loup-widget.js"></script>`}</pre>
+          </div>
 
           {/* Reset */}
           {isDev && (

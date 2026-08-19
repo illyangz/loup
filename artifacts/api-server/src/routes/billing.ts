@@ -14,6 +14,7 @@ import {
   fetchStatementItems,
   getHouseholdId,
   statementView,
+  writeWebhookEvent,
 } from "../lib/loup";
 
 const router: IRouter = Router();
@@ -90,6 +91,12 @@ router.post("/billing/pay", async (req, res): Promise<void> => {
     paidWith: method.label,
   });
   req.log.info({ statementId: statement.id, total }, "Statement paid");
+  await writeWebhookEvent("payment.completed", {
+    statementId: statement.id,
+    total,
+    method: method.label,
+    monthLabel: statement.monthLabel,
+  });
   res.json(PayBillingStatementResponse.parse(view));
 });
 

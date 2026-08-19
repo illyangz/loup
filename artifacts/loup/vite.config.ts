@@ -27,6 +27,15 @@ if (!basePath) {
   );
 }
 
+const apiTarget = process.env.API_TARGET ?? 'http://localhost:3000';
+
+const proxy = {
+  '/api': {
+    target: apiTarget,
+    changeOrigin: true,
+  },
+};
+
 export default defineConfig({
   base: basePath,
   plugins: [
@@ -69,6 +78,7 @@ export default defineConfig({
     strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy,
     fs: {
       strict: true,
     },
@@ -77,5 +87,6 @@ export default defineConfig({
     port,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy,
   },
 });

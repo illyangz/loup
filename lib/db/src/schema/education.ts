@@ -69,6 +69,10 @@ export const benefitPlansTable = pgTable("benefit_plans", {
   householdAccess: boolean("household_access").notNull().default(false),
   topUpPermitted: boolean("top_up_permitted").notNull().default(true),
   permittedCategoryIds: jsonb("permitted_category_ids").$type<number[]>().notNull().default([]),
+  /** Loup platform fee (D2 hybrid): percent of employer contribution per redemption */
+  platformFeeRatePct: doublePrecision("platform_fee_rate_pct").notNull().default(8),
+  /** Loup platform fee (D2 hybrid): SaaS base per employee per month */
+  perEmployeeMonthlyFee: doublePrecision("per_employee_monthly_fee").notNull().default(0),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

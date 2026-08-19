@@ -233,7 +233,7 @@ async function claimPendingRequest(
         eq(serviceRequestsTable.status, "pending"),
       ),
     )
-    .returning({ id: serviceRequestsTable.id });
+    .returning();
   return updated.length > 0;
 }
 

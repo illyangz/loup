@@ -17,4 +17,7 @@ export interface EmployerOverview {
   invoiceEstimate: number;
   completionRate: number;
   satisfaction: number;
+  platformFeeRatePct: number;
+  perEmployeeMonthlyFee: number;
+  estimatedMonthlyPlatformRevenue: number;
 }

@@ -22,6 +22,10 @@ import Admin from '@/pages/operations';
 import ApiDocs from '@/pages/api-docs';
 import EmbedDemo from '@/pages/embed-demo';
 import Support from '@/pages/support';
+import { ensureAuthGetter } from '@/lib/demo-auth';
+
+// Restore the signed demo token on load so guarded API calls carry a Bearer header.
+ensureAuthGetter();
 
 const queryClient = new QueryClient({
   defaultOptions: {

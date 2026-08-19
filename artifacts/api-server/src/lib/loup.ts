@@ -1,17 +1,22 @@
-import { and, asc, desc, eq, gt, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNotNull, ne, sql, sum } from "drizzle-orm";
 import {
   db,
   addressesTable,
+  allowanceLedgerTable,
+  benefitPlansTable,
   billItemsTable,
   bookingsTable,
   categoriesTable,
+  employeesTable,
   membersTable,
   packMessagesTable,
   providersTable,
   serviceRequestsTable,
   servicesTable,
   statementsTable,
+  webhookEventsTable,
 } from "@workspace/db";
+import { computePlatformRevenue } from "./money";
 
 export const STATUS_CHAIN = [
   "pending",
@@ -371,4 +376,91 @@ export async function addCompletionBillItem(
       itemCount: sql`(SELECT COUNT(*) FROM bill_items WHERE statement_id = ${statement.id})`,
     })
     .where(eq(statementsTable.id, statement.id));
+}
+
+/**
+ * Record a platform event for the admin webhook log (P0-3).
+ *
+ * Demo mode simulates delivery: events land as `delivered` with a timestamp
+ * by default; callers may force `failed` (deliveredAt stays null) to exercise
+ * the retry story in the admin UI. Production would hand these to the outbox
+ * delivery worker (P1-3) instead.
+ */
+export async function writeWebhookEvent(
+  eventType: string,
+  payload: Record<string, unknown>,
+  opts: { status?: "pending" | "delivered" | "failed" } = {},
+): Promise<void> {
+  const status = opts.status ?? "delivered";
+  await db.insert(webhookEventsTable).values({
+    eventType,
+    payload,
+    status,
+    deliveredAt: status === "delivered" ? new Date() : null,
+  });
+}
+
+/**
+ * Loup platform fee estimate (P0-4, Decision D2 hybrid).
+ *
+ * Revenue per institution = feeRate% of (redeemed + reserved) this cycle
+ *                           + perEmployeeMonthlyFee × eligible employees.
+ * Pass an institutionId to scope to a single tenant (employer overview);
+ * omit it for the platform-wide ops console number.
+ */
+export async function estimateMonthlyPlatformRevenue(institutionId?: number | null): Promise<{
+  total: number;
+  byInstitution: { institutionId: number; feeRatePct: number; perEmployeeMonthlyFee: number; employees: number; cycleVolume: number; monthly: number }[];
+}> {
+  const plans = await db
+    .select({
+      id: benefitPlansTable.id,
+      institutionId: benefitPlansTable.institutionId,
+      feeRatePct: benefitPlansTable.platformFeeRatePct,
+      perEmployeeMonthlyFee: benefitPlansTable.perEmployeeMonthlyFee,
+    })
+    .from(benefitPlansTable)
+    .where(eq(benefitPlansTable.active, true));
+
+  const [ledgerByInstitution, empCountByInstitution] = await Promise.all([
+    db
+      .select({
+        institutionId: employeesTable.institutionId,
+        total: sum(allowanceLedgerTable.amount),
+      })
+      .from(allowanceLedgerTable)
+      .innerJoin(employeesTable, eq(allowanceLedgerTable.employeeId, employeesTable.id))
+      .where(inArray(allowanceLedgerTable.entryType, ["redeemed", "reserved"]))
+      .groupBy(employeesTable.institutionId),
+    db
+      .select({ institutionId: employeesTable.institutionId, count: count() })
+      .from(employeesTable)
+      .where(and(eq(employeesTable.eligibilityStatus, "eligible"), isNotNull(employeesTable.tierId)))
+      .groupBy(employeesTable.institutionId),
+  ]);
+
+  const volumeByInstitution = new Map(ledgerByInstitution.map((r) => [r.institutionId, Number(r.total ?? 0)]));
+  const employeesByInstitution = new Map(empCountByInstitution.map((r) => [r.institutionId, r.count]));
+
+  const rows = plans
+    .filter((p) => institutionId == null || p.institutionId === institutionId)
+    .map((p) => ({
+      institutionId: p.institutionId,
+      feeRatePct: p.feeRatePct,
+      perEmployeeMonthlyFee: p.perEmployeeMonthlyFee,
+      cycleVolume: volumeByInstitution.get(p.institutionId) ?? 0,
+      eligibleEmployees: employeesByInstitution.get(p.institutionId) ?? 0,
+    }));
+
+  const computed = computePlatformRevenue(rows);
+  const byInstitution = computed.byInstitution.map((c) => {
+    const row = rows.find((r) => r.institutionId === c.institutionId)!;
+    return {
+      ...c,
+      employees: row.eligibleEmployees,
+      cycleVolume: Math.round(row.cycleVolume * 100) / 100,
+    };
+  });
+
+  return { total: computed.total, byInstitution };
 }

@@ -1,7 +1,9 @@
-import { ArrowRight, BriefcaseBusiness, Building2, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, BriefcaseBusiness, Building2, Loader2, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useListDemoRoles, getListDemoRolesQueryKey } from "@workspace/api-client-react";
+import { useListDemoRoles, getListDemoRolesQueryKey, useDemoLogin } from "@workspace/api-client-react";
 import { DataState } from "@/components/platform-shell";
+import { ensureAuthGetter, storeToken } from "@/lib/demo-auth";
 
 const fallbackRoles = [
   { role: "employee", label: "Employee", description: "A private concierge for the things waiting at home.", href: "/employee", icon: Sparkles, note: "Allowance and bookings", color: "hsl(var(--platform-brass))" },
@@ -13,11 +15,35 @@ const fallbackRoles = [
 export default function Login() {
   const [, setLocation] = useLocation();
   const rolesQuery = useListDemoRoles({ query: { queryKey: getListDemoRolesQueryKey() } });
+  const loginMutation = useDemoLogin();
+  const [pendingRole, setPendingRole] = useState<string | null>(null);
+  const [tenantSlug, setTenantSlug] = useState<string | null>(null);
   const roles = rolesQuery.data?.map((role) => {
     const fallback = fallbackRoles.find((item) => item.role === role.role);
     return { ...role, icon: fallback?.icon ?? Sparkles, note: fallback?.note ?? "Demo workspace", color: fallback?.color ?? "hsl(var(--platform-brass))" };
   }) ?? fallbackRoles;
-  
+
+  const handleSignIn = async (role: { role: string; href: string }, slug?: string) => {
+    setPendingRole(role.role);
+    try {
+      const result = await loginMutation.mutateAsync({ data: { role: role.role as "employee" | "institution" | "provider" | "admin", ...(slug ? { slug } : {}) } });
+      storeToken(result.token);
+      ensureAuthGetter();
+      setLocation(role.href);
+    } catch (err) {
+      console.error("Demo login failed", err);
+      setPendingRole(null);
+    }
+  };
+
+  const handleCardClick = (role: { role: string; href: string }) => {
+    if (role.role === "institution" && tenantSlug === null) {
+      setTenantSlug("meridian");
+      return;
+    }
+    void handleSignIn(role, role.role === "institution" ? tenantSlug ?? undefined : undefined);
+  };
+
   const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
@@ -68,10 +94,11 @@ export default function Login() {
                     <button 
                       type="button" 
                       key={role.role} 
-                      onClick={() => setLocation(role.href)} 
+                      onClick={() => handleCardClick(role)} 
+                      disabled={pendingRole !== null}
                       onMouseMove={handleMouseMove}
                       onMouseLeave={handleMouseLeave}
-                      className="group relative glass-card rounded-2xl p-6 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))] platform-reveal overflow-hidden" 
+                      className="group relative glass-card rounded-2xl p-6 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))] platform-reveal overflow-hidden disabled:opacity-60" 
                       style={{ 
                         animationDelay: `${200 + (index * 70)}ms`,
                         transform: "perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale3d(1, 1, 1)",
@@ -85,7 +112,7 @@ export default function Login() {
                       <div className="flex items-start justify-between relative z-10" style={{ transform: "translateZ(30px)" }}>
                         <Icon className="h-6 w-6" style={{ color: role.color }} />
                         <div className="h-8 w-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center opacity-0 -translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-                          <ArrowRight className="h-4 w-4 text-white" />
+                          {pendingRole === role.role ? <Loader2 className="h-4 w-4 text-white animate-spin" /> : <ArrowRight className="h-4 w-4 text-white" />}
                         </div>
                       </div>
                       
@@ -94,6 +121,30 @@ export default function Login() {
                         <p className="font-serif text-3xl text-white mb-3 font-bold">{role.label}</p>
                         <p className="text-[14px] leading-relaxed text-white/40">{role.description}</p>
                       </div>
+
+                      {role.role === "institution" && tenantSlug !== null && (
+                        <div className="relative z-10 mt-4 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/50">Sign in as institution</p>
+                          <div className="flex gap-2">
+                            {(["meridian", "al-noor"] as const).map((slug) => (
+                              <button
+                                type="button"
+                                key={slug}
+                                disabled={pendingRole !== null}
+                                onClick={() => void handleSignIn({ role: "institution", href: "/institution" }, slug)}
+                                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                                  tenantSlug === slug
+                                    ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))/0.12] text-white"
+                                    : "border-white/10 bg-white/5 text-white/50 hover:text-white"
+                                }`}
+                                data-testid={`button-login-tenant-${slug}`}
+                              >
+                                {slug === "meridian" ? "Meridian Education Group" : "Al Noor University"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </button>
                   ); 
                 })}

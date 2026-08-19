@@ -648,6 +648,26 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/BillStatementSummary"
+  /v1/demo/login:
+    post:
+      operationId: demoLogin
+      tags: [platform]
+      summary: Sign into a simulated demo workspace and receive a signed token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DemoLogin"
+      responses:
+        "200":
+          description: Signed demo token + resolved principal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoLoginResult"
+        "400":
+          description: Invalid role or demo data not seeded
   /v1/demo/roles:
     get:
       operationId: listDemoRoles
@@ -1388,6 +1408,47 @@ components:
           type: string
         href:
           type: string
+    DemoLogin:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [employee, institution, provider, admin]
+        slug:
+          type: string
+          description: Optional tenant slug for the institution role (meridian, al-noor). Defaults to meridian.
+    DemoLoginPrincipal:
+      type: object
+      required: [role, name]
+      properties:
+        role:
+          type: string
+          enum: [employee, institution, provider, admin]
+        name:
+          type: string
+        employerId:
+          type: integer
+        institutionId:
+          type: integer
+        providerId:
+          type: integer
+        memberId:
+          type: integer
+        employeeId:
+          type: integer
+        label:
+          type: string
+    DemoLoginResult:
+      type: object
+      required: [token, expiresInSeconds, principal]
+      properties:
+        token:
+          type: string
+        expiresInSeconds:
+          type: integer
+        principal:
+          $ref: "#/components/schemas/DemoLoginPrincipal"
     EmployeeOverview:
       type: object
       required:
@@ -1484,6 +1545,9 @@ components:
         - invoiceEstimate
         - completionRate
         - satisfaction
+        - platformFeeRatePct
+        - perEmployeeMonthlyFee
+        - estimatedMonthlyPlatformRevenue
       properties:
         employerName: { type: string }
         eligibleEmployees: { type: integer }
@@ -1495,6 +1559,9 @@ components:
         invoiceEstimate: { type: number }
         completionRate: { type: number }
         satisfaction: { type: number }
+        platformFeeRatePct: { type: number }
+        perEmployeeMonthlyFee: { type: number }
+        estimatedMonthlyPlatformRevenue: { type: number }
     EmployerEmployee:
       type: object
       required: [id, externalEmployeeId, name, workEmail, department, benefitTier, eligibilityStatus, householdEligible]

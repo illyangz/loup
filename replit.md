@@ -30,40 +30,33 @@ pnpm monorepo:
 
 | Path | Portal | Role |
 |------|--------|------|
-| `/` | Demo landing | Pick a workspace |
+| `/` | Demo landing | Brand panel + "Open my workspace" + embed snippet |
+| `/login` | Demo login | Pick a role card; institution card offers Meridian / Al Noor tenant picker |
 | `/employee` | Employee App | Omar Mansour — Faculty, Dubai Hills, AED 750/mo |
-| `/institution` | Institution Portal | Meridian International Schools — 218 staff, 3 tiers |
+| `/institution` | Institution Portal | Meridian International Schools — 60 employees, 2 campuses, 3 tiers |
 | `/provider` | Provider Portal | Marina Shine Cleaning — demand and performance |
-| `/admin` | Loup Operations | Control tower — matching, quality, audit |
+| `/admin` | Loup Operations | Control tower — overview, institutions, providers, catalog, bookings, ledger, webhooks |
+| `/embed/demo` | Widget preview | Standalone embeddable employee widget (auto-issues a demo token) |
 | `/browse` | Service discovery | 7 categories, 22 services |
 | `/bookings` | Booking management | Live status tracking |
 | `/household` | Household hub | Loup Live map + Benefit Advisor AI |
 
 Old paths `/employer`, `/vendor`, `/operations` redirect to the new canonical routes.
 
-## Demo credentials (no auth — simulated)
+## Demo sign-in (simulated auth)
 
-All workspaces are open in demo mode. Current user is set via `isCurrentUser` flag on the member row (Omar Mansour). No passwords required.
-
-| Role | Entry | Allowance |
-|------|-------|-----------|
-| Employee (Faculty) | `/employee` | AED 750/month |
-| Employee (Staff) | `/employee` | AED 500/month |
-| Employee (Admin) | `/employee` | AED 400/month |
-| Institution admin | `/institution` | — |
-| Provider manager | `/provider` | — |
-| Loup operations | `/admin` | — |
+The pitch demo uses signed JWTs (jose HS256, 8h TTL) issued by `POST /api/v1/demo/login`. `/login` shows four role cards (Employee / Institution / Provider / Operations); the institution card first asks which tenant to sign in as (Meridian Education Group or Al Noor University — the second tenant proves isolation). The legacy `x-loup-demo-role` header fallback exists in dev only.
 
 ## 5-minute demo script
 
-1. **Open `/`** — see the Meridian Education Group landing. Note the three tier badges (Faculty 750, Staff 500, Admin 400).
-2. **Click "Employee App"** — see Omar's allowance hero (AED 750 authorized, AED 416 available). Scroll to see the 7 active categories and benefit advisor.
-3. **Click "Institution Portal"** — see Meridian's aggregate stats (218 staff, 75% activation). Scroll to the roster and utilization chart.
-4. **Click "Provider Portal"** — see Marina Shine Cleaning's day view with assigned jobs, capacity, and forecast.
-5. **Click "Loup Operations"** — see the control tower: forecast demand, matching scores, quality flags.
-6. **From Employee app, click "Services"** — browse the 7 categories. Pick a provider and tap "Book".
-7. **Check "Bookings"** — the live AC Repair booking (en route) shows ETA and chat history.
-8. **Check "Household"** — the Loup Live map shows the live provider dot; the Benefit Advisor AI panel answers allowance questions.
+1. **Open `/`** — Meridian Education Group landing. See the two-line embed snippet (the widget is real: open "Live preview" to see it run standalone).
+2. **Click "Open my workspace"** — the `/login` role cards appear. Click **Employee App**.
+3. **Employee portal** — Omar's allowance hero (AED 750 authorized, ~AED 416 available). Scroll to the 7 active categories and the Benefit Advisor.
+4. **Click the Institution card at login, pick Al Noor University** — see a *different* tenant: 15 employees, its own plans, and honest numbers (no phantom fallbacks like "218 staff" or AED 124,500). Switch back to Meridian and enter — 60 employees, 2 campuses, 3 tiers.
+5. **Institution portal (Meridian)** — aggregate stats (60 employees, 75% activation), the "Loup platform fee" card (8% + AED 12/employee), roster, utilization chart.
+6. **Provider portal** — Marina Shine Cleaning's day view with assigned jobs, capacity, and forecast.
+7. **Loup Operations** — the control tower. Overview tab shows 2 institutions / 75 employees and the "Est. monthly platform revenue" KPI (AED 747). **Webhook Events tab** shows the full transaction lifecycle: `booking.created → accepted → completed → payment.completed → refund.processed`.
+8. **From Employee app, "Services"** — browse the 7 categories. Pick a provider and tap "Book" — then watch the booking land in Operations → Webhook Events.
 9. **Reset demo state** at any time: hit the "Reset demo" button on `/` (dev mode only), or run `pnpm --filter @workspace/scripts run seed`.
 
 ## User preferences

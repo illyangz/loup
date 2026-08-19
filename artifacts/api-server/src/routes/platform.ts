@@ -38,39 +38,41 @@ import {
   ImportEmployerEmployeesResponse,
   ListAuditEventsResponse,
   ListDemoRolesResponse,
+  DemoLoginBody,
+  DemoLoginResponse,
   ListEmployerEmployeesResponse,
   ListServiceFitEvaluationsResponse,
 } from "@workspace/api-zod";
-import { fetchBookingViews, getCurrentMember } from "../lib/loup";
+import { estimateMonthlyPlatformRevenue, fetchBookingViews, getCurrentMember } from "../lib/loup";
+import { computeAllowancePosition, computeCheckoutSplit } from "../lib/money";
+import { getPrincipal, requireRole, signDemoToken, TOKEN_TTL_SECONDS, type DemoPrincipal } from "../lib/auth";
 
 // ── Employer role guard + tenant resolver ─────────────────────────────────────
 // Production: verify a signed JWT institution/employer claim and derive tenant from it.
 // Demo: header-based role check is explicitly confined to the development/demo environment;
 //       in production this middleware blocks all requests until real auth is implemented.
 function requireEmployerRole(req: Request, res: Response, next: NextFunction): void {
-  if (process.env.NODE_ENV === "production") {
-    res.status(403).json({ error: "Employer access requires authentication (production mode)" });
-    return;
-  }
-  const role = (req.headers["x-loup-demo-role"] as string | undefined)?.toLowerCase();
-  if (role !== "institution" && role !== "admin") {
-    res.status(403).json({ error: "Forbidden: institution role required. Pass x-loup-demo-role: institution" });
-    return;
-  }
-  next();
+  void requireRole("institution", "admin")(req, res, next);
 }
 
-/** Returns the demo employer and its associated institutionId, derived from the principal. */
-async function resolveEmployerContext(): Promise<{ employer: typeof employersTable.$inferSelect; institutionId: number | null }> {
-  const [employer] = await db.select().from(employersTable).where(eq(employersTable.slug, "meridian"));
-  if (!employer) throw new Error("Demo employer not found");
-  // institutionId is derived from the employer's employees (FK on employees.institutionId)
-  const [empRow] = await db
-    .select({ institutionId: employeesTable.institutionId })
-    .from(employeesTable)
-    .where(and(eq(employeesTable.employerId, employer.id), isNotNull(employeesTable.institutionId)))
-    .limit(1);
-  return { employer, institutionId: empRow?.institutionId ?? null };
+/** Resolves the employer + institutionId from the authenticated principal's claims. */
+async function resolveEmployerContext(req: Request, res: Response): Promise<{ employer: typeof employersTable.$inferSelect; institutionId: number | null }> {
+  const principal = getPrincipal(req, res);
+  if (!principal?.employerId) throw new Error("No employer context in token claims");
+  const [employer] = await db.select().from(employersTable).where(eq(employersTable.id, principal.employerId));
+  if (!employer) throw new Error("Employer not found for token claims");
+  // institutionId is carried in the claims for institution logins; derive it
+  // from the employer's employees as a fallback (e.g. admin tokens).
+  const institutionId = principal.institutionId ?? null;
+  if (institutionId === null) {
+    const [empRow] = await db
+      .select({ institutionId: employeesTable.institutionId })
+      .from(employeesTable)
+      .where(and(eq(employeesTable.employerId, employer.id), isNotNull(employeesTable.institutionId)))
+      .limit(1);
+    return { employer, institutionId: empRow?.institutionId ?? null };
+  }
+  return { employer, institutionId };
 }
 
 
@@ -198,7 +200,7 @@ const roleChoices = [
   {
     role: "institution" as const,
     label: "Institution Portal",
-    description: "Manage the Meridian campus benefit programme, monitor adoption, and configure employee tiers.",
+    description: "Govern your institution's benefit programme, monitor adoption, and configure employee tiers.",
     href: "/institution",
   },
   {
@@ -221,6 +223,90 @@ function asDate(value: Date | string): Date {
 
 router.get("/v1/demo/roles", (_req, res): void => {
   res.json(ListDemoRolesResponse.parse(roleChoices));
+});
+
+// ── Demo login: resolves a principal for the chosen role and signs a JWT ────
+router.post("/v1/demo/login", async (req, res): Promise<void> => {
+  const body = DemoLoginBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid request body: role must be one of employee, institution, provider, admin" });
+    return;
+  }
+
+  const role = body.data.role;
+  let principal: DemoPrincipal;
+
+  if (role === "employee") {
+    const member = await getCurrentMember();
+    if (!member) {
+      res.status(500).json({ error: "No employee demo data seeded" });
+      return;
+    }
+    const [employeeRow] = await db
+      .select()
+      .from(employeesTable)
+      .where(eq(employeesTable.linkedMemberId, member.id));
+    if (!employeeRow) {
+      res.status(500).json({ error: "No employee demo data seeded" });
+      return;
+    }
+    principal = {
+      role,
+      name: member.name,
+      memberId: member.id,
+      employeeId: employeeRow.id,
+      employerId: employeeRow.employerId,
+      institutionId: employeeRow.institutionId ?? undefined,
+      label: "Omar Mansour — Faculty, Meridian Dubai Hills",
+    };
+} else if (role === "institution") {
+    const slug = body.data.slug ?? "meridian";
+    const [employer] = await db.select().from(employersTable).where(eq(employersTable.slug, slug));
+    if (!employer) {
+      res.status(400).json({ error: `Unknown tenant slug: ${slug}` });
+      return;
+    }
+    const [empRow] = await db
+      .select({ institutionId: employeesTable.institutionId })
+      .from(employeesTable)
+      .where(and(eq(employeesTable.employerId, employer.id), isNotNull(employeesTable.institutionId)))
+      .limit(1);
+    principal = {
+      role,
+      name: employer.name,
+      employerId: employer.id,
+      institutionId: empRow?.institutionId ?? undefined,
+      label: `${employer.name} — Benefits Administrator`,
+    };
+  } else if (role === "provider") {
+    const [provider] = await db
+      .select()
+      .from(providersTable)
+      .where(eq(providersTable.name, "Marina Shine Cleaning"));
+    if (!provider) {
+      res.status(500).json({ error: "No provider demo data seeded" });
+      return;
+    }
+    principal = {
+      role,
+      name: provider.name,
+      providerId: provider.id,
+      label: "Marina Shine Cleaning — Provider Portal",
+    };
+  } else {
+    principal = {
+      role: "admin",
+      name: "Loup Operations",
+      label: "Loup Operations — Control Tower",
+    };
+  }
+
+  const token = await signDemoToken(principal);
+  res.json(DemoLoginResponse.parse({
+    token,
+    expiresInSeconds: TOKEN_TTL_SECONDS,
+    principal,
+  }));
 });
 
 router.get("/v1/employee/overview", async (req, res): Promise<void> => {
@@ -247,10 +333,9 @@ router.get("/v1/employee/overview", async (req, res): Promise<void> => {
     ? await db.select().from(benefitTiersTable).where(eq(benefitTiersTable.id, employeeRow.tierId))
     : [];
 
-  const [employer] = await db
-    .select()
-    .from(employersTable)
-    .where(eq(employersTable.slug, "meridian"));
+  const [employer] = employeeRow
+    ? await db.select().from(employersTable).where(eq(employersTable.id, employeeRow.employerId))
+    : [];
 
   // Derive real allowance balances from ledger
   let authorized = 750, reserved = 0, redeemed = 0;
@@ -421,31 +506,24 @@ router.get("/v1/employee/checkout-preview", async (req, res): Promise<void> => {
     : [undefined];
 
   // Derive available allowance from ledger
-  let availableAllowance = 416; // fallback
+  let availableAllowance = 0;
   if (employeeRow) {
     const ledger = await db.select().from(allowanceLedgerTable).where(eq(allowanceLedgerTable.employeeId, employeeRow.id));
-    const auth = ledger.filter(r => r.entryType === "authorized").reduce((s, r) => s + r.amount, 0) || 750;
-    const res_ = ledger.filter(r => r.entryType === "reserved").reduce((s, r) => s + r.amount, 0);
-    const red = ledger.filter(r => r.entryType === "redeemed").reduce((s, r) => s + r.amount, 0);
-    availableAllowance = Math.max(0, auth - res_ - red);
+    availableAllowance = computeAllowancePosition(ledger, 0).available;
   }
 
-  const publicPrice = service.price;
-  const institutionalPrice = Math.round(publicPrice * 0.9 * 100) / 100; // 10% institutional discount
-  const institutionalSaving = Math.round((publicPrice - institutionalPrice) * 100) / 100;
-  const employerContribution = Math.min(availableAllowance, institutionalPrice);
-  const employeeCopayment = Math.max(0, Math.round((institutionalPrice - employerContribution) * 100) / 100);
+  const split = computeCheckoutSplit({ publicPrice: service.price, availableAllowance });
 
   res.json(GetCheckoutPreviewResponse.parse({
     serviceId: service.id,
     serviceName: service.name,
     providerName: provider?.name ?? "Provider",
-    publicPrice,
-    institutionalPrice,
-    institutionalSaving,
+    publicPrice: service.price,
+    institutionalPrice: split.institutionalPrice,
+    institutionalSaving: split.institutionalSaving,
     availableAllowance,
-    employerContribution,
-    employeeCopayment,
+    employerContribution: split.employerContribution,
+    employeeCopayment: split.employeeCopayment,
   }));
 });
 
@@ -479,10 +557,10 @@ router.post("/v1/employee/issues", async (req, res): Promise<void> => {
   }));
 });
 
-router.get("/v1/employer/overview", requireEmployerRole, async (_req, res): Promise<void> => {
-  const { employer } = await resolveEmployerContext();
+router.get("/v1/employer/overview", requireEmployerRole, async (req, res): Promise<void> => {
+  const { employer, institutionId } = await resolveEmployerContext(req, res);
   const [employees, ledger] = await Promise.all([
-    db.select({ id: employeesTable.id, linkedMemberId: employeesTable.linkedMemberId })
+    db.select({ id: employeesTable.id, linkedMemberId: employeesTable.linkedMemberId, tierId: employeesTable.tierId })
       .from(employeesTable).where(eq(employeesTable.employerId, employer.id)),
     db.select({ amount: allowanceLedgerTable.amount, entryType: allowanceLedgerTable.entryType })
       .from(allowanceLedgerTable).where(eq(allowanceLedgerTable.employerId, employer.id)),
@@ -501,38 +579,61 @@ router.get("/v1/employer/overview", requireEmployerRole, async (_req, res): Prom
 
   const eligibleEmployees = employees.length;
   const activatedEmployees = employees.filter(e => e.linkedMemberId !== null).length;
-  const authorizedMaximum = ledger.filter(l => l.entryType === "authorized").reduce((s, l) => s + l.amount, 0);
-  const redeemedAllowances = ledger.filter(l => l.entryType === "redeemed").reduce((s, l) => s + l.amount, 0);
-  const reservedAllowances = ledger.filter(l => l.entryType === "reserved").reduce((s, l) => s + l.amount, 0);
+  const ledgerAuthorized = ledger.filter(l => l.entryType === "authorized").reduce((s, l) => s + l.amount, 0);
+  // Fallback: derive the authorized maximum from the roster's tier allowances so
+  // tenants without ledger history (e.g. Al Noor) show real numbers, not constants.
+  let tierAuthorized = 0;
+  if (!ledgerAuthorized && eligibleEmployees > 0) {
+    const tierIds = [...new Set(employees.map(e => e.tierId).filter((t): t is number => t != null))];
+    const tierRows = tierIds.length > 0
+      ? await db.select({ id: benefitTiersTable.id, monthlyAllowance: benefitTiersTable.monthlyAllowance })
+          .from(benefitTiersTable).where(inArray(benefitTiersTable.id, tierIds))
+      : [];
+    const byTier = new Map(tierRows.map(t => [t.id, t.monthlyAllowance]));
+    tierAuthorized = employees.reduce((s, e) => s + (e.tierId ? (byTier.get(e.tierId) ?? 0) : 0), 0);
+  }
+  const position = computeAllowancePosition(ledger, tierAuthorized);
+  const authorizedMaximum = position.authorized;
+  const redeemedAllowances = position.redeemed;
+  const reservedAllowances = position.reserved;
 
   const completed = bookingViews.filter(b => b.status === "completed");
   const nonPending = bookingViews.filter(b => b.status !== "pending");
   const completionRate = nonPending.length > 0
     ? Math.round((completed.length / nonPending.length) * 1000) / 10
-    : 97.1;
+    : 0;
   const avgRating = reviewRows.length > 0
     ? Math.round(reviewRows.reduce((s, r) => s + r.rating, 0) / reviewRows.length * 10) / 10
-    : 4.9;
+    : 0;
 
-  const forecastRedemptions = authorizedMaximum ? authorizedMaximum * 0.8 : 24800;
-  const invoiceEstimate = (redeemedAllowances + reservedAllowances) || 21060;
+  const forecastRedemptions = Math.round((authorizedMaximum ? authorizedMaximum * 0.8 : 0) * 100) / 100;
+  const invoiceEstimate = Math.round((redeemedAllowances + reservedAllowances) * 100) / 100;
+
+  const fee = await estimateMonthlyPlatformRevenue(institutionId);
+  const tenantEstimate = fee.byInstitution.find((row) => row.institutionId === institutionId);
+  const platformFeeRatePct = tenantEstimate?.feeRatePct ?? 8;
+  const perEmployeeMonthlyFee = tenantEstimate?.perEmployeeMonthlyFee ?? 0;
+  const estimatedMonthlyPlatformRevenue = tenantEstimate?.monthly ?? 0;
 
   res.json(GetEmployerOverviewResponse.parse({
-    employerName: "Meridian Education Group",
-    eligibleEmployees: eligibleEmployees || 218,
-    activatedEmployees: activatedEmployees || Math.min(164, eligibleEmployees || 218),
-    authorizedMaximum: authorizedMaximum || 124500,
-    redeemedAllowances: redeemedAllowances || 11200,
-    reservedAllowances: reservedAllowances || 3840,
+    employerName: employer.name,
+    eligibleEmployees,
+    activatedEmployees,
+    authorizedMaximum,
+    redeemedAllowances,
+    reservedAllowances,
     forecastRedemptions,
     invoiceEstimate,
     completionRate,
     satisfaction: avgRating,
+    platformFeeRatePct,
+    perEmployeeMonthlyFee,
+    estimatedMonthlyPlatformRevenue,
   }));
 });
 
-router.get("/v1/employer/employees", requireEmployerRole, async (_req, res): Promise<void> => {
-  const { employer } = await resolveEmployerContext();
+router.get("/v1/employer/employees", requireEmployerRole, async (req, res): Promise<void> => {
+  const { employer } = await resolveEmployerContext(req, res);
   const rows = await db
     .select({
       id: employeesTable.id,
@@ -602,8 +703,8 @@ router.get("/v1/employer/employees", requireEmployerRole, async (_req, res): Pro
   res.json(ListEmployerEmployeesResponse.parse(rows.length ? rows : fallback));
 });
 
-router.get("/v1/employer/campus-breakdown", requireEmployerRole, async (_req, res): Promise<void> => {
-  const { employer, institutionId } = await resolveEmployerContext();
+router.get("/v1/employer/campus-breakdown", requireEmployerRole, async (req, res): Promise<void> => {
+  const { employer, institutionId } = await resolveEmployerContext(req, res);
   if (!institutionId) { res.status(500).json({ error: "No institution linked to this employer" }); return; }
   // Only return campuses that belong to the employer's institution (tenant isolation)
   const campuses = await db.select().from(campusesTable).where(eq(campusesTable.institutionId, institutionId));
@@ -641,7 +742,7 @@ router.get("/v1/employer/campus-breakdown", requireEmployerRole, async (_req, re
 router.patch("/v1/employer/employees/:id", requireEmployerRole, async (req, res): Promise<void> => {
   const id = parseInt(String(req.params["id"] ?? "0"), 10);
   // IDOR protection: verify the employee belongs to the authenticated employer
-  const { employer } = await resolveEmployerContext();
+  const { employer } = await resolveEmployerContext(req, res);
   const [owned] = await db.select({ id: employeesTable.id }).from(employeesTable)
     .where(and(eq(employeesTable.id, id), eq(employeesTable.employerId, employer.id)));
   if (!owned) { res.status(404).json({ error: "Employee not found" }); return; }
@@ -700,7 +801,7 @@ router.post("/v1/employer/employees/add", requireEmployerRole, async (req, res):
     return;
   }
 
-  const { employer, institutionId: contextInstitutionId } = await resolveEmployerContext();
+  const { employer, institutionId: contextInstitutionId } = await resolveEmployerContext(req, res);
 
   const extId = externalEmployeeId ?? `EMP-${Date.now()}`;
   const today = new Date().toISOString().split("T")[0]!;
@@ -743,8 +844,8 @@ router.post("/v1/employer/employees/add", requireEmployerRole, async (req, res):
   });
 });
 
-router.get("/v1/employer/benefit-plans", requireEmployerRole, async (_req, res): Promise<void> => {
-  const { institutionId } = await resolveEmployerContext();
+router.get("/v1/employer/benefit-plans", requireEmployerRole, async (req, res): Promise<void> => {
+  const { institutionId } = await resolveEmployerContext(req, res);
   if (!institutionId) { res.json([]); return; }
   // Scope to this employer's institution (tenant isolation)
   const plans = await db.select().from(benefitPlansTable).where(eq(benefitPlansTable.institutionId, institutionId));
@@ -800,7 +901,7 @@ router.post("/v1/employer/benefit-plans", requireEmployerRole, async (req, res):
   if (!name) { res.status(400).json({ error: "name is required" }); return; }
 
   // Derive institution from the authenticated employer context (tenant isolation)
-  const { institutionId: ctxInstitutionId } = await resolveEmployerContext();
+  const { institutionId: ctxInstitutionId } = await resolveEmployerContext(req, res);
   if (!ctxInstitutionId) { res.status(500).json({ error: "No institution linked to this employer" }); return; }
 
   const [plan] = await db.insert(benefitPlansTable).values({
@@ -850,7 +951,7 @@ router.post("/v1/employer/benefit-plans", requireEmployerRole, async (req, res):
   });
 });
 
-router.post("/v1/demo/reset", async (_req, res): Promise<void> => {
+router.post("/v1/demo/reset", async (req, res): Promise<void> => {
   if (process.env.NODE_ENV !== "development") {
     res.status(403).json({ error: "Demo reset is only available in development." });
     return;
@@ -885,7 +986,7 @@ router.post("/v1/employer/employees", requireEmployerRole, async (req, res): Pro
   );
 });
 
-router.get("/v1/employer/utilization", requireEmployerRole, async (_req, res): Promise<void> => {
+router.get("/v1/employer/utilization", requireEmployerRole, async (req, res): Promise<void> => {
   const bookings = await fetchBookingViews();
   const completed = bookings.filter((booking) => booking.status === "completed");
   const catMap: Record<string, string> = {
@@ -938,20 +1039,22 @@ router.get("/v1/employer/utilization", requireEmployerRole, async (_req, res): P
   );
 });
 
-router.get("/v1/employer/integrations", requireEmployerRole, (_req, res): void => {
+router.get("/v1/employer/integrations", requireEmployerRole, async (req, res): Promise<void> => {
+  const { employer } = await resolveEmployerContext(req, res);
   res.json(
     GetEmployerIntegrationsResponse.parse({
       ssoLabel: "Simulated SSO launch",
       ssoUrl: "/?role=employee&source=meridian-demo",
       widgetScript: "/embed/loup-widget.js",
       widgetSnippet:
-        '<script src="/embed/loup-widget.js"></script>\n<loup-benefits employer-id="meridian" employee-token="DEMO_SIGNED_TOKEN"></loup-benefits>',
+        `<!-- Loup employee benefits widget (${employer.name}) -->\n` +
+        '<script src="/embed/loup-widget.js"></script>',
       apiMode: "Headless API access is simulated in this MVP.",
     }),
   );
 });
 
-router.get("/v1/vendor/today", async (_req, res): Promise<void> => {
+router.get("/v1/vendor/today", async (req, res): Promise<void> => {
   const bookings = await fetchBookingViews({
     statuses: ["pending", "confirmed", "en_route", "arrived", "in_progress"],
   });
@@ -1038,7 +1141,7 @@ router.get("/v1/vendor/performance", (_req, res): void => {
   );
 });
 
-router.get("/v1/operations/overview", async (_req, res): Promise<void> => {
+router.get("/v1/operations/overview", async (req, res): Promise<void> => {
   const bookings = await fetchBookingViews();
   const matching = bookings.slice(0, 3).map((booking, index) => ({
     bookingId: booking.id,
@@ -1190,8 +1293,8 @@ function computeEmployeeAllowance(
 // ── Employer CSV exports ───────────────────────────────────────────────────────
 
 // Export 1: Employee eligibility roster
-router.get("/v1/employer/export/roster", requireEmployerRole, async (_req, res): Promise<void> => {
-  const { employer } = await resolveEmployerContext();
+router.get("/v1/employer/export/roster", requireEmployerRole, async (req, res): Promise<void> => {
+  const { employer } = await resolveEmployerContext(req, res);
 
   const rows = await db
     .select({
@@ -1262,8 +1365,8 @@ router.get("/v1/employer/export/roster", requireEmployerRole, async (_req, res):
 });
 
 // Export 2: Campus utilization breakdown
-router.get("/v1/employer/export/utilization", requireEmployerRole, async (_req, res): Promise<void> => {
-  const { employer, institutionId } = await resolveEmployerContext();
+router.get("/v1/employer/export/utilization", requireEmployerRole, async (req, res): Promise<void> => {
+  const { employer, institutionId } = await resolveEmployerContext(req, res);
   if (!institutionId) { res.status(500).json({ error: "No institution linked to this employer" }); return; }
 
   const campuses    = await db.select().from(campusesTable).where(eq(campusesTable.institutionId, institutionId));
@@ -1331,8 +1434,8 @@ router.get("/v1/employer/export/utilization", requireEmployerRole, async (_req, 
 });
 
 // Export 3: Per-employee billing ledger (current benefit cycle)
-router.get("/v1/employer/export/billing", requireEmployerRole, async (_req, res): Promise<void> => {
-  const { employer } = await resolveEmployerContext();
+router.get("/v1/employer/export/billing", requireEmployerRole, async (req, res): Promise<void> => {
+  const { employer } = await resolveEmployerContext(req, res);
 
   const empRows = await db
     .select({
@@ -1443,7 +1546,7 @@ router.get("/v1/employer/export/billing", requireEmployerRole, async (_req, res)
   sendCSV(res, "meridian-billing-ledger.csv", toCSV(csvRows));
 });
 
-router.get("/v1/operations/audit", async (_req, res): Promise<void> => {
+router.get("/v1/operations/audit", async (req, res): Promise<void> => {
   const rows = await db
     .select({
       id: auditEventsTable.id,

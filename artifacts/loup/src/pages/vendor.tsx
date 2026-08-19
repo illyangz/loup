@@ -32,14 +32,10 @@ import {
   useDeleteProviderAvailability,
   useGetProviderAnalytics,
   getGetProviderAnalyticsQueryKey,
-  setDefaultHeaders,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { DataState, PlatformShell } from "@/components/platform-shell";
 import { cn } from "@/lib/utils";
-
-// Set provider role header for all api-client-react calls from this portal.
-setDefaultHeaders({ "x-loup-demo-role": "provider" });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function money(v: number) {

@@ -22,23 +22,16 @@ import {
   supportIncidentsTable,
   categoriesTable,
 } from "@workspace/db";
-import { fetchBookingView, STATUS_CHAIN, TERMINAL_STATUSES, addCompletionBillItem } from "../lib/loup";
+import { fetchBookingView, STATUS_CHAIN, TERMINAL_STATUSES, addCompletionBillItem, writeWebhookEvent } from "../lib/loup";
+import { computeRedemptionAmount } from "../lib/money";
 import { logger } from "../lib/logger";
+import { requireRole } from "../lib/auth";
 
 const router: IRouter = Router();
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
 function requireProviderRole(req: Request, res: Response, next: NextFunction): void {
-  if (process.env.NODE_ENV === "production") {
-    res.status(403).json({ error: "Provider access requires authentication (production mode)" });
-    return;
-  }
-  const role = (req.headers["x-loup-demo-role"] as string | undefined)?.toLowerCase();
-  if (role !== "provider" && role !== "admin") {
-    res.status(403).json({ error: "Forbidden: provider role required. Pass x-loup-demo-role: provider" });
-    return;
-  }
-  next();
+  void requireRole("provider", "admin")(req, res, next);
 }
 
 /** Returns the demo provider (Marina Shine Cleaning) */
@@ -114,7 +107,8 @@ async function writeRedemptionLedger(bookingId: number, priceEstimate: number) {
         eq(allowanceLedgerTable.referenceId, bookingId),
       ));
     const reservedAmount = reserved.reduce((s, r) => s + r.amount, 0);
-    if (reservedAmount <= 0) return;
+    const redemption = computeRedemptionAmount(reservedAmount, priceEstimate);
+    if (redemption <= 0) return;
 
     // Mark the reserved amount as redeemed (write a redemption entry)
     const idempotencyKey = `redeem:booking:${bookingId}`;
@@ -122,7 +116,7 @@ async function writeRedemptionLedger(bookingId: number, priceEstimate: number) {
       employerId: employeeRow.employerId,
       employeeId: employeeRow.id,
       entryType: "redeemed",
-      amount: Math.min(reservedAmount, priceEstimate),
+      amount: redemption,
       referenceType: "booking",
       referenceId: bookingId,
       note: `Allowance redeemed on completion of booking #${bookingId}`,
@@ -282,6 +276,7 @@ router.post("/v1/provider/orders/:id/accept", requireProviderRole, async (req, r
     occurredAt: new Date(),
   });
   await writeHistory(id, "pending", "accepted", "provider", "Provider accepted the order");
+  await writeWebhookEvent("booking.accepted", { bookingId: id, providerId: provider.id, providerName: provider.name });
   req.log.info({ bookingId: id }, "Provider accepted order");
 
   const order = await toProviderOrder(id);
@@ -310,6 +305,7 @@ router.post("/v1/provider/orders/:id/reject", requireProviderRole, async (req, r
   await db.insert(bookingEventsTable).values({ bookingId: id, status: "rejected", note, occurredAt: new Date() });
   await writeHistory(id, booking.status, "rejected", "provider", note);
   await writeReleaseLedger(id);
+  await writeWebhookEvent("booking.cancelled", { bookingId: id, providerId: provider.id, reason: reason ?? "Rejected by provider" });
   req.log.info({ bookingId: id }, "Provider rejected order");
 
   const order = await toProviderOrder(id);
@@ -372,6 +368,7 @@ router.post("/v1/provider/orders/:id/advance", requireProviderRole, async (req, 
   if (next === "completed") {
     await addCompletionBillItem({ id: booking.id, householdId: booking.householdId, priceEstimate: booking.priceEstimate });
     await writeRedemptionLedger(id, booking.priceEstimate);
+    await writeWebhookEvent("booking.completed", { bookingId: id, amount: booking.priceEstimate, providerId: provider.id });
   }
 
   req.log.info({ bookingId: id, from: current, to: next }, "Provider advanced order");

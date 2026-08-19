@@ -10,6 +10,7 @@ import {
   Users, 
   Calendar, 
   Wallet, 
+  TrendingUp,
   AlertTriangle,
   CheckCircle2,
   ShieldAlert,
@@ -40,6 +41,14 @@ export default function Overview() {
     { label: "Revenue Estimate", value: overview?.platformRevenueEstimate ? formatAED(overview.platformRevenueEstimate) : 0, icon: Wallet, trend: "+12% vs last month" },
   ];
 
+  const feeLine = `${overview?.platformFeeRatePct ?? 8}% of redemptions${(overview?.perEmployeeMonthlyFee ?? 0) > 0 ? ` + AED ${overview?.perEmployeeMonthlyFee}/employee` : ""}`;
+  const monthlyFeeKpi = {
+    label: "Est. Monthly Platform Revenue",
+    value: overview?.estimatedMonthlyPlatformRevenue ? formatAED(overview.estimatedMonthlyPlatformRevenue) : 0,
+    icon: TrendingUp,
+    trend: feeLine,
+  };
+
   return (
     <Layout>
       <div className="space-y-8">
@@ -49,7 +58,7 @@ export default function Overview() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {kpis.map((kpi, i) => (
+          {[...kpis, monthlyFeeKpi].map((kpi, i) => (
             <Card key={i}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">

@@ -23,6 +23,8 @@ import type {
   ActivityItem,
   AddEmployeeInput,
   Address,
+  AdminIncident,
+  AdminIncidentUpdate,
   ApiMessage,
   AuditEvent,
   BenefitPlanInput,
@@ -36,6 +38,8 @@ import type {
   CampusBreakdown,
   Category,
   CheckoutPreview,
+  DemoLogin,
+  DemoLoginResult,
   DemoRole,
   EmployeeAllocation,
   EmployeeAllocationInput,
@@ -51,6 +55,7 @@ import type {
   Household,
   ImportResult,
   IntegrationDetails,
+  ListAdminIncidentsParams,
   ListBookingsParams,
   ListProviderOrdersParams,
   ListProvidersParams,
@@ -2371,6 +2376,77 @@ export function useListBillingHistory<TData = Awaited<ReturnType<typeof listBill
 
 
 
+
+export const getDemoLoginUrl = () => {
+
+
+
+
+  return `/api/v1/demo/login`
+}
+
+/**
+ * @summary Sign into a simulated demo workspace and receive a signed token
+ */
+export const demoLogin = async (demoLogin: DemoLogin, options?: Parameters<typeof customFetch>[1]): Promise<DemoLoginResult> => {
+
+  return customFetch<DemoLoginResult>(getDemoLoginUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(demoLogin)
+  }
+);}
+
+
+
+
+
+export const getDemoLoginMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof demoLogin>>, TError,{data: BodyType<DemoLogin>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof demoLogin>>, TError,{data: BodyType<DemoLogin>}, TContext> => {
+
+const mutationKey = ['demoLogin'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof demoLogin>>, {data: BodyType<DemoLogin>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  demoLogin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DemoLoginMutationResult = NonNullable<Awaited<ReturnType<typeof demoLogin>>>
+    export type DemoLoginMutationBody = BodyType<DemoLogin>
+    export type DemoLoginMutationError = ErrorType<void>
+
+    /**
+ * @summary Sign into a simulated demo workspace and receive a signed token
+ */
+export const useDemoLogin = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof demoLogin>>, TError,{data: BodyType<DemoLogin>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof demoLogin>>,
+        TError,
+        {data: BodyType<DemoLogin>},
+        TContext
+      > => {
+      return useMutation(getDemoLoginMutationOptions(options));
+    }
 
 export const getListDemoRolesUrl = () => {
 
@@ -4780,6 +4856,162 @@ export function useListAuditEvents<TData = Awaited<ReturnType<typeof listAuditEv
 
 
 
+
+export const getListAdminIncidentsUrl = (params?: ListAdminIncidentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/incidents?${stringifiedParams}` : `/api/v1/admin/incidents`
+}
+
+/**
+ * @summary List support incidents (optionally filtered by status)
+ */
+export const listAdminIncidents = async (params?: ListAdminIncidentsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminIncident[]> => {
+
+  return customFetch<AdminIncident[]>(getListAdminIncidentsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminIncidentsQueryKey = (params?: ListAdminIncidentsParams,) => {
+    return [
+    `/api/v1/admin/incidents`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminIncidentsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminIncidents>>, TError = ErrorType<unknown>>(params?: ListAdminIncidentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminIncidents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminIncidentsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminIncidents>>> = ({ signal }) => listAdminIncidents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminIncidents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminIncidentsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminIncidents>>>
+export type ListAdminIncidentsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List support incidents (optionally filtered by status)
+ */
+
+export function useListAdminIncidents<TData = Awaited<ReturnType<typeof listAdminIncidents>>, TError = ErrorType<unknown>>(
+ params?: ListAdminIncidentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminIncidents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminIncidentsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getResolveAdminIncidentUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/incidents/${id}`
+}
+
+/**
+ * @summary Update the status of a support incident (resolve or close)
+ */
+export const resolveAdminIncident = async (id: number,
+    adminIncidentUpdate: AdminIncidentUpdate, options?: Parameters<typeof customFetch>[1]): Promise<AdminIncident> => {
+
+  return customFetch<AdminIncident>(getResolveAdminIncidentUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adminIncidentUpdate)
+  }
+);}
+
+
+
+
+
+export const getResolveAdminIncidentMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveAdminIncident>>, TError,{id: number;data: BodyType<AdminIncidentUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveAdminIncident>>, TError,{id: number;data: BodyType<AdminIncidentUpdate>}, TContext> => {
+
+const mutationKey = ['resolveAdminIncident'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveAdminIncident>>, {id: number;data: BodyType<AdminIncidentUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resolveAdminIncident(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveAdminIncidentMutationResult = NonNullable<Awaited<ReturnType<typeof resolveAdminIncident>>>
+    export type ResolveAdminIncidentMutationBody = BodyType<AdminIncidentUpdate>
+    export type ResolveAdminIncidentMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary Update the status of a support incident (resolve or close)
+ */
+export const useResolveAdminIncident = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveAdminIncident>>, TError,{id: number;data: BodyType<AdminIncidentUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveAdminIncident>>,
+        TError,
+        {id: number;data: BodyType<AdminIncidentUpdate>},
+        TContext
+      > => {
+      return useMutation(getResolveAdminIncidentMutationOptions(options));
+    }
 
 export const getListOpenaiConversationsUrl = () => {
 

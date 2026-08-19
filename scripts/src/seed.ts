@@ -5,8 +5,8 @@
  */
 import { eq } from "drizzle-orm";
 import {
+  closeDb,
   db,
-  pool,
   householdsTable,
   membersTable,
   addressesTable,
@@ -161,6 +161,8 @@ async function main() {
     householdAccess: true,
     topUpPermitted: true,
     permittedCategoryIds: [],
+    platformFeeRatePct: 8,
+    perEmployeeMonthlyFee: 12,
     active: true,
   }).returning();
 
@@ -467,7 +469,7 @@ async function main() {
   });
 
   // Cancelled
-  await mkBooking({
+  const babysittingCancelled = await mkBooking({
     service: "Babysitting (half day)",
     member: amira.id, address: villa.id,
     scheduledAt: daysAgo(5), status: "cancelled",
@@ -741,13 +743,101 @@ async function main() {
     },
   ]);
 
-  // ─── Webhook event ────────────────────────────────────────────────────────
+  // ─── Webhook events (P0-3) ────────────────────────────────────────────────
+  // A full transaction lifecycle for the admin "Webhook Events" log: activation,
+  // allowance issuance, booking created → accepted → completed, cancellation,
+  // payment, a refund, and one failed delivery to exercise the retry story.
 
   await db.insert(webhookEventsTable).values([
     {
+      eventType: "employee.activated",
+      payload: { employeeId: omarEmployee.id, externalEmployeeId: "MEG-0001", name: "Omar Mansour", employerId: employer!.id },
+      deliveredAt: daysAgo(40),
+      createdAt: daysAgo(40),
+      status: "delivered",
+    },
+    {
+      eventType: "allowance.issued",
+      payload: { employeeId: omarEmployee.id, amount: 750, tier: "Faculty", employerId: employer!.id },
+      deliveredAt: daysAgo(40),
+      createdAt: daysAgo(40),
+      status: "delivered",
+    },
+    {
+      eventType: "allowance.issued",
+      payload: { employeeId: omarEmployee.id, amount: 750, tier: "Faculty", employerId: employer!.id },
+      deliveredAt: daysAgo(10),
+      createdAt: daysAgo(10),
+      status: "delivered",
+    },
+    {
+      eventType: "booking.created",
+      payload: { bookingId: blowDryDone.id, serviceName: "Blow-Dry & Style", amount: 120, providerId: blowDryDone.providerId },
+      deliveredAt: daysAgo(3),
+      createdAt: daysAgo(3),
+      status: "delivered",
+    },
+    {
+      eventType: "booking.accepted",
+      payload: { bookingId: blowDryDone.id, providerId: blowDryDone.providerId, providerName: "Glow Mobile Beauty" },
+      deliveredAt: new Date(daysAgo(3).getTime() + 8 * 60_000),
+      createdAt: new Date(daysAgo(3).getTime() + 8 * 60_000),
+      status: "delivered",
+    },
+    {
+      eventType: "booking.created",
+      payload: { bookingId: laundryDone.id, serviceName: "Wash & Press — 2 Bags", amount: 85, providerId: laundryDone.providerId },
+      deliveredAt: daysAgo(2),
+      createdAt: daysAgo(2),
+      status: "delivered",
+    },
+    {
+      eventType: "booking.accepted",
+      payload: { bookingId: laundryDone.id, providerId: laundryDone.providerId, providerName: "PressGo Laundry" },
+      deliveredAt: new Date(daysAgo(2).getTime() + 6 * 60_000),
+      createdAt: new Date(daysAgo(2).getTime() + 6 * 60_000),
+      status: "delivered",
+    },
+    {
       eventType: "booking.completed",
-      payload: { bookingId: laundryDone.id, employeeId: omarEmployee.id, amount: 85, category: "household-admin" },
+      payload: { bookingId: blowDryDone.id, amount: 120, providerId: blowDryDone.providerId },
       deliveredAt: daysAgo(1),
+      createdAt: daysAgo(1),
+      status: "delivered",
+    },
+    {
+      eventType: "booking.completed",
+      payload: { bookingId: laundryDone.id, amount: 85, providerId: laundryDone.providerId },
+      deliveredAt: daysAgo(1),
+      createdAt: daysAgo(1),
+      status: "delivered",
+    },
+    {
+      eventType: "booking.completed",
+      payload: { bookingId: julyPhysio.id, amount: 320, providerId: julyPhysio.providerId },
+      deliveredAt: null,
+      createdAt: daysAgo(15),
+      status: "failed",
+    },
+    {
+      eventType: "booking.cancelled",
+      payload: { bookingId: babysittingCancelled.id, providerId: babysittingCancelled.providerId, reason: "Cancelled by the household" },
+      deliveredAt: daysAgo(6),
+      createdAt: daysAgo(6),
+      status: "delivered",
+    },
+    {
+      eventType: "payment.completed",
+      payload: { statementId: julyStmt!.id, total: 1368, method: "Visa •••• 4421", monthLabel: monthLabel(july) },
+      deliveredAt: endOfMonth(july),
+      createdAt: endOfMonth(july),
+      status: "delivered",
+    },
+    {
+      eventType: "refund.processed",
+      payload: { originalEntryId: 3, amount: 85, employerId: employer!.id, note: "Admin refund of laundry redemption" },
+      deliveredAt: daysAgo(0.5),
+      createdAt: daysAgo(0.5),
       status: "delivered",
     },
   ]);
@@ -766,13 +856,149 @@ async function main() {
     { providerId: marinaId, dayOfWeek: 6, startTime: "09:00", endTime: "14:00", zones: ["Jumeirah 3", "Downtown Dubai"], maxCapacity: 4, active: true },
   ]);
 
+  // ─── Al Noor University — second demo tenant ─────────────────────────────────
+  // Proves multi-tenant isolation for the pitch: a separate group, institution,
+  // campus, benefit plan and roster, resolved from the signed token claims.
+  console.log("Seeding Al Noor University...");
+
+  const [alNoorGroup] = await db.insert(educationGroupsTable).values({
+    name: "Al Noor Education Group",
+    slug: "al-noor-education-group",
+    country: "AE",
+    active: true,
+  }).returning();
+
+  const [alNoorInstitution] = await db.insert(institutionsTable).values({
+    groupId: alNoorGroup!.id,
+    name: "Al Noor University",
+    slug: "al-noor-university",
+    type: "university",
+    country: "AE",
+    city: "Dubai",
+    active: true,
+  }).returning();
+
+  const [anCampus] = await db.insert(campusesTable).values({
+    institutionId: alNoorInstitution!.id,
+    name: "Al Noor Academic City",
+    slug: "al-noor-academic-city",
+    city: "Dubai",
+    active: true,
+  }).returning();
+
+  await db.insert(departmentsTable).values([
+    { campusId: anCampus!.id, name: "Academic",          slug: "academic-an"          },
+    { campusId: anCampus!.id, name: "Administration",    slug: "administration-an"    },
+    { campusId: anCampus!.id, name: "Student Affairs",   slug: "student-affairs-an"   },
+  ]);
+
+  const [anPlan] = await db.insert(benefitPlansTable).values({
+    institutionId: alNoorInstitution!.id,
+    name: "Al Noor Staff Benefits",
+    period: "monthly",
+    renewalFrequency: "monthly",
+    expirationPolicy: "expires_at_period_end",
+    rolloverEnabled: false,
+    householdAccess: true,
+    topUpPermitted: true,
+    permittedCategoryIds: [],
+    platformFeeRatePct: 8,
+    perEmployeeMonthlyFee: 0,
+    active: true,
+  }).returning();
+
+  const anTiers = await db.insert(benefitTiersTable).values([
+    { planId: anPlan!.id, name: "Faculty", monthlyAllowance: 600, description: "Teaching and research staff", active: true },
+    { planId: anPlan!.id, name: "Staff",   monthlyAllowance: 350, description: "Administrative and support staff", active: true },
+  ]).returning();
+  const [anFacultyTier, anStaffTier] = anTiers as [typeof anTiers[number], typeof anTiers[number]];
+
+  const [anEmployer] = await db.insert(employersTable).values({
+    name: "Al Noor University",
+    slug: "al-noor",
+    country: "AE",
+    active: true,
+  }).returning();
+
+  const anNamedEmployees = [
+    { externalEmployeeId: "ANU-0001", name: "Dr. Fatima Al-Amin",   workEmail: "f.alamin@alnoor.ac.ae",    department: "Academic",        benefitTier: "Faculty", tierId: anFacultyTier!.id, householdEligible: true  },
+    { externalEmployeeId: "ANU-0002", name: "Dr. Karim Haddad",     workEmail: "k.haddad@alnoor.ac.ae",    department: "Academic",        benefitTier: "Faculty", tierId: anFacultyTier!.id, householdEligible: true  },
+    { externalEmployeeId: "ANU-0003", name: "Noora Al Suwaidi",     workEmail: "n.alsuwaidi@alnoor.ac.ae", department: "Administration",  benefitTier: "Staff",   tierId: anStaffTier!.id,   householdEligible: true  },
+    { externalEmployeeId: "ANU-0004", name: "David Okonkwo",        workEmail: "d.okonkwo@alnoor.ac.ae",   department: "Student Affairs", benefitTier: "Staff",   tierId: anStaffTier!.id,   householdEligible: false },
+    { externalEmployeeId: "ANU-0005", name: "Hana Farouk",          workEmail: "h.farouk@alnoor.ac.ae",    department: "Administration",  benefitTier: "Staff",   tierId: anStaffTier!.id,   householdEligible: true  },
+  ];
+
+  const anRosterEmployees = Array.from({ length: 10 }, (_, i) => {
+    const idx = i + 6;
+    const [tier, tierId] = idx % 2 === 0
+      ? ["Faculty" as string, anFacultyTier!.id as number]
+      : ["Staff" as string, anStaffTier!.id as number];
+    return {
+      externalEmployeeId: `ANU-${String(idx).padStart(4, "0")}`,
+      name: `Al Noor colleague ${String(idx).padStart(3, "0")}`,
+      workEmail: `colleague${idx}@alnoor.ac.ae`,
+      department: ["Academic", "Administration", "Student Affairs"][idx % 3]!,
+      benefitTier: tier,
+      tierId,
+      householdEligible: idx % 3 !== 0,
+    };
+  });
+
+  const anEmployees = await db.insert(employeesTable).values(
+    [...anNamedEmployees, ...anRosterEmployees].map((e) => ({
+      employerId: anEmployer!.id,
+      externalEmployeeId: e.externalEmployeeId,
+      name: e.name,
+      workEmail: e.workEmail,
+      department: e.department,
+      benefitTier: e.benefitTier,
+      eligibilityStatus: "eligible",
+      householdEligible: e.householdEligible,
+      linkedMemberId: null,
+      institutionId: alNoorInstitution!.id,
+      campusId: anCampus!.id,
+      tierId: e.tierId,
+      startDate: today,
+    })),
+  ).returning();
+
+  // ─── Al Noor webhook events (P0-3) ───────────────────────────────────────
+  // The second tenant's stream proves multi-tenant webhook delivery: the admin
+  // log mixes events from every employer, each payload carrying its employerId.
+
+  const anuLead = anEmployees.find((e) => e.externalEmployeeId === "ANU-0001")!;
+  await db.insert(webhookEventsTable).values([
+    {
+      eventType: "employee.activated",
+      payload: { employeeId: anuLead.id, externalEmployeeId: "ANU-0001", name: "Dr. Fatima Al-Amin", employerId: anEmployer!.id },
+      deliveredAt: daysAgo(3),
+      createdAt: daysAgo(3),
+      status: "delivered",
+    },
+    {
+      eventType: "allowance.issued",
+      payload: { employeeId: anuLead.id, amount: 600, tier: "Faculty", employerId: anEmployer!.id },
+      deliveredAt: daysAgo(3),
+      createdAt: daysAgo(3),
+      status: "delivered",
+    },
+    {
+      eventType: "allowance.issued",
+      payload: { employeeId: anuLead.id, amount: 600, tier: "Faculty", employerId: anEmployer!.id },
+      deliveredAt: daysAgo(2),
+      createdAt: daysAgo(2),
+      status: "pending",
+    },
+  ]);
+
   console.log("Seed complete.");
   console.log(
     `Meridian: 1 group, 1 institution, 2 campuses, 3 tiers, ${seededEmployees.length} employees | ` +
+    `Al Noor: 1 institution, 1 campus, 2 tiers, ${anEmployees.length} employees | ` +
     `Catalog: ${categories.length} categories, ${providerRows.length} providers, ${serviceRows.length} services`,
   );
 }
 
 main()
-  .then(async () => { await pool.end(); process.exit(0); })
-  .catch(async (err) => { console.error(err); await pool.end(); process.exit(1); });
+  .then(async () => { await closeDb(); process.exit(0); })
+  .catch(async (err) => { console.error(err); await closeDb(); process.exit(1); });

@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { AlertCircle, BadgeCheck, BookOpen, Building2, CheckCircle2, ChevronDown, ChevronUp, Globe, Layers3, Loader2, Plus, Search, ShieldAlert, ShieldCheck, Star, TrendingUp, Users, Wallet, X } from "lucide-react";
+import { AlertCircle, BadgeCheck, BookOpen, Building2, CheckCircle2, ChevronDown, ChevronUp, Globe, Layers3, Loader2, Plus, Search, ShieldAlert, ShieldCheck, Star, TrendingUp, Users, Wallet, Webhook, X } from "lucide-react";
 import { DataState, PlatformHeader, PlatformShell, StatTile } from "@/components/platform-shell";
 import { cn } from "@/lib/utils";
+import { authHeaders } from "@/lib/demo-auth";
 
 const BASE = import.meta.env.BASE_URL;
 
 // ── Inline types for admin API (not in OpenAPI) ───────────────────────────────
-type AdminOverview = { totalInstitutions: number; totalEmployees: number; bookingsToday: number; platformRevenueEstimate: number; qualityWarningsCount: number; activeProviders: number };
+type AdminOverview = { totalInstitutions: number; totalEmployees: number; bookingsToday: number; platformRevenueEstimate: number; qualityWarningsCount: number; activeProviders: number; platformFeeRatePct: number; perEmployeeMonthlyFee: number; estimatedMonthlyPlatformRevenue: number };
 type AdminInstitution = { id: number; name: string; slug: string; type: string; city: string; country: string; active: boolean; campusCount: number; campuses: { id: number; name: string }[]; employeeCount: number; createdAt: string };
 type AdminProvider = { id: number; name: string; tagline: string; categoryId: number; categoryName: string; rating: number; reviewCount: number; jobsCompleted: number; verified: boolean; availableNow: boolean; startingPrice: number; status: string; openFlagCount: number; hasOpenFlag: boolean; reducedRouting: boolean; qualityFlags: { id: number; flagType: string; currentValue: number; threshold: number }[] };
 type QualityFlag = { id: number; providerId: number; providerName: string; flagType: string; threshold: number; currentValue: number; status: string; reviewedAt: string | null; createdAt: string };
@@ -16,15 +17,13 @@ type AdminBooking = { id: number; memberName: string; providerName: string; serv
 type LedgerEntry = { id: number; employeeId: number; employeeName: string; entryType: string; amount: number; referenceType: string | null; referenceId: number | null; note: string | null; createdAt: string };
 
 // ── Fetching helpers ──────────────────────────────────────────────────────────
-// Role header for admin API calls.
-// Production: derive from a verified JWT admin claim.
-// Demo: explicit header consumed by requireAdminRole middleware on /v1/admin/* routes.
-const ADMIN_HEADERS = { "Content-Type": "application/json", "x-loup-demo-role": "admin" };
+// Admin calls carry the signed demo JWT (or, in dev, the legacy role header).
+const ADMIN_HEADERS = { "Content-Type": "application/json" };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}api${path}`, {
     ...init,
-    headers: { ...ADMIN_HEADERS, ...(init?.headers as Record<string, string> | undefined) },
+    headers: { ...ADMIN_HEADERS, ...authHeaders(), ...(init?.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) throw new Error(`${path}: ${res.status}`);
   return res.json() as Promise<T>;
@@ -54,7 +53,7 @@ function useFetchOnMount<T>(path: string) {
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-type Tab = "overview" | "institutions" | "providers" | "catalog" | "bookings" | "ledger";
+type Tab = "overview" | "institutions" | "providers" | "catalog" | "bookings" | "ledger" | "webhooks";
 const TABS: { id: Tab; label: string; icon: typeof Building2 }[] = [
   { id: "overview",      label: "Overview",      icon: TrendingUp  },
   { id: "institutions",  label: "Institutions",  icon: Building2   },
@@ -62,6 +61,7 @@ const TABS: { id: Tab; label: string; icon: typeof Building2 }[] = [
   { id: "catalog",       label: "Catalog",       icon: Layers3     },
   { id: "bookings",      label: "Bookings",      icon: BookOpen    },
   { id: "ledger",        label: "Ledger",        icon: Wallet      },
+  { id: "webhooks",      label: "Webhooks",      icon: Webhook     },
 ];
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
@@ -82,6 +82,7 @@ function OverviewTab() {
             <StatTile index={3} label="Platform revenue" value={money(data.platformRevenueEstimate)} detail="redeemed to date" tone="plum" />
             <StatTile index={4} label="Active providers" value={String(data.activeProviders)} detail="verified on platform" />
             <StatTile index={5} label="Quality warnings" value={String(data.qualityWarningsCount)} detail="open flags pending review" tone={data.qualityWarningsCount > 0 ? "plum" : "mint"} />
+            <StatTile index={6} label="Est. monthly platform revenue" value={money(data.estimatedMonthlyPlatformRevenue)} detail={`${data.platformFeeRatePct}% of redemptions${data.perEmployeeMonthlyFee > 0 ? ` + AED ${data.perEmployeeMonthlyFee}/employee` : ""} (D2 hybrid)`} tone="plum" />
           </section>
 
           {/* Open quality flags */}
@@ -705,6 +706,96 @@ function LedgerTab() {
   );
 }
 
+// ── Webhook events tab (P0-3) ────────────────────────────────────────────────
+
+interface WebhookEventRow {
+  id: number;
+  eventType: string;
+  payload: Record<string, unknown>;
+  status: "pending" | "delivered" | "failed";
+  deliveredAt: string | null;
+  createdAt: string;
+}
+
+interface WebhookEventsResponse {
+  events: WebhookEventRow[];
+  summary: {
+    total: number;
+    delivered: number;
+    failed: number;
+    pending: number;
+    byType: { eventType: string; count: number }[];
+  };
+}
+
+const STATUS_BADGE: Record<WebhookEventRow["status"], string> = {
+  delivered: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+  failed: "bg-red-500/10 text-red-400 border-red-500/30",
+  pending: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+};
+
+function WebhooksTab() {
+  const { data, loading, error, refetch } = useFetchOnMount<WebhookEventsResponse>("/v1/admin/webhook-events");
+  const [filter, setFilter] = useState<"all" | "pending" | "delivered" | "failed">("all");
+
+  const events = (data?.events ?? []).filter(e => filter === "all" || e.status === filter);
+  const summary = data?.summary;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-4">
+        {[
+          ["Events", summary?.total ?? 0, "text-foreground"],
+          ["Delivered", summary?.delivered ?? 0, "text-emerald-400"],
+          ["Failed", summary?.failed ?? 0, "text-red-400"],
+          ["Pending", summary?.pending ?? 0, "text-amber-400"],
+        ].map(([label, val, cls]) => (
+          <div key={label as string} className="glass-card rounded-2xl p-5 platform-reveal">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground mb-2">{label}</p>
+            <p className={cn("font-serif text-2xl font-semibold", cls as string)}>{val}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1 rounded-full border border-border/60 bg-background/40 p-1">
+          {(["all", "delivered", "failed", "pending"] as const).map(s => (
+            <button key={s} type="button" onClick={() => setFilter(s)} data-testid={`filter-webhooks-${s}`}
+              className={cn("rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors", filter === s ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
+              {s}
+            </button>
+          ))}
+        </div>
+        {(summary?.byType ?? []).map(t => (
+          <span key={t.eventType} className="rounded-full bg-white/5 border border-white/10 px-3 py-1.5 text-xs text-muted-foreground" title={`${t.count} ${t.eventType} events`}>
+            {t.eventType.replace(".", " · ")} <span className="text-foreground font-semibold">{t.count}</span>
+          </span>
+        ))}
+      </div>
+
+      <DataState loading={loading} error={error} onRetry={() => void refetch()}>
+        <div className="overflow-x-auto rounded-2xl border border-border/50 bg-background/30">
+          <table className="w-full min-w-[820px] text-left text-sm">
+            <thead><tr className="border-b border-border/60 bg-accent/20 text-xs uppercase tracking-[0.12em] text-muted-foreground">{["Event", "Status", "Payload", "Delivered", "Created"].map(h => <th key={h} className="px-5 py-4 font-medium">{h}</th>)}</tr></thead>
+            <tbody className="divide-y divide-border/40">
+              {events.map((e, i) => (
+                <tr key={e.id} className={cn("hover:bg-accent/30", i % 2 ? "bg-accent/10" : "")} data-testid={`row-webhook-${e.id}`}>
+                  <td className="px-5 py-3"><span className="font-medium whitespace-nowrap">{e.eventType}</span><span className="block text-xs text-muted-foreground">#{e.id}</span></td>
+                  <td className="px-5 py-3"><span className={cn("rounded-full border px-2.5 py-1 text-xs font-medium", STATUS_BADGE[e.status])}>{e.status}</span></td>
+                  <td className="px-5 py-3"><code className="text-xs text-muted-foreground block max-w-[280px] truncate">{JSON.stringify(e.payload)}</code></td>
+                  <td className="px-5 py-3 text-muted-foreground whitespace-nowrap">{e.deliveredAt ? new Date(e.deliveredAt).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+                  <td className="px-5 py-3 text-muted-foreground whitespace-nowrap">{new Date(e.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!loading && events.length === 0 && <div className="p-12 text-center text-muted-foreground text-sm">No webhook events match this filter.</div>}
+        </div>
+      </DataState>
+    </div>
+  );
+}
+
 // ── Root page ─────────────────────────────────────────────────────────────────
 export default function Operations() {
   const [tab, setTab] = useState<Tab>("overview");
@@ -743,6 +834,7 @@ export default function Operations() {
       {tab === "catalog"      && <CatalogTab />}
       {tab === "bookings"     && <BookingsTab />}
       {tab === "ledger"       && <LedgerTab />}
+      {tab === "webhooks"     && <WebhooksTab />}
     </PlatformShell>
   );
 }

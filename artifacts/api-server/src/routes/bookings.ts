@@ -36,6 +36,7 @@ import {
   fetchBookingView,
   fetchBookingViews,
   getCurrentMember,
+  writeWebhookEvent,
 } from "../lib/loup";
 
 const router: IRouter = Router();
@@ -137,6 +138,13 @@ router.post("/bookings", async (req, res): Promise<void> => {
 
   // Providers accept quickly on Loup: auto-confirm shortly after placement.
   const bookingId = booking!.id;
+  await writeWebhookEvent("booking.created", {
+    bookingId,
+    serviceId: service.id,
+    serviceName: service.name,
+    amount: service.price,
+    providerId: service.providerId,
+  });
   setTimeout(async () => {
     try {
       const [current] = await db
@@ -154,6 +162,11 @@ router.post("/bookings", async (req, res): Promise<void> => {
           status: "confirmed",
           note: `${view?.providerName ?? "The provider"} accepted the job`,
           occurredAt: new Date(),
+        });
+        await writeWebhookEvent("booking.accepted", {
+          bookingId,
+          providerId: view?.providerId ?? null,
+          providerName: view?.providerName ?? "The provider",
         });
       }
     } catch (err) {
@@ -308,6 +321,10 @@ router.post("/bookings/:id/advance", async (req, res): Promise<void> => {
       id: booking.id,
       householdId: booking.householdId,
       priceEstimate: booking.priceEstimate,
+    });
+    await writeWebhookEvent("booking.completed", {
+      bookingId: booking.id,
+      amount: booking.priceEstimate,
     });
   }
 

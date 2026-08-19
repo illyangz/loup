@@ -757,6 +757,30 @@ export const ListBillingHistoryResponse = zod.array(ListBillingHistoryResponseIt
 
 
 /**
+ * @summary Sign into a simulated demo workspace and receive a signed token
+ */
+export const DemoLoginBody = zod.object({
+  "role": zod.enum(['employee', 'institution', 'provider', 'admin']),
+  "slug": zod.string().optional().describe('Optional tenant slug for the institution role (meridian, al-noor). Defaults to meridian.')
+})
+
+export const DemoLoginResponse = zod.object({
+  "token": zod.string(),
+  "expiresInSeconds": zod.number().int(),
+  "principal": zod.object({
+  "role": zod.enum(['employee', 'institution', 'provider', 'admin']),
+  "name": zod.string(),
+  "employerId": zod.number().int().optional(),
+  "institutionId": zod.number().int().optional(),
+  "providerId": zod.number().int().optional(),
+  "memberId": zod.number().int().optional(),
+  "employeeId": zod.number().int().optional(),
+  "label": zod.string().optional()
+})
+})
+
+
+/**
  * @summary Available simulated demo roles
  */
 export const ListDemoRolesResponseItem = zod.object({
@@ -929,7 +953,10 @@ export const GetEmployerOverviewResponse = zod.object({
   "forecastRedemptions": zod.number(),
   "invoiceEstimate": zod.number(),
   "completionRate": zod.number(),
-  "satisfaction": zod.number()
+  "satisfaction": zod.number(),
+  "platformFeeRatePct": zod.number(),
+  "perEmployeeMonthlyFee": zod.number(),
+  "estimatedMonthlyPlatformRevenue": zod.number()
 })
 
 
@@ -1505,6 +1532,64 @@ export const ListAuditEventsResponseItem = zod.object({
   "createdAt": zod.coerce.date()
 })
 export const ListAuditEventsResponse = zod.array(ListAuditEventsResponseItem)
+
+
+/**
+ * @summary List support incidents (optionally filtered by status)
+ */
+export const ListAdminIncidentsQueryParams = zod.object({
+  "status": zod.enum(['open', 'investigating', 'resolved', 'closed']).optional().describe('Filter by incident status (default all)')
+})
+
+export const ListAdminIncidentsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "bookingId": zod.number().int().nullable(),
+  "bookingStatus": zod.string().nullable(),
+  "bookingScheduledAt": zod.string().nullable(),
+  "bookingPriceEstimate": zod.number().nullable(),
+  "employeeId": zod.number().int().nullable(),
+  "employeeName": zod.string().nullable(),
+  "providerName": zod.string().nullable(),
+  "memberName": zod.string().nullable(),
+  "category": zod.string(),
+  "description": zod.string(),
+  "status": zod.string(),
+  "resolution": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "resolvedAt": zod.string().nullable()
+})
+export const ListAdminIncidentsResponse = zod.array(ListAdminIncidentsResponseItem)
+
+
+/**
+ * @summary Update the status of a support incident (resolve or close)
+ */
+export const ResolveAdminIncidentParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ResolveAdminIncidentBody = zod.object({
+  "status": zod.enum(['open', 'investigating', 'resolved', 'closed']),
+  "resolution": zod.string().optional()
+})
+
+export const ResolveAdminIncidentResponse = zod.object({
+  "id": zod.number().int(),
+  "bookingId": zod.number().int().nullable(),
+  "bookingStatus": zod.string().nullable(),
+  "bookingScheduledAt": zod.string().nullable(),
+  "bookingPriceEstimate": zod.number().nullable(),
+  "employeeId": zod.number().int().nullable(),
+  "employeeName": zod.string().nullable(),
+  "providerName": zod.string().nullable(),
+  "memberName": zod.string().nullable(),
+  "category": zod.string(),
+  "description": zod.string(),
+  "status": zod.string(),
+  "resolution": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "resolvedAt": zod.string().nullable()
+})
 
 
 /**
