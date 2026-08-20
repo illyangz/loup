@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 // ─── WorkOS SSO (P1-1, Decision D1: managed IdP) ─────────────────────────────
 // OAuth flow against WorkOS SSO: authorize -> callback(code) -> token -> profile.
@@ -160,5 +160,8 @@ export function resolveSsoPrincipal(email: string, institutions: SsoInstitutionR
 }
 
 export function generateSigningSecret(): string {
-  return randomBytes(32).toString("hex");
+  // Web Crypto instead of node:crypto's randomBytes — identical entropy,
+  // but works unmodified on both Node and Cloudflare Workers.
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }

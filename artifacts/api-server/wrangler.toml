@@ -1,0 +1,26 @@
+name = "loup-api"
+main = "src/worker.ts"
+compatibility_date = "2026-08-04"
+compatibility_flags = ["nodejs_compat"]
+
+# Replaces the Node build's 5-second setInterval poll for due webhook
+# events — Workers isolates aren't kept alive between requests, so a timer
+# doesn't work here. See src/worker.ts's `scheduled()` export.
+[triggers]
+crons = ["*/1 * * * *"]
+
+# Non-secret config only. Set real secrets with `wrangler secret put <NAME>`
+# (or the Cloudflare dashboard) — never commit DATABASE_URL or
+# LOUP_DEMO_JWT_SECRET here.
+[vars]
+NODE_ENV = "production"
+LOG_LEVEL = "info"
+
+# Real pino/pino-http bundle fine but fail at Cloudflare's deploy-time
+# validation step (pino-http's logger.js throws reading `stringifySym`,
+# a Node-only internal). Swap in tiny Workers-safe shims with the same
+# .info/.warn/.error surface this codebase actually uses. Node build
+# (build.mjs) is untouched and still ships real pino.
+[alias]
+pino = "./src/workers-shims/pino.ts"
+pino-http = "./src/workers-shims/pino-http.ts"

@@ -160,7 +160,7 @@ async function deliverEvent(event: WebhookEventRow): Promise<void> {
   logger.warn({ eventId: event.id, attempts, lastError }, exhausted ? "Webhook failed (max attempts)" : "Webhook retry scheduled");
 }
 
-async function processDueEvents(): Promise<void> {
+export async function processDueEvents(): Promise<void> {
   const due = await db
     .select()
     .from(webhookEventsTable)

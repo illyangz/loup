@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "src",
+    "types": ["@cloudflare/workers-types", "node"]
+  },
+  "include": ["src/worker.ts", "src/app.ts", "src/routes", "src/lib"],
+  "references": [
+    { "path": "../../lib/db" },
+    { "path": "../../lib/api-zod" },
+    { "path": "../../lib/integrations-openai-ai-server" }
+  ]
+}

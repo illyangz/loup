@@ -1,55 +1,67 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle as drizzlePglite, type PgliteDatabase } from "drizzle-orm/pglite";
-import { Pool } from "pg";
-import { drizzle as drizzlePg, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import { neon } from "@neondatabase/serverless";
+import { drizzle as drizzleNeon, type NeonHttpDatabase } from "drizzle-orm/neon-http";
 import * as schema from "./schema";
 
 /**
  * Database selection:
- *  - If DATABASE_URL is set (Replit / Neon / production), use real Postgres via node-postgres.
- *  - Otherwise use PGlite: an embedded, file-backed Postgres that requires no server.
+ *  - If DATABASE_URL is set (Neon / any real Postgres), use Neon's HTTP
+ *    driver. It's plain fetch() under the hood, so the exact same code path
+ *    works whether this runs in Node (Render) or on Cloudflare Workers —
+ *    unlike `pg`'s raw-TCP driver, which Workers can't use. Even against a
+ *    non-Neon Postgres this driver still works over HTTP-via-Neon's proxy
+ *    protocol only if the target *is* Neon; that's fine here since Neon is
+ *    the only real-Postgres target this app deploys against.
+ *  - Otherwise, lazily load PGlite: an embedded, file-backed Postgres that
+ *    requires no server. Loaded dynamically (not statically imported) so
+ *    its WASM bundle never ends up in the Workers build, which always sets
+ *    DATABASE_URL and so never takes this branch.
  *
- * The PGlite data directory defaults to <repo-root>/data/loup-pglite so that the
- * seed script and the API server always share the same database regardless of the
- * package they run from. Override with PGLITE_DATA_DIR.
+ * The PGlite data directory defaults to <repo-root>/data/loup-pglite so that
+ * the seed script and the API server always share the same database
+ * regardless of the package they run from. Override with PGLITE_DATA_DIR.
  */
-
-function findRepoRoot(start: string): string {
-  let dir = start;
-  for (let i = 0; i < 12; i++) {
-    if (existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return start;
-}
-
-const repoRoot = findRepoRoot(process.cwd());
-const pgliteDataDir =
-  process.env.PGLITE_DATA_DIR ??
-  path.join(repoRoot, "data", "loup-pglite");
 
 const connUrl = process.env.DATABASE_URL;
 const usePGlite = !connUrl;
 
-export const pglite: PGlite | null = usePGlite
-  ? new PGlite(pgliteDataDir)
-  : null;
+export type Database = NeonHttpDatabase<typeof schema> | Awaited<ReturnType<typeof loadPglite>>["db"];
 
-export const pool: Pool | null = connUrl ? new Pool({ connectionString: connUrl }) : null;
+let pgliteCloser: (() => Promise<void>) | null = null;
 
-export type Database = NodePgDatabase<typeof schema> | PgliteDatabase<typeof schema>;
+async function loadPglite() {
+  const [{ existsSync }, path, { PGlite }, { drizzle: drizzlePglite }] = await Promise.all([
+    import("node:fs"),
+    import("node:path"),
+    import("@electric-sql/pglite"),
+    import("drizzle-orm/pglite"),
+  ]);
+
+  function findRepoRoot(start: string): string {
+    let dir = start;
+    for (let i = 0; i < 12; i++) {
+      if (existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+    return start;
+  }
+
+  const repoRoot = findRepoRoot(process.cwd());
+  const pgliteDataDir = process.env.PGLITE_DATA_DIR ?? path.join(repoRoot, "data", "loup-pglite");
+
+  const pglite = new PGlite(pgliteDataDir);
+  const db = drizzlePglite(pglite, { schema });
+  pgliteCloser = () => pglite.close();
+  return { db };
+}
 
 export const db: Database = usePGlite
-  ? (drizzlePglite(pglite!, { schema }) as Database)
-  : (drizzlePg(pool!, { schema }) as Database);
+  ? (await loadPglite()).db
+  : drizzleNeon(neon(connUrl!), { schema });
 
 export async function closeDb(): Promise<void> {
-  if (pool) await pool.end();
-  if (pglite) await pglite.close();
+  if (pgliteCloser) await pgliteCloser();
 }
 
 export * from "./schema";
