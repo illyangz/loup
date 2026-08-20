@@ -131,9 +131,9 @@ export function AltitudeFooter({ onReset }: { onReset?: () => void }) {
           <div>
             <p className="text-[11px] font-medium uppercase text-muted-foreground/80" style={{ letterSpacing: "0.05em" }}>Legal</p>
             <div className="mt-4 flex flex-col gap-3 text-[13px] text-muted-foreground">
-              <a href="#">Privacy</a>
-              <a href="#">Terms of use</a>
-              <a href="#">PDPL compliance</a>
+              <Link href="/privacy" className="transition-opacity hover:opacity-70">Privacy</Link>
+              <Link href="/terms" className="transition-opacity hover:opacity-70">Terms of use</Link>
+              <Link href="/pdpl" className="transition-opacity hover:opacity-70">PDPL compliance</Link>
             </div>
           </div>
         </div>

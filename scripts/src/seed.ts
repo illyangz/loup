@@ -212,8 +212,12 @@ async function main() {
   const addresses = await db.insert(addressesTable).values([
     { householdId: hid, label: "The Villa",        area: "Jumeirah 3",     street: "Street 17B, Villa 22",          instructions: "Gate code 4412 — providers use the side entrance" },
     { householdId: hid, label: "Dad's Apartment",  area: "Downtown Dubai", street: "Burj Views Tower B, Apt 1204",  instructions: "Leave with concierge if no answer" },
+    { householdId: hid, label: "Marina Flat",      area: "Dubai Marina",   street: "Marina Promenade, Tower 3, Apt 2708", instructions: "Valet parking available at the lobby" },
+    { householdId: hid, label: "Aunt's Place",     area: "Al Barsha",      street: "Al Barsha 1, Villa 9",          instructions: "Ring twice, dog is friendly" },
   ]).returning();
-  const [villa, apartment] = addresses as [typeof addresses[number], typeof addresses[number]];
+  const [villa, apartment, marinaFlat, auntsPlace] = addresses as [
+    typeof addresses[number], typeof addresses[number], typeof addresses[number], typeof addresses[number],
+  ];
 
   // ─── Service catalog — 7 broad education-aligned categories ─────────────
 
@@ -453,6 +457,23 @@ async function main() {
     scheduledAt: daysAgo(25), status: "completed",
     createdAt: daysAgo(26),
     events: completedEvents(daysAgo(26), daysAgo(25), "Marina Shine Cleaning", 399),
+  });
+  // A couple more completed Marina Shine Cleaning jobs at different
+  // addresses, so provider analytics' geographic-demand map shows real
+  // spread across zones rather than a single point.
+  await mkBooking({
+    service: "Express Apartment Clean",
+    member: layla.id, address: marinaFlat.id,
+    scheduledAt: daysAgo(12), status: "completed",
+    createdAt: daysAgo(13),
+    events: completedEvents(daysAgo(13), daysAgo(12), "Marina Shine Cleaning", 179),
+  });
+  await mkBooking({
+    service: "Full Home Clean",
+    member: omar.id, address: auntsPlace.id,
+    scheduledAt: daysAgo(8), status: "completed",
+    createdAt: daysAgo(9),
+    events: completedEvents(daysAgo(9), daysAgo(8), "Marina Shine Cleaning", 399),
   });
   const julyIV = await mkBooking({
     service: "IV Drip Therapy",

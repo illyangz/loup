@@ -9,7 +9,7 @@ import { useReveal } from "@/hooks/use-reveal";
 const BASE = import.meta.env.BASE_URL;
 
 const fallbackRoles = [
-  { role: "employee", label: "Employee", description: "A private concierge for the things waiting at home.", href: "/employee", icon: Sparkles, note: "Allowance and bookings" },
+  { role: "employee", label: "Consumer", description: "A private concierge for the things waiting at home.", href: "/employee", icon: Sparkles, note: "Allowance and bookings" },
   { role: "employer", label: "Employer", description: "Govern benefits with a clear view of adoption, cost, and care.", href: "/employer", icon: Building2, note: "Benefits governance" },
   { role: "vendor", label: "Vendor", description: "Plan the day, protect capacity, and deliver work worth repeating.", href: "/vendor", icon: BriefcaseBusiness, note: "Service operations" },
   { role: "operations", label: "Operations", description: "A calm control tower for matching, quality, and recovery.", href: "/operations", icon: ShieldCheck, note: "Internal control tower" },

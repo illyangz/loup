@@ -22,6 +22,7 @@ import {
   supportIncidentsTable,
   categoriesTable,
   institutionsTable,
+  addressesTable,
 } from "@workspace/db";
 import { GetProviderSettlementResponse } from "@workspace/api-zod";
 import { fetchBookingView, STATUS_CHAIN, TERMINAL_STATUSES, addCompletionBillItem, writeWebhookEvent, feeRateByInstitution, institutionIdByMember, currentMonthLabel } from "../lib/loup";
@@ -555,6 +556,7 @@ router.get("/v1/provider/analytics", requireProviderRole, async (_req, res): Pro
         priceEstimate: bookingsTable.priceEstimate,
         scheduledAt: bookingsTable.scheduledAt,
         memberId: bookingsTable.memberId,
+        addressId: bookingsTable.addressId,
       })
       .from(bookingsTable)
       .where(eq(bookingsTable.providerId, provider.id))
@@ -582,11 +584,16 @@ router.get("/v1/provider/analytics", requireProviderRole, async (_req, res): Pro
       byDay[new Date(b.scheduledAt).getDay()]! += 1;
     }
 
-    // Demand by zone (from address area — use mock zones for provider's service area)
-    const DEMO_ZONES = ["Jumeirah 3", "Downtown Dubai", "Dubai Hills", "Al Qouz"];
+    // Demand by zone — real address area, joined from the booking's address.
+    const addressIds = [...new Set(bookings.map(b => b.addressId))];
+    const addressAreas = addressIds.length
+      ? await db.select({ id: addressesTable.id, area: addressesTable.area }).from(addressesTable).where(inArray(addressesTable.id, addressIds))
+      : [];
+    const areaByAddressId = new Map(addressAreas.map(a => [a.id, a.area]));
     const byZone = new Map<string, number>();
     for (const b of bookings) {
-      const zone = DEMO_ZONES[b.id % DEMO_ZONES.length]!;
+      const zone = areaByAddressId.get(b.addressId);
+      if (!zone) continue;
       byZone.set(zone, (byZone.get(zone) ?? 0) + 1);
     }
 

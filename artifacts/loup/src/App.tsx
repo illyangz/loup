@@ -26,6 +26,9 @@ import ApiDocs from '@/pages/api-docs';
 import EmbedDemo from '@/pages/embed-demo';
 import Support from '@/pages/support';
 import Whitepaper from '@/pages/whitepaper';
+import Privacy from '@/pages/privacy';
+import Terms from '@/pages/terms';
+import Pdpl from '@/pages/pdpl';
 import { storeToken, ensureAuthGetter } from '@/lib/demo-auth';
 
 // Restore the signed demo token on load so guarded API calls carry a Bearer header.
@@ -123,6 +126,9 @@ function Router() {
       <Route path="/embed/demo" component={EmbedDemo} />
       <Route path="/support" component={Support} />
       <Route path="/whitepaper" component={Whitepaper} />
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/terms" component={Terms} />
+      <Route path="/pdpl" component={Pdpl} />
 
       <Route component={NotFound} />
     </Switch>

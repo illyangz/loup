@@ -40,6 +40,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { PlatformShell } from "@/components/platform-shell";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { ZoneMap } from "@/components/zone-map";
 import { useReveal } from "@/hooks/use-reveal";
 import { cn } from "@/lib/utils";
 import gsap from "gsap";
@@ -645,7 +646,8 @@ function AnalyticsTab() {
       {a.demandByZone.length > 0 && (
         <div className="glass-card rounded-lg p-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-4">Geographic demand</p>
-          <div className="flex flex-wrap gap-2">
+          <ZoneMap zones={a.demandByZone} />
+          <div className="mt-4 flex flex-wrap gap-2">
             {a.demandByZone.map(item => (
               <div key={item.zone} className="flex items-center gap-2 rounded bg-accent/30 border border-border/30 px-3.5 py-2.5 min-w-[140px]">
                 <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
