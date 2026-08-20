@@ -17,6 +17,7 @@ import {
   webhookEventsTable,
 } from "@workspace/db";
 import { computePlatformRevenue } from "./money";
+import { institutionHasEndpoints, resolveInstitutionId } from "./webhook-delivery";
 
 export const STATUS_CHAIN = [
   "pending",
@@ -391,6 +392,19 @@ export async function writeWebhookEvent(
   payload: Record<string, unknown>,
   opts: { status?: "pending" | "delivered" | "failed" } = {},
 ): Promise<void> {
+  // P1-3: if the event's institution has a real webhook endpoint, enqueue the
+  // event for signed delivery by the outbox worker instead of simulating it.
+  const institutionId = await resolveInstitutionId(payload);
+  if (institutionId != null && (await institutionHasEndpoints(institutionId))) {
+    await db.insert(webhookEventsTable).values({
+      eventType,
+      payload,
+      status: "pending",
+      nextAttemptAt: new Date(),
+    });
+    return;
+  }
+
   const status = opts.status ?? "delivered";
   await db.insert(webhookEventsTable).values({
     eventType,
@@ -408,11 +422,9 @@ export async function writeWebhookEvent(
  * Pass an institutionId to scope to a single tenant (employer overview);
  * omit it for the platform-wide ops console number.
  */
-export async function estimateMonthlyPlatformRevenue(institutionId?: number | null): Promise<{
-  total: number;
-  byInstitution: { institutionId: number; feeRatePct: number; perEmployeeMonthlyFee: number; employees: number; cycleVolume: number; monthly: number }[];
-}> {
-  const plans = await db
+/** Active benefit plans' fee config, one row per institution (assumes one active plan per institution). */
+async function activeBenefitPlans() {
+  return db
     .select({
       id: benefitPlansTable.id,
       institutionId: benefitPlansTable.institutionId,
@@ -421,6 +433,32 @@ export async function estimateMonthlyPlatformRevenue(institutionId?: number | nu
     })
     .from(benefitPlansTable)
     .where(eq(benefitPlansTable.active, true));
+}
+
+/**
+ * institutionId → platform fee rate %, for every institution with an active
+ * benefit plan (P1-5, shared by the platform-revenue estimate and provider
+ * settlement math so both use the exact same fee configuration).
+ */
+export async function feeRateByInstitution(): Promise<Map<number, number>> {
+  const plans = await activeBenefitPlans();
+  return new Map(plans.map((p) => [p.institutionId, p.feeRatePct]));
+}
+
+/** memberId → institutionId, for every employee whose household is linked (P1-5). */
+export async function institutionIdByMember(): Promise<Map<number, number>> {
+  const rows = await db
+    .select({ memberId: employeesTable.linkedMemberId, institutionId: employeesTable.institutionId })
+    .from(employeesTable)
+    .where(isNotNull(employeesTable.linkedMemberId));
+  return new Map(rows.filter((r): r is { memberId: number; institutionId: number } => r.memberId != null).map((r) => [r.memberId, r.institutionId]));
+}
+
+export async function estimateMonthlyPlatformRevenue(institutionId?: number | null): Promise<{
+  total: number;
+  byInstitution: { institutionId: number; feeRatePct: number; perEmployeeMonthlyFee: number; employees: number; cycleVolume: number; monthly: number }[];
+}> {
+  const plans = await activeBenefitPlans();
 
   const [ledgerByInstitution, empCountByInstitution] = await Promise.all([
     db

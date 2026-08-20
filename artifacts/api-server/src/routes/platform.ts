@@ -1,4 +1,4 @@
-import { desc, eq, and, inArray, isNotNull, sql } from "drizzle-orm";
+import { desc, eq, and, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import {
   auditEventsTable,
@@ -17,6 +17,7 @@ import {
   servicesTable,
   providersTable,
   reviewsTable,
+  webhookEventsTable,
 } from "@workspace/db";
 import {
   GetEmployeeOverviewResponse,
@@ -42,9 +43,14 @@ import {
   DemoLoginResponse,
   ListEmployerEmployeesResponse,
   ListServiceFitEvaluationsResponse,
+  GetEmployerConsentResponse,
+  RecordEmployerConsentResponse,
+  GetEmployerDataExportResponse,
+  EraseEmployerEmployeeResponse,
 } from "@workspace/api-zod";
-import { estimateMonthlyPlatformRevenue, fetchBookingViews, getCurrentMember } from "../lib/loup";
+import { estimateMonthlyPlatformRevenue, fetchBookingViews, getCurrentMember, writeWebhookEvent } from "../lib/loup";
 import { computeAllowancePosition, computeCheckoutSplit } from "../lib/money";
+import { parseRosterCsv, MAX_ROSTER_BATCH, ROSTER_CSV_TEMPLATE } from "../lib/roster";
 import { getPrincipal, requireRole, signDemoToken, TOKEN_TTL_SECONDS, type DemoPrincipal } from "../lib/auth";
 
 // ── Employer role guard + tenant resolver ─────────────────────────────────────
@@ -53,6 +59,14 @@ import { getPrincipal, requireRole, signDemoToken, TOKEN_TTL_SECONDS, type DemoP
 //       in production this middleware blocks all requests until real auth is implemented.
 function requireEmployerRole(req: Request, res: Response, next: NextFunction): void {
   void requireRole("institution", "admin")(req, res, next);
+}
+
+// P1-9: the /v1/employee/* routes had no role guard at all — any token (or,
+// in non-production, no token) could reach them, relying entirely on the
+// single-household `getCurrentMember()` demo assumption rather than the
+// authenticated principal. Guarded now, consistent with every other surface.
+function requireEmployeeRole(req: Request, res: Response, next: NextFunction): void {
+  void requireRole("employee", "admin")(req, res, next);
 }
 
 /** Resolves the employer + institutionId from the authenticated principal's claims. */
@@ -309,7 +323,7 @@ router.post("/v1/demo/login", async (req, res): Promise<void> => {
   }));
 });
 
-router.get("/v1/employee/overview", async (req, res): Promise<void> => {
+router.get("/v1/employee/overview", requireEmployeeRole, async (req, res): Promise<void> => {
   const member = await getCurrentMember();
   if (!member) {
     res.status(500).json({ error: "No employee demo data seeded" });
@@ -337,18 +351,22 @@ router.get("/v1/employee/overview", async (req, res): Promise<void> => {
     ? await db.select().from(employersTable).where(eq(employersTable.id, employeeRow.employerId))
     : [];
 
-  // Derive real allowance balances from ledger
-  let authorized = 750, reserved = 0, redeemed = 0;
+  // Derive real allowance balances from ledger. Uses the shared
+  // computeAllowancePosition (P1-9 cancellation-reversal fix) rather than a
+  // separate inline sum — this endpoint used to duplicate the math with its
+  // own copy that never netted a booking's release/redemption against its
+  // original reservation, so a cancelled or completed booking's hold stayed
+  // "stuck" on the employee's own dashboard even after the shared library
+  // function was fixed.
+  let position = { authorized: 750, reserved: 0, redeemed: 0, available: 750 };
   if (employeeRow) {
     const ledger = await db
       .select()
       .from(allowanceLedgerTable)
       .where(eq(allowanceLedgerTable.employeeId, employeeRow.id));
-    authorized = ledger.filter(r => r.entryType === "authorized").reduce((s, r) => s + r.amount, 0) || 750;
-    reserved = ledger.filter(r => r.entryType === "reserved").reduce((s, r) => s + r.amount, 0);
-    redeemed = ledger.filter(r => r.entryType === "redeemed").reduce((s, r) => s + r.amount, 0);
+    position = computeAllowancePosition(ledger, 750);
   }
-  const available = Math.max(0, authorized - reserved - redeemed);
+  const { authorized, reserved, redeemed, available } = position;
 
   // Renewal date = first day of next month
   const now = new Date();
@@ -411,7 +429,7 @@ router.get("/v1/employee/overview", async (req, res): Promise<void> => {
 
 // ── Allocation Preferences ────────────────────────────────────────────────────
 
-router.get("/v1/employee/allocation", async (req, res): Promise<void> => {
+router.get("/v1/employee/allocation", requireEmployeeRole, async (req, res): Promise<void> => {
   const member = await getCurrentMember();
   if (!member) { res.status(500).json({ error: "No employee data" }); return; }
 
@@ -445,7 +463,7 @@ router.get("/v1/employee/allocation", async (req, res): Promise<void> => {
   }));
 });
 
-router.patch("/v1/employee/allocation", async (req, res): Promise<void> => {
+router.patch("/v1/employee/allocation", requireEmployeeRole, async (req, res): Promise<void> => {
   const parsed = SaveEmployeeAllocationBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
@@ -485,7 +503,7 @@ router.patch("/v1/employee/allocation", async (req, res): Promise<void> => {
 
 // ── Checkout Preview ──────────────────────────────────────────────────────────
 
-router.get("/v1/employee/checkout-preview", async (req, res): Promise<void> => {
+router.get("/v1/employee/checkout-preview", requireEmployeeRole, async (req, res): Promise<void> => {
   const query = GetCheckoutPreviewQueryParams.safeParse(req.query);
   if (!query.success) { res.status(400).json({ error: query.error.message }); return; }
 
@@ -529,7 +547,7 @@ router.get("/v1/employee/checkout-preview", async (req, res): Promise<void> => {
 
 // ── Support Issues ────────────────────────────────────────────────────────────
 
-router.post("/v1/employee/issues", async (req, res): Promise<void> => {
+router.post("/v1/employee/issues", requireEmployeeRole, async (req, res): Promise<void> => {
   const parsed = CreateSupportIssueBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
@@ -562,7 +580,7 @@ router.get("/v1/employer/overview", requireEmployerRole, async (req, res): Promi
   const [employees, ledger] = await Promise.all([
     db.select({ id: employeesTable.id, linkedMemberId: employeesTable.linkedMemberId, tierId: employeesTable.tierId })
       .from(employeesTable).where(eq(employeesTable.employerId, employer.id)),
-    db.select({ amount: allowanceLedgerTable.amount, entryType: allowanceLedgerTable.entryType })
+    db.select({ amount: allowanceLedgerTable.amount, entryType: allowanceLedgerTable.entryType, referenceId: allowanceLedgerTable.referenceId })
       .from(allowanceLedgerTable).where(eq(allowanceLedgerTable.employerId, employer.id)),
   ]);
   // Scope reviews + bookings to this employer's linked members
@@ -575,7 +593,9 @@ router.get("/v1/employer/overview", requireEmployerRole, async (req, res): Promi
       : Promise.resolve<{ rating: number }[]>([]),
     fetchBookingViews(),
   ]);
-  const bookingViews = memberIds.length > 0 ? bookings.filter(b => memberIds.includes(b.memberId)) : bookings;
+  // Tenant isolation: an institution with no activated employees sees zero
+  // bookings, never the platform-wide set (P1-2 hardening).
+  const bookingViews = memberIds.length > 0 ? bookings.filter(b => memberIds.includes(b.memberId)) : [];
 
   const eligibleEmployees = employees.length;
   const activatedEmployees = employees.filter(e => e.linkedMemberId !== null).length;
@@ -633,7 +653,26 @@ router.get("/v1/employer/overview", requireEmployerRole, async (req, res): Promi
 });
 
 router.get("/v1/employer/employees", requireEmployerRole, async (req, res): Promise<void> => {
+  // Not using ListEmployerEmployeesQueryParams.safeParse(req.query) here: orval
+  // generates `zod.date()` (not `zod.coerce.date()`) for a `format: date-time`
+  // query param, so it always rejects the raw query string Express hands us.
+  // Parsing manually until the spec/codegen gap is fixed.
+  const updatedSinceRaw = req.query["updatedSince"];
+  let updatedSince: Date | undefined;
+  if (typeof updatedSinceRaw === "string" && updatedSinceRaw) {
+    const parsed = new Date(updatedSinceRaw);
+    if (Number.isNaN(parsed.getTime())) {
+      res.status(400).json({ error: "updatedSince must be a valid ISO 8601 timestamp" });
+      return;
+    }
+    updatedSince = parsed;
+  }
+
   const { employer } = await resolveEmployerContext(req, res);
+  const conditions = [eq(employeesTable.employerId, employer.id)];
+  if (updatedSince) {
+    conditions.push(gte(employeesTable.updatedAt, updatedSince));
+  }
   const rows = await db
     .select({
       id: employeesTable.id,
@@ -644,63 +683,18 @@ router.get("/v1/employer/employees", requireEmployerRole, async (req, res): Prom
       benefitTier: employeesTable.benefitTier,
       eligibilityStatus: employeesTable.eligibilityStatus,
       householdEligible: employeesTable.householdEligible,
+      updatedAt: employeesTable.updatedAt,
     })
     .from(employeesTable)
-    .where(eq(employeesTable.employerId, employer.id))
+    .where(and(...conditions))
     .orderBy(employeesTable.name);
-  const fallback = [
-    {
-      id: 1,
-      externalEmployeeId: "MEG-0001",
-      name: "Omar Mansour",
-      workEmail: "o.mansour@meridian.edu",
-      department: "Academic",
-      benefitTier: "Faculty",
-      eligibilityStatus: "eligible",
-      householdEligible: true,
-    },
-    {
-      id: 2,
-      externalEmployeeId: "MEG-0002",
-      name: "Dr. Sarah Al-Hassan",
-      workEmail: "s.al-hassan@meridian.edu",
-      department: "Academic",
-      benefitTier: "Faculty",
-      eligibilityStatus: "eligible",
-      householdEligible: true,
-    },
-    {
-      id: 3,
-      externalEmployeeId: "MEG-0003",
-      name: "Rania Khalil",
-      workEmail: "r.khalil@meridian.edu",
-      department: "HR & Administration",
-      benefitTier: "Staff",
-      eligibilityStatus: "eligible",
-      householdEligible: true,
-    },
-    {
-      id: 4,
-      externalEmployeeId: "MEG-0004",
-      name: "Tom Mackenzie",
-      workEmail: "t.mackenzie@meridian.edu",
-      department: "IT & Operations",
-      benefitTier: "Staff",
-      eligibilityStatus: "eligible",
-      householdEligible: false,
-    },
-    {
-      id: 5,
-      externalEmployeeId: "MEG-0005",
-      name: "Aisha Bakr",
-      workEmail: "a.bakr@meridian.edu",
-      department: "Student Services",
-      benefitTier: "Administrative",
-      eligibilityStatus: "eligible",
-      householdEligible: false,
-    },
-  ];
-  res.json(ListEmployerEmployeesResponse.parse(rows.length ? rows : fallback));
+  // Tenant isolation: a tenant with zero real employees sees an empty roster,
+  // never another tenant's fixture data (P1-2 hardening).
+  res.json(ListEmployerEmployeesResponse.parse(rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString() }))));
+});
+
+router.get("/v1/employer/employees/template", requireEmployerRole, async (_req, res): Promise<void> => {
+  res.type("text/csv").attachment("loup-roster-template.csv").send(ROSTER_CSV_TEMPLATE);
 });
 
 router.get("/v1/employer/campus-breakdown", requireEmployerRole, async (req, res): Promise<void> => {
@@ -719,9 +713,13 @@ router.get("/v1/employer/campus-breakdown", requireEmployerRole, async (req, res
     if (!privacyGuarded && campusEmployees.length > 0) {
       const empIds = campusEmployees.map(e => e.id);
       const ledger = await db.select().from(allowanceLedgerTable).where(inArray(allowanceLedgerTable.employeeId, empIds));
+      // P1-9: net "reserved" against released/redeemed per booking (see
+      // computeAllowancePosition) so a cancelled or completed booking's hold
+      // doesn't stay counted as an "active hold" on the campus breakdown.
+      const position = computeAllowancePosition(ledger, 0);
       totalAuthorized = ledger.filter(l => l.entryType === "authorized").reduce((s, l) => s + l.amount, 0);
-      totalRedeemed = ledger.filter(l => l.entryType === "redeemed").reduce((s, l) => s + l.amount, 0);
-      totalReserved = ledger.filter(l => l.entryType === "reserved").reduce((s, l) => s + l.amount, 0);
+      totalRedeemed = position.redeemed;
+      totalReserved = position.reserved;
     }
 
     return {
@@ -743,7 +741,7 @@ router.patch("/v1/employer/employees/:id", requireEmployerRole, async (req, res)
   const id = parseInt(String(req.params["id"] ?? "0"), 10);
   // IDOR protection: verify the employee belongs to the authenticated employer
   const { employer } = await resolveEmployerContext(req, res);
-  const [owned] = await db.select({ id: employeesTable.id }).from(employeesTable)
+  const [owned] = await db.select().from(employeesTable)
     .where(and(eq(employeesTable.id, id), eq(employeesTable.employerId, employer.id)));
   if (!owned) { res.status(404).json({ error: "Employee not found" }); return; }
 
@@ -752,7 +750,7 @@ router.patch("/v1/employer/employees/:id", requireEmployerRole, async (req, res)
     department?: string; householdEligible?: boolean; startDate?: string; endDate?: string;
   };
 
-  const updates: Record<string, unknown> = {};
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (eligibilityStatus !== undefined) updates.eligibilityStatus = eligibilityStatus;
   if (benefitTier !== undefined) updates.benefitTier = benefitTier;
   if (tierId !== undefined) updates.tierId = tierId;
@@ -764,6 +762,14 @@ router.patch("/v1/employer/employees/:id", requireEmployerRole, async (req, res)
 
   const [updated] = await db.update(employeesTable).set(updates).where(eq(employeesTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Employee not found" }); return; }
+
+  // Roster delta webhooks (P1-6) — same events the bulk-upsert path fires.
+  if (benefitTier !== undefined && benefitTier !== owned.benefitTier) {
+    await writeWebhookEvent("employee.tier_changed", { employeeId: id, employerId: employer.id, from: owned.benefitTier, to: benefitTier });
+  }
+  if (eligibilityStatus !== undefined && owned.eligibilityStatus === "eligible" && eligibilityStatus !== "eligible") {
+    await writeWebhookEvent("employee.deactivated", { employeeId: id, employerId: employer.id, name: owned.name });
+  }
 
   // Fetch campus and tier names for the response
   const [campus] = updated.campusId
@@ -973,22 +979,147 @@ router.post("/v1/employer/employees", requireEmployerRole, async (req, res): Pro
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const lines = parsed.data.csv.trim().split(/\r?\n/);
-  const imported = Math.max(0, lines.length - 1);
-  req.log.info({ imported }, "Simulated employer roster import");
+
+  const { rows, errors: parseErrors } = parseRosterCsv(parsed.data.csv);
+  if (rows.length > MAX_ROSTER_BATCH) {
+    res.status(400).json({ error: `Batch too large: ${rows.length} rows (max ${MAX_ROSTER_BATCH} per import)` });
+    return;
+  }
+  if (rows.length === 0) {
+    res.json(
+      ImportEmployerEmployeesResponse.parse({
+        status: parseErrors.length > 0 ? "failed" : "ok",
+        imported: 0,
+        skipped: parseErrors.length,
+        message: parseErrors.length > 0 ? "No rows imported — every row failed validation." : "No rows to import.",
+        errors: parseErrors,
+      }),
+    );
+    return;
+  }
+
+  const { employer, institutionId } = await resolveEmployerContext(req, res);
+  const today = new Date().toISOString().split("T")[0]!;
+
+  let created = 0;
+  let updated = 0;
+  const events: { type: string; payload: Record<string, unknown> }[] = [];
+
+  // Atomic: either the whole batch lands, or none of it does — a client that
+  // retries a partially-applied import can't end up with duplicate rows or a
+  // half-updated roster (P1-8 "atomic import").
+  await db.transaction(async (tx) => {
+    for (const row of rows) {
+      const [existing] = await tx
+        .select()
+        .from(employeesTable)
+        .where(and(eq(employeesTable.employerId, employer.id), eq(employeesTable.externalEmployeeId, row.externalEmployeeId)));
+
+      if (existing) {
+        const tierChanged = existing.benefitTier !== row.benefitTier;
+        const justDeactivated = existing.eligibilityStatus === "eligible" && row.eligibilityStatus !== "eligible";
+        await tx
+          .update(employeesTable)
+          .set({
+            name: row.name,
+            workEmail: row.workEmail,
+            department: row.department,
+            benefitTier: row.benefitTier,
+            eligibilityStatus: row.eligibilityStatus,
+            householdEligible: row.householdEligible,
+            updatedAt: new Date(),
+          })
+          .where(eq(employeesTable.id, existing.id));
+        updated++;
+        if (tierChanged) events.push({ type: "employee.tier_changed", payload: { employeeId: existing.id, employerId: employer.id, from: existing.benefitTier, to: row.benefitTier } });
+        if (justDeactivated) events.push({ type: "employee.deactivated", payload: { employeeId: existing.id, employerId: employer.id, name: row.name } });
+      } else {
+        const [createdRow] = await tx
+          .insert(employeesTable)
+          .values({
+            employerId: employer.id,
+            institutionId,
+            externalEmployeeId: row.externalEmployeeId,
+            name: row.name,
+            workEmail: row.workEmail,
+            department: row.department,
+            benefitTier: row.benefitTier,
+            eligibilityStatus: row.eligibilityStatus,
+            householdEligible: row.householdEligible,
+            startDate: today,
+          })
+          .returning();
+        created++;
+        events.push({ type: "employee.activated", payload: { employeeId: createdRow!.id, employerId: employer.id, name: row.name } });
+      }
+    }
+  });
+
+  // Webhooks fire only after the transaction commits, so a rolled-back import
+  // never emits events for rows that didn't actually land.
+  for (const event of events) {
+    await writeWebhookEvent(event.type, event.payload);
+  }
+
+  req.log.info({ created, updated, skipped: parseErrors.length }, "Employer roster bulk upsert");
   res.json(
     ImportEmployerEmployeesResponse.parse({
-      status: "simulated",
-      imported,
-      skipped: 0,
-      message: `${imported} roster rows validated. No HRIS connection was used in this demo.`,
+      status: parseErrors.length > 0 ? "partial" : "ok",
+      imported: created + updated,
+      skipped: parseErrors.length,
+      message: `${created} created, ${updated} updated${parseErrors.length ? `, ${parseErrors.length} row(s) skipped` : ""}.`,
+      errors: parseErrors,
     }),
   );
 });
 
 router.get("/v1/employer/utilization", requireEmployerRole, async (req, res): Promise<void> => {
-  const bookings = await fetchBookingViews();
+  // Tenant isolation: scope to this employer's own employees/ledger/bookings
+  // only — this endpoint previously queried platform-wide data (P1-2 hardening).
+  const { employer } = await resolveEmployerContext(req, res);
+  const [employees, ledger, allBookings] = await Promise.all([
+    db.select({ id: employeesTable.id, linkedMemberId: employeesTable.linkedMemberId })
+      .from(employeesTable).where(eq(employeesTable.employerId, employer.id)),
+    db.select({ amount: allowanceLedgerTable.amount, entryType: allowanceLedgerTable.entryType, referenceId: allowanceLedgerTable.referenceId })
+      .from(allowanceLedgerTable).where(eq(allowanceLedgerTable.employerId, employer.id)),
+    fetchBookingViews(),
+  ]);
+  const memberIds = employees.filter(e => e.linkedMemberId !== null).map(e => e.linkedMemberId!);
+  const bookings = memberIds.length > 0 ? allBookings.filter(b => memberIds.includes(b.memberId)) : [];
+  const reviewRows = memberIds.length > 0
+    ? await db.select({ rating: reviewsTable.rating }).from(reviewsTable)
+        .innerJoin(bookingsTable, eq(reviewsTable.bookingId, bookingsTable.id))
+        .where(inArray(bookingsTable.memberId, memberIds))
+    : [];
+
+  const eligibleEmployees = employees.length;
+  const activatedEmployees = employees.filter(e => e.linkedMemberId !== null).length;
   const completed = bookings.filter((booking) => booking.status === "completed");
+  const nonPending = bookings.filter((booking) => booking.status !== "pending");
+  const completionRate = nonPending.length > 0
+    ? Math.round((completed.length / nonPending.length) * 1000) / 10
+    : 0;
+  const activationRate = eligibleEmployees > 0
+    ? Math.round((activatedEmployees / eligibleEmployees) * 1000) / 10
+    : 0;
+  const position = computeAllowancePosition(ledger, 0);
+  const redemptionRate = position.authorized > 0
+    ? Math.round((position.redeemed / position.authorized) * 1000) / 10
+    : 0;
+  const bookingsByMember = new Map<number, number>();
+  for (const booking of completed) {
+    bookingsByMember.set(booking.memberId, (bookingsByMember.get(booking.memberId) ?? 0) + 1);
+  }
+  const activeUsers = bookingsByMember.size;
+  const repeatUsers = [...bookingsByMember.values()].filter(count => count > 1).length;
+  const repeatUsageRate = activeUsers > 0 ? Math.round((repeatUsers / activeUsers) * 1000) / 10 : 0;
+  const averageSupportPerActiveEmployee = activeUsers > 0
+    ? Math.round((position.redeemed / activeUsers) * 100) / 100
+    : 0;
+  const avgRating = reviewRows.length > 0
+    ? Math.round(reviewRows.reduce((s, r) => s + r.rating, 0) / reviewRows.length * 10) / 10
+    : 0;
+
   const catMap: Record<string, string> = {
     "Household & Life Admin": "Household & Life Admin",
     "Personal Wellbeing": "Personal Wellbeing",
@@ -1013,43 +1144,191 @@ router.get("/v1/employer/utilization", requireEmployerRole, async (req, res): Pr
   const total = [...byCategory.values()].reduce((sum, count) => sum + count, 0) || 1;
   res.json(
     GetEmployerUtilizationResponse.parse({
-      activationRate: 75.2,
-      redemptionRate: 52.3,
-      repeatUsageRate: 61.4,
-      averageSupportPerActiveEmployee: 182.4,
-      categoryUtilization: (byCategory.size
-        ? [...byCategory.entries()]
-        : [
-            ["Household & Life Admin", 42],
-            ["Personal Wellbeing", 28],
-            ["Fitness & Recovery", 18],
-            ["Family & Dependent Support", 12],
-          ]
-      ).map(([category, count]) => ({
+      activationRate,
+      redemptionRate,
+      repeatUsageRate,
+      averageSupportPerActiveEmployee,
+      categoryUtilization: [...byCategory.entries()].map(([category, count]) => ({
         category,
         bookings: count,
         share: Math.round((Number(count) / total) * 1000) / 10,
       })),
-      corporateSavings: 4320,
-      estimatedTimeSavedMinutes: completed.length * 90 || 9840,
-      satisfaction: 4.9,
-      completionRate: 97.1,
-      serviceRecoveryRate: 98.8,
+      corporateSavings: position.redeemed,
+      estimatedTimeSavedMinutes: completed.length * 90,
+      satisfaction: avgRating,
+      completionRate,
+      serviceRecoveryRate: 0,
+    }),
+  );
+});
+
+// ── PDPL posture (P1-11) ────────────────────────────────────────────────────
+
+router.get("/v1/employer/consent", requireEmployerRole, async (req, res): Promise<void> => {
+  const { institutionId } = await resolveEmployerContext(req, res);
+  if (!institutionId) { res.json(GetEmployerConsentResponse.parse({ consented: false, consentedAt: null, consentedBy: null })); return; }
+  const [institution] = await db.select({ consentedAt: institutionsTable.dataProcessingConsentAt, consentedBy: institutionsTable.dataProcessingConsentBy }).from(institutionsTable).where(eq(institutionsTable.id, institutionId));
+  res.json(
+    GetEmployerConsentResponse.parse({
+      consented: !!institution?.consentedAt,
+      consentedAt: institution?.consentedAt?.toISOString() ?? null,
+      consentedBy: institution?.consentedBy ?? null,
+    }),
+  );
+});
+
+router.post("/v1/employer/consent", requireEmployerRole, async (req, res): Promise<void> => {
+  const { institutionId } = await resolveEmployerContext(req, res);
+  if (!institutionId) { res.status(500).json({ error: "No institution linked to this employer" }); return; }
+  const [institution] = await db.select({ adminEmails: institutionsTable.adminEmails }).from(institutionsTable).where(eq(institutionsTable.id, institutionId));
+  const principal = getPrincipal(req, res);
+  const consentedBy = institution?.adminEmails?.[0] ?? principal?.name ?? "institution admin";
+  const now = new Date();
+  await db.update(institutionsTable).set({ dataProcessingConsentAt: now, dataProcessingConsentBy: consentedBy }).where(eq(institutionsTable.id, institutionId));
+  res.json(RecordEmployerConsentResponse.parse({ consented: true, consentedAt: now.toISOString(), consentedBy }));
+});
+
+router.get("/v1/employer/data-export", requireEmployerRole, async (req, res): Promise<void> => {
+  const { employer, institutionId } = await resolveEmployerContext(req, res);
+  const employees = await db.select().from(employeesTable).where(eq(employeesTable.employerId, employer.id));
+  const employeeIds = employees.map((e) => e.id);
+  const memberIds = employees.filter((e) => e.linkedMemberId != null).map((e) => e.linkedMemberId!);
+
+  const [ledger, bookingRows, incidents, webhookEventRows] = await Promise.all([
+    employeeIds.length ? db.select().from(allowanceLedgerTable).where(inArray(allowanceLedgerTable.employeeId, employeeIds)) : Promise.resolve([]),
+    memberIds.length ? fetchBookingViews().then((rows) => rows.filter((b) => memberIds.includes(b.memberId))) : Promise.resolve([]),
+    institutionId
+      ? db
+          .select({ id: supportIncidentsTable.id, category: supportIncidentsTable.category, description: supportIncidentsTable.description, status: supportIncidentsTable.status, createdAt: supportIncidentsTable.createdAt, bookingId: supportIncidentsTable.bookingId })
+          .from(supportIncidentsTable)
+      : Promise.resolve<{ id: number; category: string; description: string; status: string; createdAt: Date; bookingId: number | null }[]>([]),
+    db.select().from(webhookEventsTable),
+  ]);
+
+  const employeeById = new Map(employees.map((e) => [e.id, e]));
+  const bookingIncidentIds = new Set(bookingRows.map((b) => b.id));
+  const scopedIncidents = incidents.filter((i) => i.bookingId != null && bookingIncidentIds.has(i.bookingId));
+  const scopedWebhookEvents = webhookEventRows.filter((ev) => {
+    const payload = ev.payload as Record<string, unknown>;
+    return typeof payload.employerId === "number" && payload.employerId === employer.id;
+  });
+
+  res.json(
+    GetEmployerDataExportResponse.parse({
+      institutionName: employer.name,
+      exportedAt: new Date().toISOString(),
+      employees: employees.map((e) => ({
+        id: e.id,
+        externalEmployeeId: e.externalEmployeeId,
+        name: e.name,
+        workEmail: e.workEmail,
+        department: e.department,
+        benefitTier: e.benefitTier,
+        eligibilityStatus: e.eligibilityStatus,
+        createdAt: e.createdAt.toISOString(),
+      })),
+      ledgerEntries: ledger.map((l) => ({
+        id: l.id,
+        employeeId: l.employeeId,
+        entryType: l.entryType,
+        amount: l.amount,
+        note: l.note,
+        createdAt: l.createdAt.toISOString(),
+      })),
+      bookings: bookingRows.map((b) => ({
+        id: b.id,
+        employeeName: employeeById.get(employees.find((e) => e.linkedMemberId === b.memberId)?.id ?? -1)?.name ?? b.memberName,
+        serviceName: b.serviceName,
+        providerName: b.providerName,
+        status: b.status,
+        priceEstimate: b.priceEstimate,
+        scheduledAt: new Date(b.scheduledAt).toISOString(),
+      })),
+      incidents: scopedIncidents.map((i) => ({
+        id: i.id,
+        category: i.category,
+        description: i.description,
+        status: i.status,
+        createdAt: i.createdAt.toISOString(),
+      })),
+      webhookEvents: scopedWebhookEvents.map((ev) => ({
+        id: ev.id,
+        eventType: ev.eventType,
+        status: ev.status,
+        createdAt: ev.createdAt.toISOString(),
+      })),
+    }),
+  );
+});
+
+router.post("/v1/employer/employees/:id/erase", requireEmployerRole, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  const { employer } = await resolveEmployerContext(req, res);
+  const [owned] = await db.select().from(employeesTable).where(and(eq(employeesTable.id, id), eq(employeesTable.employerId, employer.id)));
+  if (!owned) { res.status(404).json({ error: "Employee not found" }); return; }
+
+  // PDPL right to erasure: anonymize PII, keep the row (and its ledger/audit
+  // history) so financial/audit records stay intact — a full delete would
+  // break referential integrity on the allowance ledger and is not required
+  // (most data-protection regimes carve out an exception for records needed
+  // to meet a legal/financial obligation; anonymization satisfies erasure of
+  // *personal* data without destroying that trail).
+  const anonymizedName = `Erased Employee #${id}`;
+  const anonymizedEmail = `erased-${id}@erased.invalid`;
+  const [erased] = await db
+    .update(employeesTable)
+    .set({ name: anonymizedName, workEmail: anonymizedEmail, eligibilityStatus: "erased", allocationPrefs: null, updatedAt: new Date() })
+    .where(eq(employeesTable.id, id))
+    .returning();
+
+  const principal = getPrincipal(req, res);
+  await db.insert(auditEventsTable).values({
+    actorRole: principal?.role ?? "institution",
+    actorId: principal?.name ?? employer.name,
+    action: "employee.erased",
+    entityType: "employee",
+    entityId: String(id),
+    metadata: { externalEmployeeId: owned.externalEmployeeId, reason: "PDPL right-to-erasure request" },
+  });
+
+  res.json(
+    EraseEmployerEmployeeResponse.parse({
+      id: erased!.id,
+      externalEmployeeId: erased!.externalEmployeeId,
+      name: erased!.name,
+      workEmail: erased!.workEmail,
+      department: erased!.department,
+      benefitTier: erased!.benefitTier,
+      eligibilityStatus: erased!.eligibilityStatus,
+      householdEligible: erased!.householdEligible,
     }),
   );
 });
 
 router.get("/v1/employer/integrations", requireEmployerRole, async (req, res): Promise<void> => {
-  const { employer } = await resolveEmployerContext(req, res);
+  const { employer, institutionId } = await resolveEmployerContext(req, res);
+  const [institution] = institutionId
+    ? await db.select({ widgetSecret: institutionsTable.widgetSecret }).from(institutionsTable).where(eq(institutionsTable.id, institutionId))
+    : [];
+  const widgetConfigured = !!institution?.widgetSecret;
+
   res.json(
     GetEmployerIntegrationsResponse.parse({
       ssoLabel: "Simulated SSO launch",
       ssoUrl: "/?role=employee&source=meridian-demo",
       widgetScript: "/embed/loup-widget.js",
-      widgetSnippet:
-        `<!-- Loup employee benefits widget (${employer.name}) -->\n` +
-        '<script src="/embed/loup-widget.js"></script>',
-      apiMode: "Headless API access is simulated in this MVP.",
+      widgetSnippet: widgetConfigured
+        ? `<!-- Loup employee benefits widget (${employer.name}) -->\n` +
+          "<!-- Your backend exchanges your widget secret for a short-lived employee token\n" +
+          "     (POST /v1/widget/token, never call this from the browser) and renders the\n" +
+          "     token into data-employee-token before serving this tag. -->\n" +
+          `<script src="/embed/loup-widget.js" data-employee-token="{{SERVER_ISSUED_TOKEN}}"></script>`
+        : `<!-- Loup employee benefits widget (${employer.name}) -->\n` +
+          "<!-- Widget token exchange is not yet provisioned for this institution — falls back to a standalone preview. -->\n" +
+          '<script src="/embed/loup-widget.js"></script>',
+      apiMode: widgetConfigured
+        ? "Widget token exchange (POST /v1/widget/token) is live for this institution."
+        : "Headless API access is simulated in this MVP.",
     }),
   );
 });
@@ -1314,7 +1593,7 @@ router.get("/v1/employer/export/roster", requireEmployerRole, async (req, res): 
     .orderBy(employeesTable.name);
 
   if (!rows.length) {
-    sendCSV(res, "meridian-employee-roster.csv",
+    sendCSV(res, `${employer.slug}-employee-roster.csv`,
       "Name,Email,Department,Campus,Benefit Tier,Eligibility,Monthly Allowance (AED),Benefit Start Date,Benefit End Date\r\n");
     return;
   }
@@ -1361,7 +1640,7 @@ router.get("/v1/employer/export/roster", requireEmployerRole, async (req, res): 
     };
   });
 
-  sendCSV(res, "meridian-employee-roster.csv", toCSV(csvRows));
+  sendCSV(res, `${employer.slug}-employee-roster.csv`, toCSV(csvRows));
 });
 
 // Export 2: Campus utilization breakdown
@@ -1430,7 +1709,7 @@ router.get("/v1/employer/export/utilization", requireEmployerRole, async (req, r
     });
   }
 
-  sendCSV(res, "meridian-utilization.csv", toCSV(csvRows));
+  sendCSV(res, `${employer.slug}-utilization.csv`, toCSV(csvRows));
 });
 
 // Export 3: Per-employee billing ledger (current benefit cycle)
@@ -1450,7 +1729,7 @@ router.get("/v1/employer/export/billing", requireEmployerRole, async (req, res):
     .orderBy(employeesTable.benefitTier, employeesTable.name);
 
   if (!empRows.length) {
-    sendCSV(res, "meridian-billing-ledger.csv",
+    sendCSV(res, `${employer.slug}-billing-ledger.csv`,
       "Cycle,Employee Name,Email,Tier,Authorized (AED),Active Holds (AED),Redeemed (AED),Remaining (AED)\r\n");
     return;
   }
@@ -1543,7 +1822,7 @@ router.get("/v1/employer/export/billing", requireEmployerRole, async (req, res):
     }
   }
 
-  sendCSV(res, "meridian-billing-ledger.csv", toCSV(csvRows));
+  sendCSV(res, `${employer.slug}-billing-ledger.csv`, toCSV(csvRows));
 });
 
 router.get("/v1/operations/audit", async (req, res): Promise<void> => {

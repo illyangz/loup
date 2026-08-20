@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react"
+import { useReveal } from "@/hooks/use-reveal"
 import { useParams, Link } from "wouter"
 import { useGetBooking, useListBookingMessages, useAdvanceBooking, useUpdateBooking, useSendBookingMessage, useCreateReview, getGetBookingQueryKey, getListBookingMessagesQueryKey } from "@workspace/api-client-react"
 import { useQueryClient } from "@tanstack/react-query"
@@ -39,6 +40,8 @@ export default function BookingDetail() {
   const [reviewComment, setReviewComment] = useState("")
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const timelineRef = useRef<HTMLDivElement>(null)
+  useReveal(timelineRef, { y: 16, stagger: true })
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -120,7 +123,7 @@ export default function BookingDetail() {
     <div className="space-y-8 animate-in fade-in pb-24">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild className="rounded-full bg-secondary">
+          <Button variant="ghost" size="icon" asChild className="rounded bg-secondary">
             <Link href="/bookings"><ArrowLeft className="h-5 w-5" /></Link>
           </Button>
           <div>
@@ -128,7 +131,7 @@ export default function BookingDetail() {
             <p className="text-muted-foreground text-sm">with {booking.providerName}</p>
           </div>
         </div>
-        <Badge variant={isLive ? "default" : "secondary"} className="capitalize">
+        <Badge variant={isLive ? "default" : "secondary"} className="rounded capitalize">
           {booking.status.replace("_", " ")}
         </Badge>
       </header>
@@ -150,7 +153,7 @@ export default function BookingDetail() {
         <Card className="bg-primary text-primary-foreground border-0">
           <CardContent className="p-6 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center">
+              <div className="h-12 w-12 rounded bg-white/20 flex items-center justify-center">
                 <Navigation className="h-6 w-6" />
               </div>
               <div>
@@ -200,13 +203,13 @@ export default function BookingDetail() {
       {/* Timeline */}
       <div className="space-y-4 px-2">
         <h3 className="font-serif text-xl">Timeline</h3>
-        <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
+        <div ref={timelineRef} className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
           {booking.events.map((event, i) => (
             <div key={event.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
               <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-background bg-secondary text-primary shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
-              <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-border bg-card shadow-sm">
+              <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-lg border border-border bg-card shadow-sm">
                 <div className="flex justify-between items-start mb-1">
                   <span className="font-medium capitalize">{event.status.replace("_", " ")}</span>
                   <span className="text-xs text-muted-foreground">
@@ -232,7 +235,7 @@ export default function BookingDetail() {
                 <Avatar className="h-8 w-8 shrink-0">
                   <AvatarFallback>{msg.senderName.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <div className={`p-3 rounded-2xl text-sm ${msg.sender === 'member' ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-card border border-border rounded-tl-none'}`}>
+                <div className={`p-3 rounded-lg text-sm ${msg.sender === 'member' ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-card border border-border rounded-tl-sm'}`}>
                   {msg.body}
                 </div>
               </div>
@@ -245,10 +248,10 @@ export default function BookingDetail() {
                 <Input 
                   value={messageBody} 
                   onChange={e => setMessageBody(e.target.value)} 
-                  placeholder="Message the provider..." 
-                  className="flex-1 rounded-full"
+                  placeholder="Message the provider..."
+                  className="flex-1 rounded"
                 />
-                <Button type="submit" size="icon" className="rounded-full shrink-0" disabled={!messageBody.trim() || sendMessage.isPending}>
+                <Button type="submit" size="icon" className="rounded shrink-0" disabled={!messageBody.trim() || sendMessage.isPending}>
                   <Send className="h-4 w-4" />
                 </Button>
               </form>
@@ -282,7 +285,7 @@ export default function BookingDetail() {
         <DialogPrimitive.Root open={isReviewOpen} onOpenChange={setIsReviewOpen}>
           <DialogPrimitive.Portal>
             <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-            <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-2xl">
+            <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg">
               <div className="flex justify-between items-start">
                 <h2 className="text-xl font-serif">Rate this service</h2>
                 <DialogPrimitive.Close asChild>
@@ -303,7 +306,7 @@ export default function BookingDetail() {
                   ))}
                 </div>
                 <textarea
-                  className="flex min-h-[100px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex min-h-[100px] w-full rounded border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   placeholder="How was your experience?"
                   value={reviewComment}
                   onChange={e => setReviewComment(e.target.value)}
@@ -323,7 +326,7 @@ export default function BookingDetail() {
         <DialogPrimitive.Root open={isRescheduleOpen} onOpenChange={setIsRescheduleOpen}>
           <DialogPrimitive.Portal>
             <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-            <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-2xl">
+            <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg">
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-xl font-serif">Reschedule Booking</h2>

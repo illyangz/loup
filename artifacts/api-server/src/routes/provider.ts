@@ -21,9 +21,11 @@ import {
   providerAvailabilityTable,
   supportIncidentsTable,
   categoriesTable,
+  institutionsTable,
 } from "@workspace/db";
-import { fetchBookingView, STATUS_CHAIN, TERMINAL_STATUSES, addCompletionBillItem, writeWebhookEvent } from "../lib/loup";
-import { computeRedemptionAmount } from "../lib/money";
+import { GetProviderSettlementResponse } from "@workspace/api-zod";
+import { fetchBookingView, STATUS_CHAIN, TERMINAL_STATUSES, addCompletionBillItem, writeWebhookEvent, feeRateByInstitution, institutionIdByMember, currentMonthLabel } from "../lib/loup";
+import { computeRedemptionAmount, computeSettlementLine, summarizeSettlement } from "../lib/money";
 import { logger } from "../lib/logger";
 import { requireRole } from "../lib/auth";
 
@@ -634,6 +636,67 @@ router.get("/v1/provider/analytics", requireProviderRole, async (_req, res): Pro
     logger.error({ err }, "getProviderAnalytics failed");
     res.status(500).json({ error: "Failed to fetch analytics" });
   }
+});
+
+// ── Settlement (P1-5) ──────────────────────────────────────────────────────────
+// Loup collects the full institution-funded price for a completed booking and
+// pays the provider net of its platform fee. Bookings with no institution
+// link (no benefit plan behind them) carry no fee — the provider is paid the
+// full gross amount.
+
+router.get("/v1/provider/settlement", requireProviderRole, async (_req, res): Promise<void> => {
+  const provider = await resolveProviderContext();
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [bookings, feeRates, institutionByMember] = await Promise.all([
+    db
+      .select({
+        id: bookingsTable.id,
+        serviceId: bookingsTable.serviceId,
+        memberId: bookingsTable.memberId,
+        priceEstimate: bookingsTable.priceEstimate,
+        scheduledAt: bookingsTable.scheduledAt,
+      })
+      .from(bookingsTable)
+      .where(and(eq(bookingsTable.providerId, provider.id), eq(bookingsTable.status, "completed"), gte(bookingsTable.scheduledAt, startOfMonth))),
+    feeRateByInstitution(),
+    institutionIdByMember(),
+  ]);
+
+  const serviceIds = [...new Set(bookings.map((b) => b.serviceId))];
+  const institutionIds = [...new Set(bookings.map((b) => institutionByMember.get(b.memberId)).filter((id): id is number => id != null))];
+  const [serviceRows, institutionRows] = await Promise.all([
+    serviceIds.length ? db.select({ id: servicesTable.id, name: servicesTable.name }).from(servicesTable).where(inArray(servicesTable.id, serviceIds)) : Promise.resolve([]),
+    institutionIds.length ? db.select({ id: institutionsTable.id, name: institutionsTable.name }).from(institutionsTable).where(inArray(institutionsTable.id, institutionIds)) : Promise.resolve([]),
+  ]);
+  const serviceNames = new Map(serviceRows.map((s) => [s.id, s.name]));
+  const institutionNames = new Map(institutionRows.map((i) => [i.id, i.name]));
+
+  const lines = bookings.map((b) => {
+    const institutionId = institutionByMember.get(b.memberId) ?? null;
+    const feeRatePct = institutionId != null ? (feeRates.get(institutionId) ?? 0) : 0;
+    const settlement = computeSettlementLine(b.priceEstimate, feeRatePct);
+    return {
+      bookingId: b.id,
+      serviceName: serviceNames.get(b.serviceId) ?? "Unknown service",
+      completedAt: new Date(b.scheduledAt).toISOString(),
+      institutionName: institutionId != null ? (institutionNames.get(institutionId) ?? null) : null,
+      ...settlement,
+    };
+  });
+  const totals = summarizeSettlement(lines);
+
+  res.json(
+    GetProviderSettlementResponse.parse({
+      cycleLabel: currentMonthLabel(),
+      grossRevenue: totals.grossRevenue,
+      platformFee: totals.platformFee,
+      netPayout: totals.netPayout,
+      bookingCount: totals.bookingCount,
+      lines,
+    }),
+  );
 });
 
 export default router;

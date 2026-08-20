@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ArrowRight, CalendarDays, Check, Clock3, CreditCard, Home, LifeBuoy, Repeat2, Sparkles, Building2, MapPin, Award, Sliders, Save, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "wouter";
+import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import {
   useGetEmployeeOverview,
   useGetEmployeeAllocation,
@@ -11,8 +12,17 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { PlatformHeader, StatTile, DataState, PlatformShell } from "@/components/platform-shell";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
+import { useReveal } from "@/hooks/use-reveal";
 import { cn } from "@/lib/utils";
+
+const allowanceChartConfig = {
+  redeemed: { label: "Redeemed", color: "hsl(var(--primary))" },
+  reserved: { label: "Reserved", color: "hsl(var(--primary) / 0.45)" },
+  available: { label: "Available", color: "hsl(var(--muted))" },
+} satisfies ChartConfig;
 
 function money(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(value);
@@ -37,25 +47,24 @@ export default function Employee() {
   const data = overviewQuery.data;
   const allocation = allocationQuery.data;
 
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLElement>(null);
+  const allocationRef = useRef<HTMLElement>(null);
+  const servicesRoutinesRef = useRef<HTMLElement>(null);
+  const serviceListRef = useRef<HTMLDivElement>(null);
+  const routineListRef = useRef<HTMLDivElement>(null);
+
+  useReveal(bannerRef, { y: 10, immediate: true, duration: 0.5, deps: [!!data] });
+  useReveal(heroRef, { y: 12, stagger: true, immediate: true, duration: 0.5, deps: [!!data] });
+  useReveal(allocationRef, { y: 12, deps: [!!data] });
+  useReveal(servicesRoutinesRef, { y: 12, stagger: true, deps: [!!data] });
+
   useEffect(() => { setMounted(true); }, []);
 
   // Sync draft allocations when allocation data loads
   useEffect(() => {
     if (allocation) setDraftAllocations([...allocation.allocations]);
   }, [allocation]);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    e.currentTarget.style.setProperty("--rx", `${-y * 6}deg`);
-    e.currentTarget.style.setProperty("--ry", `${x * 6}deg`);
-  };
-
-  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.currentTarget.style.setProperty("--rx", "0deg");
-    e.currentTarget.style.setProperty("--ry", "0deg");
-  };
 
   const totalDraft = draftAllocations.reduce((s, a) => s + a.amount, 0);
   const draftRemaining = (allocation?.totalAllowance ?? data?.allowance.authorized ?? 750) - totalDraft;
@@ -85,7 +94,7 @@ export default function Employee() {
           title={data ? `Good morning, ${data.employeeName.split(" ")[0]}.` : "Your life, with a little more room."}
           description={data ? `${data.institutionName} has set aside a private allowance for the things that keep your household moving.` : "Your private benefit concierge is loading."}
           action={
-            <Link href="/browse" className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-[hsl(var(--primary))] to-[#d27c4b] px-5 py-2.5 text-sm font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-[0_0_20px_hsl(var(--primary)/0.4)] active:scale-95" data-testid="link-employee-browse">
+            <Link href="/browse" className="inline-flex items-center gap-2 rounded bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:-translate-y-0.5" data-testid="link-employee-browse">
               Browse services <ArrowRight className="h-4 w-4" />
             </Link>
           }
@@ -95,98 +104,97 @@ export default function Employee() {
           {data && (
             <div className="space-y-6">
               {/* Institution context banner */}
-              <div className="glass-card rounded-2xl px-6 py-4 flex flex-wrap items-center gap-x-6 gap-y-3 platform-reveal">
+              <div ref={bannerRef} className="glass-card rounded-lg px-6 py-4 flex flex-wrap items-center gap-x-6 gap-y-3">
                 <div className="flex items-center gap-2 text-sm">
-                  <Building2 className="h-4 w-4 text-white/40 shrink-0" />
-                  <span className="text-white/60">{data.institutionName}</span>
+                  <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground">{data.institutionName}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-white/40 shrink-0" />
-                  <span className="text-white/60">{data.campusName}</span>
+                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground">{data.campusName}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <Award className="h-4 w-4 text-white/40 shrink-0" />
-                  <span className="text-white/60">{data.benefitTierName} tier</span>
-                  <span className="text-xs font-semibold text-[hsl(var(--primary))] bg-[hsl(var(--primary))/0.1] border border-[hsl(var(--primary))/0.2] rounded-full px-2.5 py-0.5">
+                  <Award className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground">{data.benefitTierName} tier</span>
+                  <span className="text-xs font-semibold text-foreground bg-secondary border border-border rounded px-2.5 py-0.5">
                     {money(data.benefitTierAllowance)}/mo
                   </span>
                 </div>
               </div>
 
               {/* Hero: Allowance card + Upcoming booking */}
-              <section className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
-                <div
-                  className="glass-card-glow relative overflow-hidden rounded-3xl p-8 sm:p-10 platform-reveal"
-                  onMouseMove={handleMouseMove}
-                  onMouseLeave={handleMouseLeave}
-                  style={{ transform: "perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg))", transition: "transform 0.15s ease-out" }}
-                >
-                  <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[hsl(var(--primary))/0.3] rounded-full blur-[80px] pointer-events-none" />
-                  <div className="relative z-10" style={{ transform: "translateZ(30px)" }}>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs uppercase tracking-[0.18em] text-white/50 font-medium">Available to use</p>
-                      <div className="rounded-full bg-[hsl(var(--primary))/0.2] border border-[hsl(var(--primary))/0.3] px-2.5 py-1 text-[10px] font-medium tracking-wide text-[hsl(var(--primary))]">
-                        Renews {data.allowance.renewalDate}
-                      </div>
+              <section ref={heroRef} className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
+                <div className="glass-card rounded-lg p-8 sm:p-10">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-medium">Available to use</p>
+                    <div className="rounded border border-border bg-secondary px-2.5 py-1 text-[10px] font-medium tracking-wide text-muted-foreground">
+                      Renews {data.allowance.renewalDate}
                     </div>
-                    <div className="mt-4 flex flex-wrap items-baseline gap-3">
-                      <span className="font-serif text-7xl count-up text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] font-bold">
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-baseline gap-3">
+                      <span className="text-7xl tabular-nums text-foreground font-semibold">
                         {mounted ? money(data.allowance.available) : "AED 0"}
                       </span>
-                      <span className="text-sm text-white/60 font-medium">of {money(data.allowance.authorized)} this cycle</span>
+                      <span className="text-sm text-muted-foreground font-medium">of {money(data.allowance.authorized)} this cycle</span>
                     </div>
-                    <div className="mt-8 h-2.5 overflow-hidden rounded-full bg-white/5 ring-1 ring-inset ring-white/10">
-                      <div
-                        className="h-full rounded-full bg-[hsl(var(--primary))] shadow-[0_0_10px_hsl(var(--primary)/0.8)]"
-                        style={{
-                          width: mounted ? `${Math.min(100, (data.allowance.redeemed / data.allowance.authorized) * 100)}%` : "0%",
-                          transition: "width 1s cubic-bezier(0.16, 1, 0.3, 1)",
-                        }}
-                      />
+                    <ChartContainer config={allowanceChartConfig} className="mt-8 h-9 w-full aspect-auto">
+                      <BarChart
+                        data={[{ name: "allowance", redeemed: data.allowance.redeemed, reserved: data.allowance.reserved, available: data.allowance.available }]}
+                        layout="vertical"
+                        barSize={22}
+                        margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+                      >
+                        <XAxis type="number" hide domain={[0, data.allowance.authorized]} />
+                        <YAxis type="category" dataKey="name" hide />
+                        <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => [` ${money(Number(value))}`, allowanceChartConfig[name as keyof typeof allowanceChartConfig]?.label ?? name]} />} />
+                        <Bar dataKey="redeemed" stackId="a" fill="var(--color-redeemed)" radius={[6, 0, 0, 6]} />
+                        <Bar dataKey="reserved" stackId="a" fill="var(--color-reserved)" />
+                        <Bar dataKey="available" stackId="a" fill="var(--color-available)" radius={[0, 6, 6, 0]} />
+                      </BarChart>
+                    </ChartContainer>
+                    <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary" /> {money(data.allowance.redeemed)} redeemed</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary/45" /> {money(data.allowance.reserved)} reserved</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-muted ring-1 ring-inset ring-border" /> {money(data.allowance.available)} available</span>
                     </div>
-                    <div className="mt-4 flex justify-between text-sm text-white/50">
-                      <span>{money(data.allowance.redeemed)} redeemed</span>
-                      <span>{money(data.allowance.reserved)} reserved</span>
-                    </div>
-                    <Link href="/billing" className="mt-10 inline-flex items-center gap-2 text-sm font-medium text-[hsl(var(--primary))] hover:text-white transition-colors group" data-testid="link-employee-allowance-details">
-                      See allowance details <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Link>
-                  </div>
+                  <Link href="/billing" className="mt-10 inline-flex items-center gap-2 text-sm font-medium text-primary hover:opacity-70 transition-opacity group" data-testid="link-employee-allowance-details">
+                    See allowance details <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Link>
                 </div>
 
-                <div className="glass-card rounded-3xl p-8 platform-reveal" style={{ animationDelay: "50ms" }}>
+                <div className="glass-card rounded-lg p-8">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs uppercase tracking-[0.16em] text-white/50 font-medium">Next on the calendar</p>
-                    <div className="h-10 w-10 rounded-full bg-[hsl(var(--primary))/0.1] flex items-center justify-center">
-                      <CalendarDays className="h-5 w-5 text-[hsl(var(--primary))]" />
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">Next on the calendar</p>
+                    <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
+                      <CalendarDays className="h-5 w-5 text-muted-foreground" />
                     </div>
                   </div>
 
                   {data.upcomingBooking ? (
                     <div className="relative mt-8">
-                      <div className="absolute left-0 top-2 bottom-0 w-0.5 bg-white/10">
-                        <div className="absolute -left-[5px] top-0 h-3 w-3 rounded-full bg-[hsl(var(--primary))] shadow-[0_0_10px_hsl(var(--primary))]" />
+                      <div className="absolute left-0 top-2 bottom-0 w-0.5 bg-secondary">
+                        <div className="absolute -left-[5px] top-0 h-3 w-3 rounded-full bg-primary" />
                       </div>
                       <div className="pl-6">
-                        <p className="font-serif text-4xl font-bold text-white">{data.upcomingBooking.serviceName}</p>
-                        <p className="mt-3 text-[15px] text-white/50">
+                        <p className="font-serif text-4xl text-foreground">{data.upcomingBooking.serviceName}</p>
+                        <p className="mt-3 text-[15px] text-muted-foreground">
                           {data.upcomingBooking.providerName} <span className="mx-2">•</span> {fmtDate(data.upcomingBooking.scheduledAt)}
                         </p>
-                        <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium rounded-full bg-white/5 px-3 py-1.5 border border-white/10 text-white/80">
-                          <span className="h-2 w-2 rounded-full bg-[hsl(var(--primary))] animate-pulse shadow-[0_0_8px_hsl(var(--primary))]" />
+                        <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium rounded bg-secondary px-3 py-1.5 border border-border text-foreground">
+                          <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                           <span className="capitalize">{data.upcomingBooking.status.replaceAll("_", " ")}</span>
                         </div>
                         <div className="mt-8">
-                          <Link href={`/bookings/${data.upcomingBooking.id}`} className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/10 transition-all hover:shadow-sm" data-testid="link-employee-upcoming-booking">
+                          <Link href={`/bookings/${data.upcomingBooking.id}`} className="inline-flex items-center gap-2 rounded border border-border bg-secondary px-5 py-2.5 text-sm font-medium text-foreground hover:bg-foreground/5 transition-colors" data-testid="link-employee-upcoming-booking">
                             Open booking <ArrowRight className="h-4 w-4" />
                           </Link>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-8 rounded-2xl bg-white/5 border border-white/10 p-6">
-                      <p className="font-serif text-3xl text-white font-bold">A calm calendar is a good calendar.</p>
-                      <Link href="/browse" className="mt-5 inline-flex items-center text-sm font-medium text-[hsl(var(--primary))] hover:text-white transition-colors" data-testid="link-employee-empty-booking">
+                    <div className="mt-8 rounded-lg bg-secondary border border-border p-6">
+                      <p className="font-serif text-3xl text-foreground">A calm calendar is a good calendar.</p>
+                      <Link href="/browse" className="mt-5 inline-flex items-center text-sm font-medium text-primary hover:opacity-70 transition-opacity" data-testid="link-employee-empty-booking">
                         Find a service <ArrowRight className="ml-1.5 h-4 w-4" />
                       </Link>
                     </div>
@@ -203,24 +211,24 @@ export default function Employee() {
               </section>
 
               {/* Flexible Allocation section */}
-              <section className="glass-card rounded-3xl overflow-hidden platform-reveal" style={{ animationDelay: "80ms" }}>
+              <section ref={allocationRef} className="glass-card rounded-lg overflow-hidden">
                 <button
-                  className="w-full flex items-center justify-between p-7 sm:p-9 text-left hover:bg-white/[0.02] transition-colors"
+                  className="w-full flex items-center justify-between p-7 sm:p-9 text-left hover:bg-foreground/5 transition-colors"
                   onClick={() => setAllocationOpen(prev => !prev)}
                 >
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-[hsl(var(--primary))/0.1] flex items-center justify-center shrink-0">
-                      <Sliders className="h-6 w-6 text-[hsl(var(--primary))]" />
+                    <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                      <Sliders className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-xs uppercase tracking-[0.16em] text-white/50 font-medium mb-1">Benefit allocation</p>
-                      <h2 className="text-2xl sm:text-3xl text-white">Distribute your allowance.</h2>
+                      <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium mb-1">Benefit allocation</p>
+                      <h2 className="font-serif text-2xl sm:text-3xl text-foreground">Distribute your allowance.</h2>
                     </div>
                   </div>
                   {allocationOpen ? (
-                    <ChevronUp className="h-5 w-5 text-white/40 shrink-0" />
+                    <ChevronUp className="h-5 w-5 text-muted-foreground shrink-0" />
                   ) : (
-                    <ChevronDown className="h-5 w-5 text-white/40 shrink-0" />
+                    <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />
                   )}
                 </button>
 
@@ -228,16 +236,16 @@ export default function Employee() {
                   <div className="px-7 sm:px-9 pb-9 space-y-6 animate-in fade-in slide-in-from-top-2 duration-200">
                     {/* Summary bar */}
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-white/60">Total allocated</span>
+                      <span className="text-muted-foreground">Total allocated</span>
                       <div className="flex items-center gap-3">
-                        <span className={cn("font-semibold", isOverAllocated ? "text-red-400" : "text-white")}>{money(totalDraft)}</span>
-                        <span className="text-white/30">/</span>
-                        <span className="text-white/60">{money(allocation?.totalAllowance ?? data.allowance.authorized)}</span>
+                        <span className={cn("font-semibold", isOverAllocated ? "text-destructive" : "text-foreground")}>{money(totalDraft)}</span>
+                        <span className="text-muted-foreground">/</span>
+                        <span className="text-muted-foreground">{money(allocation?.totalAllowance ?? data.allowance.authorized)}</span>
                         <span className={cn(
-                          "text-xs font-semibold px-2 py-0.5 rounded-full border",
+                          "text-xs font-semibold px-2 py-0.5 rounded border",
                           isOverAllocated
-                            ? "bg-red-500/10 border-red-500/20 text-red-400"
-                            : "bg-[hsl(var(--primary))/0.1] border-[hsl(var(--primary))/0.2] text-[hsl(var(--primary))]"
+                            ? "bg-destructive/10 border-destructive/20 text-destructive"
+                            : "bg-primary/10 border-primary/20 text-primary"
                         )}>
                           {isOverAllocated ? "Over by " + money(Math.abs(draftRemaining)) : money(draftRemaining) + " unallocated"}
                         </span>
@@ -245,9 +253,9 @@ export default function Employee() {
                     </div>
 
                     {/* Stacked progress bar */}
-                    <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                    <div className="h-2 rounded-full bg-secondary overflow-hidden">
                       <div
-                        className={cn("h-full rounded-full transition-all duration-300", isOverAllocated ? "bg-red-500" : "bg-[hsl(var(--primary))]")}
+                        className={cn("h-full rounded-full transition-all duration-300", isOverAllocated ? "bg-destructive" : "bg-primary")}
                         style={{ width: `${Math.min(100, (totalDraft / (allocation?.totalAllowance ?? data.allowance.authorized)) * 100)}%` }}
                       />
                     </div>
@@ -255,7 +263,7 @@ export default function Employee() {
                     {allocationQuery.isLoading ? (
                       <div className="space-y-4">
                         {[1, 2, 3].map(i => (
-                          <div key={i} className="h-16 bg-white/5 rounded-2xl animate-pulse" />
+                          <div key={i} className="h-16 bg-secondary rounded-lg animate-pulse" />
                         ))}
                       </div>
                     ) : (
@@ -263,8 +271,8 @@ export default function Employee() {
                         {draftAllocations.map((cat, i) => (
                           <div key={cat.slug} className="space-y-2" data-testid={`allocation-row-${cat.slug}`}>
                             <div className="flex justify-between items-center">
-                              <span className="text-sm font-medium text-white/80">{cat.name}</span>
-                              <span className="text-sm font-semibold text-white">{money(cat.amount)}</span>
+                              <span className="text-sm font-medium text-foreground">{cat.name}</span>
+                              <span className="text-sm font-semibold text-foreground">{money(cat.amount)}</span>
                             </div>
                             <input
                               type="range"
@@ -276,7 +284,7 @@ export default function Employee() {
                                 const newAmount = Number(e.target.value);
                                 setDraftAllocations(prev => prev.map((a, idx) => idx === i ? { ...a, amount: newAmount } : a));
                               }}
-                              className="w-full accent-[hsl(var(--primary))] h-1.5 rounded-full"
+                              className="w-full accent-primary h-1.5 rounded-full"
                             />
                           </div>
                         ))}
@@ -286,7 +294,7 @@ export default function Employee() {
                     <div className="flex gap-3 pt-2">
                       <Button
                         variant="outline"
-                        className="border-white/10 text-white/60 hover:text-white"
+                        className="border-border text-muted-foreground hover:text-foreground"
                         onClick={() => {
                           if (allocation) setDraftAllocations([...allocation.allocations]);
                         }}
@@ -307,65 +315,65 @@ export default function Employee() {
               </section>
 
               {/* Services + Routines */}
-              <section className="grid gap-6 lg:grid-cols-[1fr_.8fr]">
-                <div className="glass-card rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: "100ms" }}>
+              <section ref={servicesRoutinesRef} className="grid gap-6 lg:grid-cols-[1fr_.8fr]">
+                <div className="glass-card rounded-lg p-7 sm:p-9">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.16em] text-white/50 font-medium">Eligible services</p>
-                      <h2 className="mt-3 text-3xl sm:text-4xl text-white">Make room for what matters.</h2>
+                      <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">Eligible services</p>
+                      <h2 className="mt-3 font-serif text-3xl sm:text-4xl text-foreground">Make room for what matters.</h2>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-[hsl(var(--primary))/0.1] flex items-center justify-center shrink-0">
-                      <Sparkles className="h-6 w-6 text-[hsl(var(--primary))]" />
+                    <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                      <Sparkles className="h-6 w-6 text-muted-foreground" />
                     </div>
                   </div>
-                  <div className="mt-8 divide-y divide-white/10">
-                    {data.activeCategories.slice(0, 4).map((service, i) => (
-                      <div key={service.slug} className="flex items-center gap-5 py-4 group platform-reveal" style={{ animationDelay: `${150 + i * 50}ms` }} data-testid={`row-employee-service-${service.slug}`}>
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/5 group-hover:bg-[hsl(var(--primary))/0.1] transition-colors border border-white/5">
-                          <Home className="h-5 w-5 text-white/40 group-hover:text-[hsl(var(--primary))] transition-colors" />
+                  <div ref={serviceListRef} className="mt-8 divide-y divide-border">
+                    {data.activeCategories.slice(0, 4).map((service) => (
+                      <div key={service.slug} className="flex items-center gap-5 py-4 group" data-testid={`row-employee-service-${service.slug}`}>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-secondary transition-colors border border-border">
+                          <Home className="h-5 w-5 text-muted-foreground transition-colors" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium text-[15px] text-white/90">{service.name}</p>
-                          <p className="truncate text-[13px] text-white/50 mt-0.5">{service.description}</p>
+                          <p className="font-medium text-[15px] text-foreground">{service.name}</p>
+                          <p className="truncate text-[13px] text-muted-foreground mt-0.5">{service.description}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="text-sm font-medium whitespace-nowrap bg-white/5 rounded-full px-2.5 py-1 border border-white/10 text-white/80">
+                          <span className="text-sm font-medium whitespace-nowrap bg-secondary rounded px-2.5 py-1 border border-border text-foreground">
                             {money(service.employeeCopayment)}
                           </span>
                           {service.employerContribution > 0 && (
-                            <p className="mt-1 text-[11px] text-[hsl(var(--primary))]">+{money(service.employerContribution)} covered</p>
+                            <p className="mt-1 text-[11px] text-primary">+{money(service.employerContribution)} covered</p>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
-                  <Link href="/browse" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[hsl(var(--primary))] hover:text-white transition-colors" data-testid="link-employee-all-services">
+                  <Link href="/browse" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:opacity-70 transition-opacity" data-testid="link-employee-all-services">
                     View all services <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
 
-                <div className="glass-card rounded-3xl p-7 sm:p-9 platform-reveal" style={{ animationDelay: "150ms" }}>
-                  <p className="text-xs uppercase tracking-[0.16em] text-white/50 font-medium">Routines</p>
-                  <h2 className="mt-3 text-3xl sm:text-4xl text-white">Set it, then forget it.</h2>
-                  <div className="mt-8 space-y-4">
-                    {data.routines.slice(0, 3).map((routine, i) => (
-                      <div key={routine.id} className="rounded-2xl bg-white/5 border border-white/10 p-5 hover:bg-white/10 transition-colors platform-reveal" style={{ animationDelay: `${200 + i * 50}ms` }} data-testid={`row-employee-routine-${routine.id}`}>
+                <div className="glass-card rounded-lg p-7 sm:p-9">
+                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">Routines</p>
+                  <h2 className="mt-3 font-serif text-3xl sm:text-4xl text-foreground">Set it, then forget it.</h2>
+                  <div ref={routineListRef} className="mt-8 space-y-4">
+                    {data.routines.slice(0, 3).map((routine) => (
+                      <div key={routine.id} className="rounded-lg bg-secondary border border-border p-5 hover:bg-foreground/5 transition-colors" data-testid={`row-employee-routine-${routine.id}`}>
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--primary))/0.1]">
-                            <Repeat2 className="h-4 w-4 text-[hsl(var(--primary))]" />
+                          <div className="flex h-8 w-8 items-center justify-center rounded bg-card border border-border">
+                            <Repeat2 className="h-4 w-4 text-muted-foreground" />
                           </div>
-                          <p className="font-medium text-white/90">{routine.label}</p>
-                          <span className="ml-auto text-xs font-medium px-2 py-1 rounded-full bg-[hsl(var(--primary))/0.1] text-[hsl(var(--primary))] capitalize border border-[hsl(var(--primary))/0.2]">
+                          <p className="font-medium text-foreground">{routine.label}</p>
+                          <span className="ml-auto text-xs font-medium px-2 py-1 rounded bg-card capitalize border border-border text-muted-foreground">
                             {routine.status}
                           </span>
                         </div>
-                        <p className="mt-3 pl-11 text-[13px] text-white/50">
+                        <p className="mt-3 pl-11 text-[13px] text-muted-foreground">
                           {routine.frequency} <span className="mx-1">•</span> {routine.preferredDay}, {routine.preferredTime}
                         </p>
                       </div>
                     ))}
                   </div>
-                  <Link href="/household" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[hsl(var(--primary))] hover:text-white transition-colors" data-testid="link-employee-household">
+                  <Link href="/household" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:opacity-70 transition-opacity" data-testid="link-employee-household">
                     Manage household <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
@@ -374,11 +382,11 @@ export default function Employee() {
           )}
         </DataState>
 
-        <div className="mt-10 flex flex-wrap gap-5 text-xs text-white/50 font-medium pb-8">
-          <span className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5"><Check className="h-3.5 w-3.5 text-[hsl(var(--primary))]" /> Benefit privacy protected</span>
-          <span className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5"><Clock3 className="h-3.5 w-3.5 text-[hsl(var(--primary))]" /> Human support when needed</span>
-          <Link href="/support" className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 hover:bg-white/10 hover:text-white transition-colors" data-testid="link-employee-support"><LifeBuoy className="h-3.5 w-3.5" /> Talk to Loup support</Link>
-          <Link href="/billing" className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 hover:bg-white/10 hover:text-white transition-colors" data-testid="link-employee-billing"><CreditCard className="h-3.5 w-3.5" /> View billing</Link>
+        <div className="mt-10 flex flex-wrap gap-5 text-xs text-muted-foreground font-medium pb-8">
+          <span className="inline-flex items-center gap-2.5 rounded border border-border bg-secondary px-3 py-1.5"><Check className="h-3.5 w-3.5 text-primary" /> Benefit privacy protected</span>
+          <span className="inline-flex items-center gap-2.5 rounded border border-border bg-secondary px-3 py-1.5"><Clock3 className="h-3.5 w-3.5 text-primary" /> Human support when needed</span>
+          <Link href="/support" className="inline-flex items-center gap-2.5 rounded border border-border bg-secondary px-3 py-1.5 hover:bg-foreground/5 hover:text-foreground transition-colors" data-testid="link-employee-support"><LifeBuoy className="h-3.5 w-3.5" /> Talk to Loup support</Link>
+          <Link href="/billing" className="inline-flex items-center gap-2.5 rounded border border-border bg-secondary px-3 py-1.5 hover:bg-foreground/5 hover:text-foreground transition-colors" data-testid="link-employee-billing"><CreditCard className="h-3.5 w-3.5" /> View billing</Link>
         </div>
       </div>
     </PlatformShell>

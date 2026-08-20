@@ -1,10 +1,11 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Link } from "wouter"
 import { useListCategories, useListProviders } from "@workspace/api-client-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useReveal } from "@/hooks/use-reveal"
 import { Search, Star, Clock, CheckCircle2, Building2, SlidersHorizontal, X } from "lucide-react"
 
 function aed(v: number) {
@@ -39,13 +40,21 @@ export default function Browse() {
     setSelectedCategory("")
   }
 
+  const rootRef = useRef<HTMLDivElement>(null)
+  const pillsRef = useRef<HTMLDivElement>(null)
+  const providerListRef = useRef<HTMLDivElement>(null)
+
+  useReveal(rootRef, { y: 16, immediate: true })
+  useReveal(pillsRef, { y: 8, stagger: true, immediate: true, deps: [categories, isLoadingCategories] })
+  useReveal(providerListRef, { y: 14, stagger: true, immediate: true, deps: [filteredProviders, isLoadingProviders] })
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div ref={rootRef} className="space-y-6">
       <header className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-serif tracking-tight">Catalog</h1>
           {hasFilters && (
-            <Button variant="ghost" size="sm" className="text-xs text-white/50 hover:text-white gap-1.5" onClick={clearFilters}>
+            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground gap-1.5" onClick={clearFilters}>
               <X className="h-3.5 w-3.5" /> Clear filters
             </Button>
           )}
@@ -62,10 +71,10 @@ export default function Browse() {
             />
           </div>
           <button
-            className={`h-14 w-14 shrink-0 rounded-xl border transition-all flex items-center justify-center ${
+            className={`h-14 w-14 shrink-0 rounded border transition-colors flex items-center justify-center ${
               availableNow
                 ? "bg-primary border-primary text-primary-foreground"
-                : "glass-card border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
+                : "glass-card border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/40"
             }`}
             onClick={() => setAvailableNow(!availableNow)}
             aria-label="Available Now"
@@ -73,10 +82,10 @@ export default function Browse() {
             <Clock className="h-5 w-5" />
           </button>
           <button
-            className={`h-14 w-14 shrink-0 rounded-xl border transition-all flex items-center justify-center relative ${
+            className={`h-14 w-14 shrink-0 rounded border transition-colors flex items-center justify-center relative ${
               showFilters
                 ? "bg-primary border-primary text-primary-foreground"
-                : "glass-card border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
+                : "glass-card border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/40"
             }`}
             onClick={() => setShowFilters(!showFilters)}
             aria-label="Toggle filters"
@@ -90,10 +99,10 @@ export default function Browse() {
 
         {/* Expandable filters panel */}
         {showFilters && (
-          <div className="glass-card rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="glass-card rounded-lg p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-semibold text-white/70">Max price</label>
+                <label className="text-sm font-semibold text-foreground">Max price</label>
                 <span className="text-sm font-semibold text-primary">{aed(maxPrice)}</span>
               </div>
               <input
@@ -103,9 +112,9 @@ export default function Browse() {
                 step={25}
                 value={maxPrice}
                 onChange={e => setMaxPrice(Number(e.target.value))}
-                className="w-full accent-[hsl(var(--primary))] h-2 rounded-full"
+                className="w-full accent-primary h-2 rounded-full"
               />
-              <div className="flex justify-between text-xs text-white/30">
+              <div className="flex justify-between text-xs text-muted-foreground">
                 <span>AED 50</span>
                 <span>AED 500+</span>
               </div>
@@ -115,18 +124,18 @@ export default function Browse() {
       </header>
 
       {/* Institutional pricing banner */}
-      <div className="flex items-center gap-2.5 rounded-2xl border border-primary/20 bg-primary/[0.06] px-4 py-3 text-sm text-white/70">
+      <div className="flex items-center gap-2.5 rounded-lg border border-primary/20 bg-primary/[0.06] px-4 py-3 text-sm text-foreground">
         <Building2 className="h-4 w-4 text-primary shrink-0" />
-        <span>Prices shown include your <span className="font-semibold text-white">Meridian institutional discount</span>. Public prices are marked separately.</span>
+        <span>Prices shown include your <span className="font-semibold text-foreground">Meridian institutional discount</span>. Public prices are marked separately.</span>
       </div>
 
       {/* Category pills */}
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+      <div ref={pillsRef} className="flex gap-2 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
         <button
-          className={`rounded-full shrink-0 px-4 py-2 text-sm font-medium transition-all border ${
+          className={`rounded shrink-0 px-4 py-2 text-sm font-medium transition-colors border ${
             selectedCategory === ""
               ? "bg-primary border-primary text-primary-foreground"
-              : "glass-card text-muted-foreground hover:text-foreground hover:border-primary/30"
+              : "glass-card text-muted-foreground hover:text-foreground hover:border-primary/40"
           }`}
           onClick={() => setSelectedCategory("")}
         >
@@ -134,16 +143,16 @@ export default function Browse() {
         </button>
         {isLoadingCategories ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-24 rounded-full shrink-0" />
+            <Skeleton key={i} className="h-10 w-24 rounded shrink-0" />
           ))
         ) : (
           categories?.map(cat => (
             <button
               key={cat.id}
-              className={`rounded-full shrink-0 px-4 py-2 text-sm font-medium transition-all border ${
+              className={`rounded shrink-0 px-4 py-2 text-sm font-medium transition-colors border ${
                 selectedCategory === cat.slug
                   ? "bg-primary border-primary text-primary-foreground"
-                  : "glass-card text-muted-foreground hover:text-foreground hover:border-primary/30"
+                  : "glass-card text-muted-foreground hover:text-foreground hover:border-primary/40"
               }`}
               onClick={() => setSelectedCategory(cat.slug)}
             >
@@ -154,12 +163,12 @@ export default function Browse() {
       </div>
 
       {/* Provider list */}
-      <div className="space-y-4">
+      <div ref={providerListRef} className="space-y-4">
         {isLoadingProviders ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="glass-card rounded-2xl">
+            <div key={i} className="glass-card rounded-lg">
               <div className="p-5 flex gap-4">
-                <Skeleton className="h-20 w-20 rounded-xl shrink-0" />
+                <Skeleton className="h-20 w-20 rounded shrink-0" />
                 <div className="space-y-2 flex-1">
                   <Skeleton className="h-5 w-1/3" />
                   <Skeleton className="h-4 w-1/2" />
@@ -169,7 +178,7 @@ export default function Browse() {
             </div>
           ))
         ) : filteredProviders?.length === 0 ? (
-          <div className="glass-card text-center py-12 px-4 rounded-2xl border-dashed">
+          <div className="glass-card text-center py-12 px-4 rounded-lg border-dashed">
             <Search className="h-8 w-8 text-muted-foreground mx-auto mb-3 opacity-50" />
             <h3 className="font-medium">No providers found</h3>
             <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters or search term</p>
@@ -186,9 +195,9 @@ export default function Browse() {
 
             return (
               <Link key={provider.id} href={`/providers/${provider.id}`} className="block group">
-                <div className="glass-card rounded-2xl overflow-hidden cursor-pointer">
+                <div className="glass-card rounded-lg overflow-hidden cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary/40">
                   <div className="p-5 flex gap-4">
-                    <div className="h-20 w-20 rounded-xl bg-primary/10 border border-primary/15 flex-shrink-0 flex items-center justify-center text-2xl font-serif text-primary">
+                    <div className="h-20 w-20 rounded bg-primary/10 border border-primary/15 flex-shrink-0 flex items-center justify-center text-2xl font-serif text-primary">
                       {provider.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -196,12 +205,12 @@ export default function Browse() {
                         <div>
                           <h3 className="font-serif text-lg leading-tight truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
                             {provider.name}
-                            {provider.verified && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
+                            {provider.verified && <CheckCircle2 className="h-4 w-4 text-primary" />}
                           </h3>
                           <p className="text-sm text-muted-foreground mt-0.5">{provider.categoryName}</p>
                         </div>
                         {provider.availableNow && (
-                          <Badge className="shrink-0 text-[10px] px-2 py-0.5 hidden sm:inline-flex bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20">
+                          <Badge className="shrink-0 rounded text-[10px] px-2 py-0.5 hidden sm:inline-flex bg-primary/15 text-primary border border-primary/25 hover:bg-primary/20">
                             Available Now
                           </Badge>
                         )}
@@ -224,16 +233,16 @@ export default function Browse() {
                   </div>
 
                   {/* Price footer with institutional pricing */}
-                  <div className="px-5 py-3 border-t border-border/50 flex justify-between items-center text-sm bg-white/[0.02]">
+                  <div className="px-5 py-3 border-t border-border/50 flex justify-between items-center text-sm bg-secondary">
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground text-xs line-through">{aed(provider.startingPrice)}</span>
-                      <span className="text-xs text-white/40">public</span>
-                      <span className="flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                      <span className="text-xs text-muted-foreground">public</span>
+                      <span className="flex items-center gap-1 text-xs text-primary font-medium">
                         <Building2 className="h-3 w-3" />−{aed(saving)}
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="text-xs text-white/50">from</span>
+                      <span className="text-xs text-muted-foreground">from</span>
                       <span className="font-semibold text-primary">{aed(institutionalPrice)}</span>
                     </div>
                   </div>

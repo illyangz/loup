@@ -2,6 +2,14 @@ import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 const TOKEN_KEY = "loup_demo_token";
 
+/**
+ * Origin to prepend to raw fetch() calls outside the generated client.
+ * In dev this stays empty and requests go through Vite's proxy to
+ * API_TARGET. In a static production build (e.g. Cloudflare Pages) there's
+ * no proxy, so VITE_API_BASE_URL must point at the deployed API origin.
+ */
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
+
 export function getStoredToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_KEY);

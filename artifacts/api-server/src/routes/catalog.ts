@@ -13,6 +13,8 @@ import {
   CreateReviewResponse,
   GetProviderParams,
   GetProviderResponse,
+  GetServiceParams,
+  GetServiceResponse,
   ListCategoriesResponse,
   ListProviderReviewsParams,
   ListProviderReviewsResponse,
@@ -187,6 +189,28 @@ router.get("/providers/:id", async (req, res): Promise<void> => {
       services,
     }),
   );
+});
+
+// Resolves a service to its provider — the deep-link endpoint the embeddable
+// widget uses (P1-7) to send an employee straight to booking a specific
+// service without the caller needing to already know its providerId.
+router.get("/services/:id", async (req, res): Promise<void> => {
+  const params = GetServiceParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [row] = await db
+    .select({ service: servicesTable, providerName: providersTable.name, categorySlug: categoriesTable.slug })
+    .from(servicesTable)
+    .innerJoin(providersTable, eq(servicesTable.providerId, providersTable.id))
+    .innerJoin(categoriesTable, eq(providersTable.categoryId, categoriesTable.id))
+    .where(and(eq(servicesTable.id, params.data.id), inArray(categoriesTable.slug, BOOKABLE_CATEGORY_SLUGS)));
+  if (!row) {
+    res.status(404).json({ error: "Service not found" });
+    return;
+  }
+  res.json(GetServiceResponse.parse({ ...row.service, providerName: row.providerName }));
 });
 
 router.get("/providers/:id/reviews", async (req, res): Promise<void> => {

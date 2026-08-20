@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Layout } from "@/components/layout";
 import { useBookings, useUpdateBookingStatus } from "@/hooks/api-hooks";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useReveal } from "@/hooks/use-reveal";
 import { formatAED, formatDateTime } from "@/lib/utils";
 import { Filter } from "lucide-react";
 
@@ -13,17 +14,28 @@ export default function Bookings() {
   const { data: bookings, isLoading } = useBookings(filter || undefined);
   const updateStatus = useUpdateBookingStatus();
 
+  const headerRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  useReveal(headerRef, { y: 12, immediate: true });
+  useReveal(tableRef, { y: 16, immediate: true, delay: 0.1 });
+
   if (isLoading) return <Layout><div className="animate-pulse">Loading...</div></Layout>;
+
+  const statusVariant = (status: string) =>
+    status === "completed" ? "default" as const :
+    status === "cancelled" ? "destructive" as const :
+    "secondary" as const;
 
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div ref={headerRef} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Bookings Audit</h1>
+            <h1 className="font-serif text-3xl tracking-tight">Bookings Audit</h1>
             <p className="text-muted-foreground mt-2">Platform-wide overview of all service fulfillments.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
             <Button variant={filter === "" ? "default" : "outline"} onClick={() => setFilter("")} size="sm">
               All
             </Button>
@@ -36,7 +48,42 @@ export default function Bookings() {
           </div>
         </div>
 
-        <Card>
+        {/* Cards below sm, real table sm+ */}
+        <div ref={tableRef} className="sm:hidden space-y-3">
+          {bookings?.map((booking) => (
+            <Card key={booking.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{booking.memberName}</div>
+                  <div className="text-xs text-muted-foreground font-mono">#{booking.id.toString().padStart(6, '0')}</div>
+                </div>
+                <Badge variant={statusVariant(booking.status)} className="shrink-0">{booking.status}</Badge>
+              </div>
+              <div className="mt-2">
+                <div className="font-medium text-sm">{booking.serviceName}</div>
+                <div className="text-xs text-muted-foreground">via {booking.providerName}</div>
+              </div>
+              <div className="mt-2 text-[13px] text-muted-foreground">{formatDateTime(booking.scheduledAt)}</div>
+              {booking.status !== "cancelled" && booking.status !== "completed" && (
+                <div className="mt-3 flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => updateStatus.mutate({ id: booking.id, status: "completed" })}>
+                    Complete
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => updateStatus.mutate({ id: booking.id, status: "cancelled" })}>
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </Card>
+          ))}
+          {bookings?.length === 0 && (
+            <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+              No bookings found matching the current filter.
+            </div>
+          )}
+        </div>
+
+        <Card className="hidden sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -67,27 +114,21 @@ export default function Bookings() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={
-                        booking.status === "completed" ? "success" : 
-                        booking.status === "cancelled" ? "destructive" : 
-                        "warning"
-                      }
-                    >
+                    <Badge variant={statusVariant(booking.status)}>
                       {booking.status}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     {booking.status !== "cancelled" && booking.status !== "completed" && (
                       <div className="flex items-center justify-end gap-2">
-                        <Button 
+                        <Button
                           variant="outline"
                           size="sm"
                           onClick={() => updateStatus.mutate({ id: booking.id, status: "completed" })}
                         >
                           Complete
                         </Button>
-                        <Button 
+                        <Button
                           variant="destructive"
                           size="sm"
                           onClick={() => updateStatus.mutate({ id: booking.id, status: "cancelled" })}

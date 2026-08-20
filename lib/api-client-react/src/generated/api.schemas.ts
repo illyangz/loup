@@ -190,6 +190,7 @@ export interface EmployerEmployee {
   tierName?: string;
   startDate?: string;
   endDate?: string;
+  updatedAt?: string;
 }
 
 export interface EmployeeImportInput {
@@ -197,11 +198,92 @@ export interface EmployeeImportInput {
   csv: string;
 }
 
+export interface ConsentStatus {
+  consented: boolean;
+  consentedAt: string | null;
+  consentedBy: string | null;
+}
+
+export interface DataExportEmployee {
+  id: number;
+  externalEmployeeId: string;
+  name: string;
+  workEmail: string;
+  department: string;
+  benefitTier: string;
+  eligibilityStatus: string;
+  createdAt: string;
+}
+
+export interface DataExportLedgerEntry {
+  id: number;
+  employeeId: number;
+  entryType: string;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface DataExportBooking {
+  id: number;
+  employeeName: string;
+  serviceName: string;
+  providerName: string;
+  status: string;
+  priceEstimate: number;
+  scheduledAt: string;
+}
+
+export interface DataExportIncident {
+  id: number;
+  category: string;
+  description: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface DataExportWebhookEvent {
+  id: number;
+  eventType: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface DataExportBundle {
+  institutionName: string;
+  exportedAt: string;
+  employees: DataExportEmployee[];
+  ledgerEntries: DataExportLedgerEntry[];
+  bookings: DataExportBooking[];
+  incidents: DataExportIncident[];
+  webhookEvents: DataExportWebhookEvent[];
+}
+
+export interface WebhookPurgeInput {
+  /**
+     * Defaults to a 90-day retention window server-side when omitted
+     * @minimum 1
+     */
+  olderThanDays?: number;
+}
+
+export interface WebhookPurgeResult {
+  purged: number;
+  retentionDays: number;
+}
+
+export interface ImportResultRowError {
+  /** 1-indexed CSV row (header is row 1) */
+  row: number;
+  message: string;
+}
+
 export interface ImportResult {
   status: string;
   imported: number;
   skipped: number;
   message: string;
+  errors: ImportResultRowError[];
 }
 
 export interface CategoryUtilization {
@@ -372,6 +454,45 @@ export interface ProviderAnalytics {
   repeatBookingRate: number;
   capacityUtilization: number;
   forecast: ProviderAnalyticsForecast;
+}
+
+export interface SettlementLine {
+  bookingId: number;
+  serviceName: string;
+  completedAt: string;
+  /** null for bookings with no institution/benefit-plan link — no platform fee applies */
+  institutionName: string | null;
+  grossAmount: number;
+  feeRatePct: number;
+  platformFee: number;
+  netPayout: number;
+}
+
+export interface ProviderSettlement {
+  cycleLabel: string;
+  grossRevenue: number;
+  platformFee: number;
+  netPayout: number;
+  bookingCount: number;
+  lines: SettlementLine[];
+}
+
+export interface AdminSettlementProviderRow {
+  providerId: number;
+  providerName: string;
+  grossRevenue: number;
+  platformFee: number;
+  netPayout: number;
+  bookingCount: number;
+}
+
+export interface AdminSettlement {
+  cycleLabel: string;
+  grossRevenue: number;
+  platformFee: number;
+  netPayout: number;
+  bookingCount: number;
+  byProvider: AdminSettlementProviderRow[];
 }
 
 export interface MatchDecision {
@@ -548,6 +669,10 @@ export interface Service {
 
 export type ProviderDetail = Provider & {
   services: Service[];
+};
+
+export type ServiceDetail = Service & {
+  providerName: string;
 };
 
 export interface Review {
@@ -948,6 +1073,105 @@ export interface AdminIncidentUpdate {
   resolution?: string;
 }
 
+export type WebhookEventPayload = { [key: string]: unknown };
+
+export type WebhookEventStatus = typeof WebhookEventStatus[keyof typeof WebhookEventStatus];
+
+
+export const WebhookEventStatus = {
+  pending: 'pending',
+  delivered: 'delivered',
+  failed: 'failed',
+} as const;
+
+export interface WebhookEvent {
+  id: number;
+  eventType: string;
+  payload: WebhookEventPayload;
+  status: WebhookEventStatus;
+  attempts: number;
+  lastHttpStatus: number | null;
+  lastError: string | null;
+  nextAttemptAt: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+}
+
+export interface WebhookEventTypeCount {
+  eventType: string;
+  count: number;
+}
+
+export interface WebhookEventsSummary {
+  total: number;
+  delivered: number;
+  failed: number;
+  pending: number;
+  byType: WebhookEventTypeCount[];
+}
+
+export interface WebhookEventsResult {
+  events: WebhookEvent[];
+  summary: WebhookEventsSummary;
+}
+
+export type WebhookReplayResultPayload = { [key: string]: unknown };
+
+export interface WebhookReplayResult {
+  ok: boolean;
+  id: number;
+  status: string;
+  nextAttemptAt: string;
+  maxAttempts: number;
+  backoffSeconds: number;
+  payload: WebhookReplayResultPayload;
+}
+
+export interface WebhookEndpoint {
+  id: number;
+  institutionId: number;
+  institutionName: string;
+  url: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface WebhookEndpointsResult {
+  endpoints: WebhookEndpoint[];
+}
+
+export interface WebhookEndpointInput {
+  institutionId: number;
+  /** @minLength 1 */
+  url: string;
+}
+
+export interface WebhookEndpointCreated {
+  id: number;
+  institutionId: number;
+  url: string;
+  active: boolean;
+  /** Signing secret for HMAC verification — shown only once, on creation. */
+  secret: string;
+}
+
+export interface WebhookEndpointDeactivateResult {
+  ok: boolean;
+  id: number;
+}
+
+export interface WidgetTokenInput {
+  institutionSlug: string;
+  /** The employer's own employee identifier, as synced via the roster (P1-6) */
+  externalEmployeeId: string;
+}
+
+export interface GetWidgetTokenResult {
+  token: string;
+  expiresInSeconds: number;
+  employeeName: string;
+}
+
 export interface OpenaiConversation {
   id: number;
   title: string;
@@ -980,6 +1204,26 @@ export interface OpenaiConversationWithMessages {
 export interface OpenaiError {
   error: string;
 }
+
+export type GetSsoStatus200InstitutionsItem = {
+  slug?: string;
+  name?: string;
+  ssoConfigured?: boolean;
+};
+
+export type GetSsoStatus200 = {
+  enabled?: boolean;
+  institutions?: GetSsoStatus200InstitutionsItem[];
+};
+
+export type StartSsoParams = {
+slug: string;
+};
+
+export type SsoCallbackParams = {
+code: string;
+state: string;
+};
 
 export type ListProvidersParams = {
 /**
@@ -1015,6 +1259,13 @@ export const ListBookingsScope = {
 
 export type GetCheckoutPreviewParams = {
 serviceId: number;
+};
+
+export type ListEmployerEmployeesParams = {
+/**
+ * Roster delta sync (P1-6) — only employees created or updated at or after this ISO 8601 timestamp
+ */
+updatedSince?: string;
 };
 
 export type ListProviderOrdersParams = {

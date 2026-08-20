@@ -31,6 +31,16 @@ export const institutionsTable = pgTable("institutions", {
   type: text("type").notNull().default("school"),
   country: text("country").notNull().default("AE"),
   city: text("city").notNull().default("Dubai"),
+  /** WorkOS SSO connection id (P1-1). Null in demo mode. */
+  ssoConnectionId: text("sso_connection_id"),
+  /** Emails allowed to sign in as institution admin via SSO. */
+  adminEmails: jsonb("admin_emails").$type<string[]>().notNull().default([]),
+  /** Server-to-server secret for the widget token-exchange endpoint (P1-7). Null = widget not provisioned. */
+  widgetSecret: text("widget_secret"),
+  /** PDPL/GDPR data processing consent (P1-11). Null = not yet recorded. */
+  dataProcessingConsentAt: timestamp("data_processing_consent_at", { withTimezone: true }),
+  /** Email of the institution admin who recorded consent. */
+  dataProcessingConsentBy: text("data_processing_consent_by"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -143,9 +153,45 @@ export const webhookEventsTable = pgTable("webhook_events", {
   /** employee.activated | allowance.issued | booking.created | booking.completed | etc. */
   eventType: text("event_type").notNull(),
   payload: jsonb("payload").notNull().default({}),
+  /** Outbox delivery fields (P1-3) */
+  endpointId: integer("endpoint_id").references(() => webhookEndpointsTable.id),
+  attempts: integer("attempts").notNull().default(0),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+  lastHttpStatus: integer("last_http_status"),
+  lastError: text("last_error"),
+  /** Exact signed body sent on last delivery — replayed verbatim. */
+  signedPayload: text("signed_payload"),
+  /** HMAC-SHA256 signature of the last delivered body. */
+  signature: text("signature"),
   deliveredAt: timestamp("delivered_at", { withTimezone: true }),
   /** pending | delivered | failed */
   status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─── Webhook endpoints (P1-3) ─────────────────────────────────────────────
+
+export const webhookEndpointsTable = pgTable("webhook_endpoints", {
+  id: serial("id").primaryKey(),
+  institutionId: integer("institution_id")
+    .notNull()
+    .references(() => institutionsTable.id),
+  url: text("url").notNull(),
+  /** HMAC-SHA256 signing secret, per tenant/endpoint. */
+  secret: text("secret").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─── Idempotency records (P1-4) ───────────────────────────────────────────
+
+export const idempotencyRecordsTable = pgTable("idempotency_records", {
+  id: serial("id").primaryKey(),
+  /** Client-supplied Idempotency-Key (unique per endpoint). */
+  key: text("key").notNull().unique(),
+  endpoint: text("endpoint").notNull(),
+  statusCode: integer("status_code").notNull(),
+  responseBody: jsonb("response_body").notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -194,3 +240,11 @@ export type ProviderQualityFlagRow = typeof providerQualityFlagsTable.$inferSele
 export const insertWebhookEventSchema = createInsertSchema(webhookEventsTable).omit({ id: true, createdAt: true });
 export type InsertWebhookEvent = z.infer<typeof insertWebhookEventSchema>;
 export type WebhookEventRow = typeof webhookEventsTable.$inferSelect;
+
+export const insertWebhookEndpointSchema = createInsertSchema(webhookEndpointsTable).omit({ id: true, createdAt: true });
+export type InsertWebhookEndpoint = z.infer<typeof insertWebhookEndpointSchema>;
+export type WebhookEndpointRow = typeof webhookEndpointsTable.$inferSelect;
+
+export const insertIdempotencyRecordSchema = createInsertSchema(idempotencyRecordsTable).omit({ id: true, createdAt: true });
+export type InsertIdempotencyRecord = z.infer<typeof insertIdempotencyRecordSchema>;
+export type IdempotencyRecordRow = typeof idempotencyRecordsTable.$inferSelect;

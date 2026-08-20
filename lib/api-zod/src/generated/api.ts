@@ -9,6 +9,42 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary SSO configuration status per institution
+ */
+export const GetSsoStatusResponse = zod.object({
+  "enabled": zod.boolean().optional(),
+  "institutions": zod.array(zod.object({
+  "slug": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ssoConfigured": zod.boolean().optional()
+})).optional()
+})
+
+
+/**
+ * Redirects the browser to the institution's WorkOS connection.
+ * @summary Start WorkOS SSO for an institution
+ */
+export const StartSsoQueryParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const StartSsoResponse = zod.void()
+
+
+/**
+ * Exchanges the authorization code, resolves the profile to a Loup principal, and redirects to the web app with a signed token.
+ * @summary WorkOS OAuth callback
+ */
+export const SsoCallbackQueryParams = zod.object({
+  "code": zod.coerce.string(),
+  "state": zod.coerce.string()
+})
+
+export const SsoCallbackResponse = zod.void()
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
@@ -172,6 +208,25 @@ export const GetProviderResponse = zod.object({
   "price": zod.number(),
   "durationMinutes": zod.number().int()
 }))
+}))
+
+
+/**
+ * @summary A single service with its provider — used to resolve a widget deep link (P1-7) to a booking
+ */
+export const GetServiceParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetServiceResponse = zod.object({
+  "id": zod.number().int(),
+  "providerId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "price": zod.number(),
+  "durationMinutes": zod.number().int()
+}).and(zod.object({
+  "providerName": zod.string()
 }))
 
 
@@ -963,6 +1018,10 @@ export const GetEmployerOverviewResponse = zod.object({
 /**
  * @summary Employer-safe employee roster
  */
+export const ListEmployerEmployeesQueryParams = zod.object({
+  "updatedSince": zod.date().optional().describe('Roster delta sync (P1-6) — only employees created or updated at or after this ISO 8601 timestamp')
+})
+
 export const ListEmployerEmployeesResponseItem = zod.object({
   "id": zod.number().int(),
   "externalEmployeeId": zod.string(),
@@ -977,13 +1036,14 @@ export const ListEmployerEmployeesResponseItem = zod.object({
   "tierId": zod.number().int().optional(),
   "tierName": zod.string().optional(),
   "startDate": zod.string().optional(),
-  "endDate": zod.string().optional()
+  "endDate": zod.string().optional(),
+  "updatedAt": zod.string().optional()
 })
 export const ListEmployerEmployeesResponse = zod.array(ListEmployerEmployeesResponseItem)
 
 
 /**
- * @summary Simulate a CSV employee roster import
+ * @summary Bulk upsert an employee roster from CSV (dedupes on externalEmployeeId, max 500 rows/batch)
  */
 
 
@@ -996,8 +1056,18 @@ export const ImportEmployerEmployeesResponse = zod.object({
   "status": zod.string(),
   "imported": zod.number().int(),
   "skipped": zod.number().int(),
+  "message": zod.string(),
+  "errors": zod.array(zod.object({
+  "row": zod.number().int().describe('1-indexed CSV row (header is row 1)'),
   "message": zod.string()
+}))
 })
+
+
+/**
+ * @summary Download a starter CSV template for the roster bulk-upsert endpoint
+ */
+export const GetEmployerEmployeesTemplateResponse = zod.unknown()
 
 
 /**
@@ -1018,6 +1088,101 @@ export const GetEmployerUtilizationResponse = zod.object({
   "satisfaction": zod.number(),
   "completionRate": zod.number(),
   "serviceRecoveryRate": zod.number()
+})
+
+
+/**
+ * @summary PDPL data-processing consent status for this institution (P1-11)
+ */
+export const GetEmployerConsentResponse = zod.object({
+  "consented": zod.boolean(),
+  "consentedAt": zod.string().nullable(),
+  "consentedBy": zod.string().nullable()
+})
+
+
+/**
+ * @summary Record PDPL data-processing consent for this institution, on behalf of the authenticated admin
+ */
+export const RecordEmployerConsentResponse = zod.object({
+  "consented": zod.boolean(),
+  "consentedAt": zod.string().nullable(),
+  "consentedBy": zod.string().nullable()
+})
+
+
+/**
+ * @summary Full PDPL data-portability export — every record this institution's data touches (P1-11)
+ */
+export const GetEmployerDataExportResponse = zod.object({
+  "institutionName": zod.string(),
+  "exportedAt": zod.string(),
+  "employees": zod.array(zod.object({
+  "id": zod.number().int(),
+  "externalEmployeeId": zod.string(),
+  "name": zod.string(),
+  "workEmail": zod.string(),
+  "department": zod.string(),
+  "benefitTier": zod.string(),
+  "eligibilityStatus": zod.string(),
+  "createdAt": zod.string()
+})),
+  "ledgerEntries": zod.array(zod.object({
+  "id": zod.number().int(),
+  "employeeId": zod.number().int(),
+  "entryType": zod.string(),
+  "amount": zod.number(),
+  "note": zod.string().nullable(),
+  "createdAt": zod.string()
+})),
+  "bookings": zod.array(zod.object({
+  "id": zod.number().int(),
+  "employeeName": zod.string(),
+  "serviceName": zod.string(),
+  "providerName": zod.string(),
+  "status": zod.string(),
+  "priceEstimate": zod.number(),
+  "scheduledAt": zod.string()
+})),
+  "incidents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "category": zod.string(),
+  "description": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})),
+  "webhookEvents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventType": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary PDPL right-to-erasure — anonymizes an employee's PII while retaining financial/audit records (P1-11)
+ */
+export const EraseEmployerEmployeeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const EraseEmployerEmployeeResponse = zod.object({
+  "id": zod.number().int(),
+  "externalEmployeeId": zod.string(),
+  "name": zod.string(),
+  "workEmail": zod.string(),
+  "department": zod.string(),
+  "benefitTier": zod.string(),
+  "eligibilityStatus": zod.string(),
+  "householdEligible": zod.boolean(),
+  "campusId": zod.number().int().optional(),
+  "campusName": zod.string().optional(),
+  "tierId": zod.number().int().optional(),
+  "tierName": zod.string().optional(),
+  "startDate": zod.string().optional(),
+  "endDate": zod.string().optional(),
+  "updatedAt": zod.string().optional()
 })
 
 
@@ -1081,7 +1246,8 @@ export const UpdateEmployerEmployeeResponse = zod.object({
   "tierId": zod.number().int().optional(),
   "tierName": zod.string().optional(),
   "startDate": zod.string().optional(),
-  "endDate": zod.string().optional()
+  "endDate": zod.string().optional(),
+  "updatedAt": zod.string().optional()
 })
 
 
@@ -1113,7 +1279,8 @@ export const AddEmployerEmployeeResponse = zod.object({
   "tierId": zod.number().int().optional(),
   "tierName": zod.string().optional(),
   "startDate": zod.string().optional(),
-  "endDate": zod.string().optional()
+  "endDate": zod.string().optional(),
+  "updatedAt": zod.string().optional()
 })
 
 
@@ -1477,6 +1644,28 @@ export const GetProviderAnalyticsResponse = zod.object({
 
 
 /**
+ * @summary Provider settlement — net-of-platform-fee payout for the current calendar month
+ */
+export const GetProviderSettlementResponse = zod.object({
+  "cycleLabel": zod.string(),
+  "grossRevenue": zod.number(),
+  "platformFee": zod.number(),
+  "netPayout": zod.number(),
+  "bookingCount": zod.number().int(),
+  "lines": zod.array(zod.object({
+  "bookingId": zod.number().int(),
+  "serviceName": zod.string(),
+  "completedAt": zod.string(),
+  "institutionName": zod.string().nullable().describe('null for bookings with no institution\/benefit-plan link — no platform fee applies'),
+  "grossAmount": zod.number(),
+  "feeRatePct": zod.number(),
+  "platformFee": zod.number(),
+  "netPayout": zod.number()
+}))
+})
+
+
+/**
  * @summary Operations control tower overview
  */
 export const GetOperationsOverviewResponse = zod.object({
@@ -1589,6 +1778,156 @@ export const ResolveAdminIncidentResponse = zod.object({
   "resolution": zod.string().nullable(),
   "createdAt": zod.string(),
   "resolvedAt": zod.string().nullable()
+})
+
+
+/**
+ * @summary Platform-wide provider settlement for the current calendar month, by provider
+ */
+export const GetAdminSettlementResponse = zod.object({
+  "cycleLabel": zod.string(),
+  "grossRevenue": zod.number(),
+  "platformFee": zod.number(),
+  "netPayout": zod.number(),
+  "bookingCount": zod.number().int(),
+  "byProvider": zod.array(zod.object({
+  "providerId": zod.number().int(),
+  "providerName": zod.string(),
+  "grossRevenue": zod.number(),
+  "platformFee": zod.number(),
+  "netPayout": zod.number(),
+  "bookingCount": zod.number().int()
+}))
+})
+
+
+/**
+ * @summary Webhook event log (latest 100, newest first) with delivery summary
+ */
+export const ListAdminWebhookEventsResponse = zod.object({
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventType": zod.string(),
+  "payload": zod.record(zod.string(), zod.unknown()),
+  "status": zod.enum(['pending', 'delivered', 'failed']),
+  "attempts": zod.number().int(),
+  "lastHttpStatus": zod.number().int().nullable(),
+  "lastError": zod.string().nullable(),
+  "nextAttemptAt": zod.string().nullable(),
+  "deliveredAt": zod.string().nullable(),
+  "createdAt": zod.string()
+})),
+  "summary": zod.object({
+  "total": zod.number().int(),
+  "delivered": zod.number().int(),
+  "failed": zod.number().int(),
+  "pending": zod.number().int(),
+  "byType": zod.array(zod.object({
+  "eventType": zod.string(),
+  "count": zod.number().int()
+}))
+})
+})
+
+
+/**
+ * @summary Re-enqueue a webhook event for delivery
+ */
+export const ReplayAdminWebhookEventParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ReplayAdminWebhookEventResponse = zod.object({
+  "ok": zod.boolean(),
+  "id": zod.number().int(),
+  "status": zod.string(),
+  "nextAttemptAt": zod.string(),
+  "maxAttempts": zod.number().int(),
+  "backoffSeconds": zod.number(),
+  "payload": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary PDPL data-minimization retention purge — deletes resolved (delivered/failed) webhook events older than the retention window (P1-11)
+ */
+
+
+
+export const PurgeAdminWebhookEventsBody = zod.object({
+  "olderThanDays": zod.number().int().min(1).optional().describe('Defaults to a 90-day retention window server-side when omitted')
+})
+
+export const PurgeAdminWebhookEventsResponse = zod.object({
+  "purged": zod.number().int(),
+  "retentionDays": zod.number().int()
+})
+
+
+/**
+ * @summary List webhook delivery endpoints across institutions
+ */
+export const ListAdminWebhookEndpointsResponse = zod.object({
+  "endpoints": zod.array(zod.object({
+  "id": zod.number().int(),
+  "institutionId": zod.number().int(),
+  "institutionName": zod.string(),
+  "url": zod.string(),
+  "active": zod.boolean(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Register a webhook delivery endpoint for an institution
+ */
+
+
+
+export const CreateAdminWebhookEndpointBody = zod.object({
+  "institutionId": zod.number().int(),
+  "url": zod.string().min(1)
+})
+
+export const CreateAdminWebhookEndpointResponse = zod.object({
+  "id": zod.number().int(),
+  "institutionId": zod.number().int(),
+  "url": zod.string(),
+  "active": zod.boolean(),
+  "secret": zod.string().describe('Signing secret for HMAC verification — shown only once, on creation.')
+})
+
+
+/**
+ * @summary Deactivate a webhook delivery endpoint
+ */
+export const DeactivateAdminWebhookEndpointParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeactivateAdminWebhookEndpointResponse = zod.object({
+  "ok": zod.boolean(),
+  "id": zod.number().int()
+})
+
+
+/**
+ * @summary Server-to-server exchange — issues a short-lived employee-scoped token for the embeddable widget (P1-7)
+ */
+export const GetWidgetTokenHeader = zod.object({
+  "X-Loup-Widget-Secret": zod.string().describe('Per-institution widget secret, issued out of band — never sent from the browser')
+})
+
+export const GetWidgetTokenBody = zod.object({
+  "institutionSlug": zod.string(),
+  "externalEmployeeId": zod.string().describe('The employer\'s own employee identifier, as synced via the roster (P1-6)')
+})
+
+export const GetWidgetTokenResponse = zod.object({
+  "token": zod.string(),
+  "expiresInSeconds": zod.number().int(),
+  "employeeName": zod.string()
 })
 
 

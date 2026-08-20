@@ -32,6 +32,7 @@ import {
   postPackMessage,
 } from "../lib/loup";
 import { notifyHousehold, notifyHouseholdHeads } from "../lib/push";
+import { withIdempotency } from "../lib/idempotency";
 
 const router: IRouter = Router();
 
@@ -237,7 +238,7 @@ async function claimPendingRequest(
   return updated.length > 0;
 }
 
-router.post("/pack/requests/:id/approve", async (req, res): Promise<void> => {
+router.post("/pack/requests/:id/approve", withIdempotency("POST /pack/requests/:id/approve", async (req, res): Promise<void> => {
   const params = ApproveServiceRequestParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -356,7 +357,7 @@ router.post("/pack/requests/:id/approve", async (req, res): Promise<void> => {
   const view = rows.find((r) => r.id === request.id);
   req.log.info({ requestId: request.id, bookingId }, "Service request approved");
   res.json(ApproveServiceRequestResponse.parse(view));
-});
+}));
 
 router.post("/pack/requests/:id/decline", async (req, res): Promise<void> => {
   const params = DeclineServiceRequestParams.safeParse(req.params);

@@ -30,7 +30,7 @@ if (!basePath) {
 const apiTarget = process.env.API_TARGET ?? 'http://localhost:3000';
 
 const proxy = {
-  '/api': {
+  '^/api/': {
     target: apiTarget,
     changeOrigin: true,
   },

@@ -13,6 +13,8 @@ export interface DemoPrincipal {
   name: string;
   employerId?: number;
   institutionId?: number;
+  /** P1-1: claims carry an explicit tenant id (= institutionId). */
+  tenantId?: number;
   providerId?: number;
   memberId?: number;
   employeeId?: number;
@@ -30,12 +32,12 @@ function getSecret(): Uint8Array {
   );
 }
 
-export async function signDemoToken(principal: DemoPrincipal): Promise<string> {
+export async function signDemoToken(principal: DemoPrincipal, ttlSeconds: number = TOKEN_TTL_SECONDS): Promise<string> {
   return new SignJWT({ principal })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(String(principal.role))
     .setIssuedAt()
-    .setExpirationTime(`${TOKEN_TTL_SECONDS}s`)
+    .setExpirationTime(`${ttlSeconds}s`)
     .sign(getSecret());
 }
 

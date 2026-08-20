@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Layout } from "@/components/layout";
 import { useCategories, useServices, useCreateCategory, useUpdateCategory, useCreateService, useUpdateService } from "@/hooks/api-hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,19 +7,27 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, BookOpen, Clock, Store } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useReveal } from "@/hooks/use-reveal";
+import { Plus, BookOpen, Clock, Store, PackageSearch } from "lucide-react";
 import { formatAED } from "@/lib/utils";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
 
 export default function Catalog() {
   const { data: categories, isLoading: catsLoading } = useCategories();
   const { data: services, isLoading: servsLoading } = useServices();
-  
+
   const createCat = useCreateCategory();
   const updateCat = useUpdateCategory();
-  
+
   const [newCat, setNewCat] = useState({ name: "", tagline: "", icon: "", startingPrice: "" });
   const [isCatOpen, setIsCatOpen] = useState(false);
+
+  const headerRef = useRef<HTMLDivElement>(null);
+  const catGridRef = useRef<HTMLDivElement>(null);
+  const servicesTableRef = useRef<HTMLDivElement>(null);
+  useReveal(headerRef, { y: 12, immediate: true });
+  useReveal(catGridRef, { y: 16, stagger: true, immediate: true, delay: 0.1 });
+  useReveal(servicesTableRef, { y: 16, immediate: true });
 
   const handleCreateCategory = async () => {
     if (!newCat.name) return;
@@ -38,22 +46,18 @@ export default function Catalog() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Service Catalog</h1>
+        <div ref={headerRef}>
+          <h1 className="font-serif text-3xl tracking-tight">Service Catalog</h1>
           <p className="text-muted-foreground mt-2">Curate categories and oversee platform-wide services.</p>
         </div>
 
-        <TabsPrimitive.Root defaultValue="categories" className="space-y-6">
-          <TabsPrimitive.List className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
-            <TabsPrimitive.Trigger value="categories" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Categories
-            </TabsPrimitive.Trigger>
-            <TabsPrimitive.Trigger value="services" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              All Services
-            </TabsPrimitive.Trigger>
-          </TabsPrimitive.List>
+        <Tabs defaultValue="categories" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="categories">Categories</TabsTrigger>
+            <TabsTrigger value="services">All Services</TabsTrigger>
+          </TabsList>
 
-          <TabsPrimitive.Content value="categories" className="space-y-4">
+          <TabsContent value="categories" className="space-y-4">
             <div className="flex justify-end">
               <Dialog open={isCatOpen} onOpenChange={setIsCatOpen}>
                 <DialogTrigger asChild>
@@ -84,16 +88,16 @@ export default function Catalog() {
               </Dialog>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div ref={catGridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {categories?.map((cat) => (
-                <Card key={cat.id}>
+                <Card key={cat.id} className="transition-all hover:-translate-y-0.5 hover:border-primary/40">
                   <CardHeader className="flex flex-row items-start justify-between pb-2">
                     <div>
                       <CardTitle className="text-lg">{cat.name}</CardTitle>
                       <p className="text-sm text-muted-foreground mt-1">{cat.tagline}</p>
                     </div>
-                    <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center">
-                      <BookOpen className="h-5 w-5 text-primary" />
+                    <div className="h-10 w-10 rounded bg-secondary flex items-center justify-center">
+                      <BookOpen className="h-5 w-5 text-muted-foreground" />
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -115,51 +119,78 @@ export default function Catalog() {
                 </Card>
               ))}
             </div>
-          </TabsPrimitive.Content>
+          </TabsContent>
 
-          <TabsPrimitive.Content value="services">
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Provider</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+          <TabsContent value="services">
+            {services?.length === 0 ? (
+              <Card>
+                <div className="py-10 text-center text-muted-foreground">
+                  <PackageSearch className="mx-auto mb-2 h-6 w-6 text-muted-foreground/60" />
+                  No services in the catalog yet.
+                </div>
+              </Card>
+            ) : (
+              <>
+                {/* Cards below sm, real table sm+ */}
+                <div ref={servicesTableRef} className="sm:hidden space-y-3">
                   {services?.map((svc) => (
-                    <TableRow key={svc.id}>
-                      <TableCell>
-                        <div className="font-medium">{svc.name}</div>
-                      </TableCell>
-                      <TableCell>
+                    <Card key={svc.id} className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="font-medium min-w-0 truncate">{svc.name}</div>
+                        <div className="shrink-0 font-medium">{formatAED(svc.price)}</div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-muted-foreground">
                         <Badge variant="secondary">{svc.categoryName}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center text-sm">
-                          <Store className="h-3 w-3 mr-2 text-muted-foreground" />
-                          {svc.providerName}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Clock className="h-3 w-3 mr-1.5" />
-                          {svc.durationMinutes} min
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatAED(svc.price)}
-                      </TableCell>
-                    </TableRow>
+                        <span className="flex items-center"><Store className="h-3 w-3 mr-1.5" />{svc.providerName}</span>
+                        <span className="flex items-center"><Clock className="h-3 w-3 mr-1.5" />{svc.durationMinutes} min</span>
+                      </div>
+                    </Card>
                   ))}
-                </TableBody>
-              </Table>
-            </Card>
-          </TabsPrimitive.Content>
-        </TabsPrimitive.Root>
+                </div>
+                <Card className="hidden sm:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Service</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Provider</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead className="text-right">Price</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {services?.map((svc) => (
+                        <TableRow key={svc.id}>
+                          <TableCell>
+                            <div className="font-medium">{svc.name}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{svc.categoryName}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center text-sm">
+                              <Store className="h-3 w-3 mr-2 text-muted-foreground" />
+                              {svc.providerName}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <Clock className="h-3 w-3 mr-1.5" />
+                              {svc.durationMinutes} min
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatAED(svc.price)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );

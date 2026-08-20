@@ -21,4 +21,5 @@ export interface EmployerEmployee {
   tierName?: string;
   startDate?: string;
   endDate?: string;
+  updatedAt?: string;
 }

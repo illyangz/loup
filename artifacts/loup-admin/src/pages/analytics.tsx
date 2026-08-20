@@ -1,6 +1,9 @@
+import { useRef } from "react";
 import { Layout } from "@/components/layout";
 import { useAnalytics } from "@/hooks/api-hooks";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { useReveal } from "@/hooks/use-reveal";
 import { formatAED } from "@/lib/utils";
 import {
   AreaChart,
@@ -15,16 +18,11 @@ import {
   Cell,
 } from "recharts";
 
-const CATEGORY_COLORS = [
-  "#6366f1",
-  "#8b5cf6",
-  "#a78bfa",
-  "#c4b5fd",
-  "#d946ef",
-  "#f43f5e",
-  "#fb7185",
-  "#f97316",
-];
+// Single-accent chart palette: the highest-value bar reads in the app's
+// one chromatic accent, every other bar is a neutral gray — distinction
+// comes from weight/highlight, not hue (role-accent hues were retired).
+const CHART_ACCENT = "hsl(var(--primary))";
+const CHART_MUTED = "hsl(var(--muted-foreground) / 0.45)";
 
 function formatDay(dateStr: string) {
   const d = new Date(dateStr);
@@ -33,6 +31,13 @@ function formatDay(dateStr: string) {
 
 export default function Analytics() {
   const { data, isLoading } = useAnalytics();
+
+  const kpiGridRef = useRef<HTMLDivElement>(null);
+  const trendCardRef = useRef<HTMLDivElement>(null);
+  const detailGridRef = useRef<HTMLDivElement>(null);
+  useReveal(kpiGridRef, { y: 12, stagger: true, immediate: true });
+  useReveal(trendCardRef, { y: 16, immediate: true, delay: 0.1 });
+  useReveal(detailGridRef, { y: 16, stagger: true });
 
   if (isLoading) {
     return (
@@ -50,6 +55,7 @@ export default function Analytics() {
 
   const totalBookings30d = bookingsPerDay.reduce((s, d) => s + d.count, 0);
   const totalRevenue = revenueByCategory.reduce((s, c) => s + c.revenue, 0);
+  const maxCategoryRevenue = revenueByCategory.reduce((m, c) => Math.max(m, c.revenue), 0);
   const avgRedemptionRate =
     redemptionByInstitution.length > 0
       ? redemptionByInstitution.reduce((s, i) => s + i.redemptionRate, 0) /
@@ -60,15 +66,15 @@ export default function Analytics() {
     <Layout>
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+          <h1 className="font-serif text-3xl tracking-tight">Analytics</h1>
           <p className="text-muted-foreground mt-2">
             Booking volumes, revenue trends, and allowance redemption — last 30 days.
           </p>
         </div>
 
         {/* Summary KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+        <div ref={kpiGridRef} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="transition-all hover:-translate-y-0.5 hover:border-primary/40">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Bookings (30 days)
@@ -79,7 +85,7 @@ export default function Analytics() {
               <p className="text-xs text-muted-foreground mt-1">Across all categories</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="transition-all hover:-translate-y-0.5 hover:border-primary/40">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Billed Revenue
@@ -90,7 +96,7 @@ export default function Analytics() {
               <p className="text-xs text-muted-foreground mt-1">From bill items</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="transition-all hover:-translate-y-0.5 hover:border-primary/40">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Avg Redemption Rate
@@ -104,7 +110,7 @@ export default function Analytics() {
         </div>
 
         {/* Bookings per day chart */}
-        <Card>
+        <Card ref={trendCardRef}>
           <CardHeader>
             <CardTitle>Bookings per Day</CardTitle>
             <CardDescription>New bookings created each day over the last 30 days</CardDescription>
@@ -115,8 +121,8 @@ export default function Analytics() {
                 <AreaChart data={bookingsPerDay} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="bookingGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      <stop offset="5%" stopColor={CHART_ACCENT} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={CHART_ACCENT} stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -136,7 +142,7 @@ export default function Analytics() {
                   <Area
                     type="monotone"
                     dataKey="count"
-                    stroke="#6366f1"
+                    stroke={CHART_ACCENT}
                     strokeWidth={2}
                     fill="url(#bookingGrad)"
                   />
@@ -146,7 +152,7 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div ref={detailGridRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Revenue by category */}
           <Card>
             <CardHeader>
@@ -188,10 +194,10 @@ export default function Analytics() {
                         contentStyle={{ fontSize: 12 }}
                       />
                       <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
-                        {revenueByCategory.map((_entry, i) => (
+                        {revenueByCategory.map((entry, i) => (
                           <Cell
                             key={i}
-                            fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]}
+                            fill={entry.revenue === maxCategoryRevenue ? CHART_ACCENT : CHART_MUTED}
                           />
                         ))}
                       </Bar>
@@ -228,12 +234,7 @@ export default function Analytics() {
                           </span>
                         </span>
                       </div>
-                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-primary transition-all"
-                          style={{ width: `${Math.min(inst.redemptionRate, 100)}%` }}
-                        />
-                      </div>
+                      <Progress value={Math.min(inst.redemptionRate, 100)} />
                     </div>
                   ))}
                 </div>

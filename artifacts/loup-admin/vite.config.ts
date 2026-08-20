@@ -27,6 +27,19 @@ if (!basePath) {
   );
 }
 
+// lib/api.ts calls same-origin `/api/*` with no base URL of its own, so local
+// dev needs this proxy to reach the real api-server — mirrors artifacts/loup's
+// vite.config.ts (P1-12: this app had no proxy at all, so it couldn't reach
+// live data outside of whatever reverse-proxies it in a real deployment).
+const apiTarget = process.env.API_TARGET ?? 'http://localhost:3000';
+
+const proxy = {
+  '^/api/': {
+    target: apiTarget,
+    changeOrigin: true,
+  },
+};
+
 export default defineConfig({
   base: basePath,
   plugins: [
@@ -69,6 +82,7 @@ export default defineConfig({
     strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy,
     fs: {
       strict: true,
     },
@@ -77,5 +91,6 @@ export default defineConfig({
     port,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy,
   },
 });

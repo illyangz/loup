@@ -1,55 +1,41 @@
 import { createContext, useContext, useEffect, useState } from "react"
 
-type Theme = "light" | "dark" | "system"
+/**
+ * P1-17: dashboard-wide light/dark toggle for the Altitude design system.
+ * Dark is the default (matches :root in index.css); `.light` on
+ * <html> is the opt-in override. Persisted to localStorage.
+ */
+type Theme = "dark" | "light"
 
-const STORAGE_KEY = "loup-theme"
+const STORAGE_KEY = "loup-app-theme"
 
 type ThemeContextValue = {
   theme: Theme
-  resolvedTheme: "light" | "dark"
-  setTheme: (theme: Theme) => void
   toggleTheme: () => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
-function getSystemTheme(): "light" | "dark" {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    return stored === "light" || stored === "dark" ? stored : "system"
+    if (typeof window === "undefined") return "dark"
+    return window.localStorage.getItem(STORAGE_KEY) === "light" ? "light" : "dark"
   })
-  const [systemTheme, setSystemTheme] = useState<"light" | "dark">(getSystemTheme)
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)")
-    const onChange = () => setSystemTheme(mq.matches ? "dark" : "light")
-    mq.addEventListener("change", onChange)
-    return () => mq.removeEventListener("change", onChange)
-  }, [])
+    document.documentElement.classList.toggle("light", theme === "light")
+  }, [theme])
 
-  const resolvedTheme = theme === "system" ? systemTheme : theme
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", resolvedTheme === "dark")
-  }, [resolvedTheme])
-
-  const setTheme = (next: Theme) => {
-    setThemeState(next)
-    if (next === "system") {
-      localStorage.removeItem(STORAGE_KEY)
-    } else {
-      localStorage.setItem(STORAGE_KEY, next)
-    }
+  const toggleTheme = () => {
+    setThemeState((t) => {
+      const next = t === "dark" ? "light" : "dark"
+      window.localStorage.setItem(STORAGE_KEY, next)
+      return next
+    })
   }
 
-  const toggleTheme = () => setTheme(resolvedTheme === "dark" ? "light" : "dark")
-
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   )

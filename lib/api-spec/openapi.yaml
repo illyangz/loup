@@ -26,7 +26,80 @@ tags:
     description: Web Push notification subscriptions
   - name: openai
     description: OpenAI AI chat and benefit optimisation
+  - name: auth
+    description: SSO authentication (WorkOS OIDC)
 paths:
+  /v1/auth/sso/status:
+    get:
+      operationId: getSsoStatus
+      tags: [auth]
+      summary: SSO configuration status per institution
+      responses:
+        "200":
+          description: SSO availability
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  institutions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        slug:
+                          type: string
+                        name:
+                          type: string
+                        ssoConfigured:
+                          type: boolean
+  /v1/auth/sso:
+    get:
+      operationId: startSso
+      tags: [auth]
+      summary: Start WorkOS SSO for an institution
+      description: Redirects the browser to the institution's WorkOS connection.
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the WorkOS authorize URL
+        "400":
+          description: Missing slug
+        "404":
+          description: Unknown institution
+        "503":
+          description: SSO not configured (demo mode)
+  /v1/auth/callback:
+    get:
+      operationId: ssoCallback
+      tags: [auth]
+      summary: WorkOS OAuth callback
+      description: Exchanges the authorization code, resolves the profile to a Loup principal, and redirects to the web app with a signed token.
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the web app login with token or error
+        "400":
+          description: Missing code or state
+        "503":
+          description: SSO not configured (demo mode)
   /healthz:
     get:
       operationId: healthCheck
@@ -117,6 +190,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProviderDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /services/{id}:
+    get:
+      operationId: getService
+      tags: [catalog]
+      summary: A single service with its provider — used to resolve a widget deep link (P1-7) to a booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Service detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceDetail"
         "404":
           description: Not found
           content:
@@ -776,6 +873,14 @@ paths:
       operationId: listEmployerEmployees
       tags: [platform]
       summary: Employer-safe employee roster
+      parameters:
+        - name: updatedSince
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Roster delta sync (P1-6) — only employees created or updated at or after this ISO 8601 timestamp
       responses:
         "200":
           description: Employee roster
@@ -788,7 +893,7 @@ paths:
     post:
       operationId: importEmployerEmployees
       tags: [platform]
-      summary: Simulate a CSV employee roster import
+      summary: Bulk upsert an employee roster from CSV (dedupes on externalEmployeeId, max 500 rows/batch)
       requestBody:
         required: true
         content:
@@ -802,6 +907,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportResult"
+        "400":
+          description: Invalid input (missing columns, batch too large)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/employer/employees/template:
+    get:
+      operationId: getEmployerEmployeesTemplate
+      tags: [platform]
+      summary: Download a starter CSV template for the roster bulk-upsert endpoint
+      responses:
+        "200":
+          description: CSV template
+          content:
+            text/csv:
+              schema:
+                type: string
   /v1/employer/utilization:
     get:
       operationId: getEmployerUtilization
@@ -814,6 +937,65 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UtilizationReport"
+  /v1/employer/consent:
+    get:
+      operationId: getEmployerConsent
+      tags: [platform]
+      summary: PDPL data-processing consent status for this institution (P1-11)
+      responses:
+        "200":
+          description: Consent status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentStatus"
+    post:
+      operationId: recordEmployerConsent
+      tags: [platform]
+      summary: Record PDPL data-processing consent for this institution, on behalf of the authenticated admin
+      responses:
+        "200":
+          description: Updated consent status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentStatus"
+  /v1/employer/data-export:
+    get:
+      operationId: getEmployerDataExport
+      tags: [platform]
+      summary: Full PDPL data-portability export — every record this institution's data touches (P1-11)
+      responses:
+        "200":
+          description: Full data export
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataExportBundle"
+  /v1/employer/employees/{id}/erase:
+    post:
+      operationId: eraseEmployerEmployee
+      tags: [platform]
+      summary: PDPL right-to-erasure — anonymizes an employee's PII while retaining financial/audit records (P1-11)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Employee erased
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployerEmployee"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
   /v1/employer/integrations:
     get:
       operationId: getEmployerIntegrations
@@ -1199,6 +1381,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProviderAnalytics"
+  /v1/provider/settlement:
+    get:
+      operationId: getProviderSettlement
+      tags: [platform]
+      summary: Provider settlement — net-of-platform-fee payout for the current calendar month
+      responses:
+        "200":
+          description: Provider settlement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderSettlement"
   /v1/operations/overview:
     get:
       operationId: getOperationsOverview
@@ -1293,6 +1487,174 @@ paths:
                 $ref: "#/components/schemas/ApiMessage"
         "404":
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/admin/settlement:
+    get:
+      operationId: getAdminSettlement
+      tags: [platform]
+      summary: Platform-wide provider settlement for the current calendar month, by provider
+      responses:
+        "200":
+          description: Admin settlement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSettlement"
+  /v1/admin/webhook-events:
+    get:
+      operationId: listAdminWebhookEvents
+      tags: [platform]
+      summary: Webhook event log (latest 100, newest first) with delivery summary
+      responses:
+        "200":
+          description: Webhook events and summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookEventsResult"
+  /v1/admin/webhook-events/{id}/replay:
+    post:
+      operationId: replayAdminWebhookEvent
+      tags: [platform]
+      summary: Re-enqueue a webhook event for delivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Event re-enqueued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookReplayResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/admin/webhook-events/purge:
+    post:
+      operationId: purgeAdminWebhookEvents
+      tags: [platform]
+      summary: PDPL data-minimization retention purge — deletes resolved (delivered/failed) webhook events older than the retention window (P1-11)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookPurgeInput"
+      responses:
+        "200":
+          description: Purge result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookPurgeResult"
+  /v1/admin/webhook-endpoints:
+    get:
+      operationId: listAdminWebhookEndpoints
+      tags: [platform]
+      summary: List webhook delivery endpoints across institutions
+      responses:
+        "200":
+          description: Webhook endpoints
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookEndpointsResult"
+    post:
+      operationId: createAdminWebhookEndpoint
+      tags: [platform]
+      summary: Register a webhook delivery endpoint for an institution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookEndpointInput"
+      responses:
+        "201":
+          description: Endpoint created (signing secret returned once)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookEndpointCreated"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/admin/webhook-endpoints/{id}:
+    delete:
+      operationId: deactivateAdminWebhookEndpoint
+      tags: [platform]
+      summary: Deactivate a webhook delivery endpoint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Endpoint deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookEndpointDeactivateResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+  /v1/widget/token:
+    post:
+      operationId: getWidgetToken
+      tags: [platform]
+      summary: Server-to-server exchange — issues a short-lived employee-scoped token for the embeddable widget (P1-7)
+      parameters:
+        - name: X-Loup-Widget-Secret
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Per-institution widget secret, issued out of band — never sent from the browser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WidgetTokenInput"
+      responses:
+        "200":
+          description: Short-lived employee token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetWidgetTokenResult"
+        "401":
+          description: Invalid widget secret
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "404":
+          description: Unknown institution or employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
+        "503":
+          description: Widget not provisioned for this institution
           content:
             application/json:
               schema:
@@ -1580,6 +1942,7 @@ components:
         tierName: { type: string }
         startDate: { type: string }
         endDate: { type: string }
+        updatedAt: { type: string }
     EmployeeImportInput:
       type: object
       required: [csv]
@@ -1587,14 +1950,112 @@ components:
         csv:
           type: string
           minLength: 1
+    ConsentStatus:
+      type: object
+      required: [consented, consentedAt, consentedBy]
+      properties:
+        consented: { type: boolean }
+        consentedAt: { type: string, nullable: true }
+        consentedBy: { type: string, nullable: true }
+    DataExportEmployee:
+      type: object
+      required: [id, externalEmployeeId, name, workEmail, department, benefitTier, eligibilityStatus, createdAt]
+      properties:
+        id: { type: integer }
+        externalEmployeeId: { type: string }
+        name: { type: string }
+        workEmail: { type: string }
+        department: { type: string }
+        benefitTier: { type: string }
+        eligibilityStatus: { type: string }
+        createdAt: { type: string }
+    DataExportLedgerEntry:
+      type: object
+      required: [id, employeeId, entryType, amount, note, createdAt]
+      properties:
+        id: { type: integer }
+        employeeId: { type: integer }
+        entryType: { type: string }
+        amount: { type: number }
+        note: { type: string, nullable: true }
+        createdAt: { type: string }
+    DataExportBooking:
+      type: object
+      required: [id, employeeName, serviceName, providerName, status, priceEstimate, scheduledAt]
+      properties:
+        id: { type: integer }
+        employeeName: { type: string }
+        serviceName: { type: string }
+        providerName: { type: string }
+        status: { type: string }
+        priceEstimate: { type: number }
+        scheduledAt: { type: string }
+    DataExportIncident:
+      type: object
+      required: [id, category, description, status, createdAt]
+      properties:
+        id: { type: integer }
+        category: { type: string }
+        description: { type: string }
+        status: { type: string }
+        createdAt: { type: string }
+    DataExportWebhookEvent:
+      type: object
+      required: [id, eventType, status, createdAt]
+      properties:
+        id: { type: integer }
+        eventType: { type: string }
+        status: { type: string }
+        createdAt: { type: string }
+    DataExportBundle:
+      type: object
+      required: [institutionName, exportedAt, employees, ledgerEntries, bookings, incidents, webhookEvents]
+      properties:
+        institutionName: { type: string }
+        exportedAt: { type: string }
+        employees:
+          type: array
+          items: { $ref: "#/components/schemas/DataExportEmployee" }
+        ledgerEntries:
+          type: array
+          items: { $ref: "#/components/schemas/DataExportLedgerEntry" }
+        bookings:
+          type: array
+          items: { $ref: "#/components/schemas/DataExportBooking" }
+        incidents:
+          type: array
+          items: { $ref: "#/components/schemas/DataExportIncident" }
+        webhookEvents:
+          type: array
+          items: { $ref: "#/components/schemas/DataExportWebhookEvent" }
+    WebhookPurgeInput:
+      type: object
+      properties:
+        olderThanDays: { type: integer, minimum: 1, description: "Defaults to a 90-day retention window server-side when omitted" }
+    WebhookPurgeResult:
+      type: object
+      required: [purged, retentionDays]
+      properties:
+        purged: { type: integer }
+        retentionDays: { type: integer }
+    ImportResultRowError:
+      type: object
+      required: [row, message]
+      properties:
+        row: { type: integer, description: "1-indexed CSV row (header is row 1)" }
+        message: { type: string }
     ImportResult:
       type: object
-      required: [status, imported, skipped, message]
+      required: [status, imported, skipped, message, errors]
       properties:
         status: { type: string }
         imported: { type: integer }
         skipped: { type: integer }
         message: { type: string }
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportResultRowError"
     UtilizationReport:
       type: object
       required: [activationRate, redemptionRate, repeatUsageRate, averageSupportPerActiveEmployee, categoryUtilization, corporateSavings, estimatedTimeSavedMinutes, satisfaction, completionRate, serviceRecoveryRate]
@@ -1791,6 +2252,54 @@ components:
             confidence: { type: number }
             method: { type: string }
             updatedAt: { type: string, format: date-time }
+    SettlementLine:
+      type: object
+      required: [bookingId, serviceName, completedAt, institutionName, grossAmount, feeRatePct, platformFee, netPayout]
+      properties:
+        bookingId: { type: integer }
+        serviceName: { type: string }
+        completedAt: { type: string }
+        institutionName: { type: string, nullable: true, description: "null for bookings with no institution/benefit-plan link — no platform fee applies" }
+        grossAmount: { type: number }
+        feeRatePct: { type: number }
+        platformFee: { type: number }
+        netPayout: { type: number }
+    ProviderSettlement:
+      type: object
+      required: [cycleLabel, grossRevenue, platformFee, netPayout, bookingCount, lines]
+      properties:
+        cycleLabel: { type: string }
+        grossRevenue: { type: number }
+        platformFee: { type: number }
+        netPayout: { type: number }
+        bookingCount: { type: integer }
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/SettlementLine"
+    AdminSettlementProviderRow:
+      type: object
+      required: [providerId, providerName, grossRevenue, platformFee, netPayout, bookingCount]
+      properties:
+        providerId: { type: integer }
+        providerName: { type: string }
+        grossRevenue: { type: number }
+        platformFee: { type: number }
+        netPayout: { type: number }
+        bookingCount: { type: integer }
+    AdminSettlement:
+      type: object
+      required: [cycleLabel, grossRevenue, platformFee, netPayout, bookingCount, byProvider]
+      properties:
+        cycleLabel: { type: string }
+        grossRevenue: { type: number }
+        platformFee: { type: number }
+        netPayout: { type: number }
+        bookingCount: { type: integer }
+        byProvider:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminSettlementProviderRow"
     OperationsOverview:
       type: object
       required: [forecastBookings, confirmedBookings, unfulfilledDemand, capacityShortages, highRiskBookings, providerIncidents, transactionVolume, spendingAlerts, matching, methodology]
@@ -2054,6 +2563,13 @@ components:
                 $ref: "#/components/schemas/Service"
           required:
             - services
+    ServiceDetail:
+      allOf:
+        - $ref: "#/components/schemas/Service"
+        - type: object
+          properties:
+            providerName: { type: string }
+          required: [providerName]
     Review:
       type: object
       properties:
@@ -2765,6 +3281,113 @@ components:
           type: string
           enum: [open, investigating, resolved, closed]
         resolution: { type: string }
+    WebhookEvent:
+      type: object
+      required: [id, eventType, payload, status, attempts, lastHttpStatus, lastError, nextAttemptAt, deliveredAt, createdAt]
+      properties:
+        id: { type: integer }
+        eventType: { type: string }
+        payload: { type: object, additionalProperties: true }
+        status: { type: string, enum: [pending, delivered, failed] }
+        attempts: { type: integer }
+        lastHttpStatus: { type: integer, nullable: true }
+        lastError: { type: string, nullable: true }
+        nextAttemptAt: { type: string, nullable: true }
+        deliveredAt: { type: string, nullable: true }
+        createdAt: { type: string }
+    WebhookEventTypeCount:
+      type: object
+      required: [eventType, count]
+      properties:
+        eventType: { type: string }
+        count: { type: integer }
+    WebhookEventsSummary:
+      type: object
+      required: [total, delivered, failed, pending, byType]
+      properties:
+        total: { type: integer }
+        delivered: { type: integer }
+        failed: { type: integer }
+        pending: { type: integer }
+        byType:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookEventTypeCount"
+    WebhookEventsResult:
+      type: object
+      required: [events, summary]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookEvent"
+        summary:
+          $ref: "#/components/schemas/WebhookEventsSummary"
+    WebhookReplayResult:
+      type: object
+      required: [ok, id, status, nextAttemptAt, maxAttempts, backoffSeconds, payload]
+      properties:
+        ok: { type: boolean }
+        id: { type: integer }
+        status: { type: string }
+        nextAttemptAt: { type: string }
+        maxAttempts: { type: integer }
+        backoffSeconds: { type: number }
+        payload: { type: object, additionalProperties: true }
+    WebhookEndpoint:
+      type: object
+      required: [id, institutionId, institutionName, url, active, createdAt]
+      properties:
+        id: { type: integer }
+        institutionId: { type: integer }
+        institutionName: { type: string }
+        url: { type: string }
+        active: { type: boolean }
+        createdAt: { type: string }
+    WebhookEndpointsResult:
+      type: object
+      required: [endpoints]
+      properties:
+        endpoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookEndpoint"
+    WebhookEndpointInput:
+      type: object
+      required: [institutionId, url]
+      properties:
+        institutionId: { type: integer }
+        url: { type: string, minLength: 1 }
+    WebhookEndpointCreated:
+      type: object
+      required: [id, institutionId, url, active, secret]
+      properties:
+        id: { type: integer }
+        institutionId: { type: integer }
+        url: { type: string }
+        active: { type: boolean }
+        secret:
+          type: string
+          description: Signing secret for HMAC verification — shown only once, on creation.
+    WebhookEndpointDeactivateResult:
+      type: object
+      required: [ok, id]
+      properties:
+        ok: { type: boolean }
+        id: { type: integer }
+    WidgetTokenInput:
+      type: object
+      required: [institutionSlug, externalEmployeeId]
+      properties:
+        institutionSlug: { type: string }
+        externalEmployeeId: { type: string, description: "The employer's own employee identifier, as synced via the roster (P1-6)" }
+    GetWidgetTokenResult:
+      type: object
+      required: [token, expiresInSeconds, employeeName]
+      properties:
+        token: { type: string }
+        expiresInSeconds: { type: integer }
+        employeeName: { type: string }
     OpenaiConversation:
       type: object
       properties:

@@ -16,8 +16,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { useToast } from "@/hooks/use-toast"
 import { Receipt, CreditCard, Wallet, Banknote, CheckCircle2, Loader2 } from "lucide-react"
+
+const memberChartConfig = { amount: { label: "Amount (AED)", color: "hsl(var(--primary))" } } satisfies ChartConfig
+const categoryChartConfig = { amount: { label: "Amount (AED)", color: "hsl(var(--platform-mint))" } } satisfies ChartConfig
 
 export default function Billing() {
   const queryClient = useQueryClient()
@@ -150,7 +156,7 @@ export default function Billing() {
                     </DialogHeader>
 
                     <div className="py-6">
-                      <div className="flex justify-between items-center mb-6 p-4 rounded-xl bg-primary/5 border border-primary/15">
+                      <div className="flex justify-between items-center mb-6 p-4 rounded-lg bg-primary/5 border border-primary/15">
                         <span className="font-medium">Total due</span>
                         <span className="text-2xl font-serif text-primary">{statement.total} AED</span>
                       </div>
@@ -164,15 +170,15 @@ export default function Billing() {
                             <Label
                               key={method.id}
                               htmlFor={method.id.toString()}
-                              className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${
+                              className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all ${
                                 selectedMethodId === method.id.toString()
                                   ? 'border-primary bg-primary/5'
-                                  : 'border-border/50 hover:border-primary/40 bg-white/[0.02]'
+                                  : 'border-border/50 hover:border-primary/40 bg-secondary'
                               }`}
                             >
                               <div className="flex items-center gap-4">
                                 <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                                  selectedMethodId === method.id.toString() ? 'bg-primary text-primary-foreground' : 'bg-white/[0.06] text-muted-foreground'
+                                  selectedMethodId === method.id.toString() ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
                                 }`}>
                                   {getMethodIcon(method.type)}
                                 </div>
@@ -213,18 +219,24 @@ export default function Billing() {
           <CardHeader>
             <CardTitle className="text-xl">Spend by Member</CardTitle>
           </CardHeader>
-          <div className="px-6 pb-6 space-y-4">
-            {statement.byMember.map(member => (
-              <div key={member.memberId} className="flex items-center justify-between py-3 border-b border-border/30 last:border-0">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs bg-primary/10 text-primary">{member.initials}</AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium">{member.memberName}</span>
-                </div>
-                <span className="font-medium text-foreground">{member.amount} AED</span>
-              </div>
-            ))}
+          <div className="px-2 pb-4">
+            <ChartContainer config={memberChartConfig} className="h-[220px] w-full">
+              <BarChart data={statement.byMember} layout="vertical" margin={{ left: 8, right: 16 }}>
+                <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
+                <XAxis type="number" hide />
+                <YAxis
+                  dataKey="memberName"
+                  type="category"
+                  width={96}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v: string) => v.split(" ")[0]}
+                  style={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                />
+                <ChartTooltip cursor={{ fill: "hsl(var(--muted))" }} content={<ChartTooltipContent hideLabel />} />
+                <Bar dataKey="amount" fill="var(--color-amount)" radius={4} barSize={18} />
+              </BarChart>
+            </ChartContainer>
           </div>
         </div>
 
@@ -233,13 +245,23 @@ export default function Billing() {
           <CardHeader>
             <CardTitle className="text-xl">Spend by Category</CardTitle>
           </CardHeader>
-          <div className="px-6 pb-6 space-y-4">
-            {statement.byCategory.map(cat => (
-              <div key={cat.categoryName} className="flex items-center justify-between py-3 border-b border-border/30 last:border-0">
-                <span className="font-medium">{cat.categoryName}</span>
-                <span className="font-medium text-foreground">{cat.amount} AED</span>
-              </div>
-            ))}
+          <div className="px-2 pb-4">
+            <ChartContainer config={categoryChartConfig} className="h-[220px] w-full">
+              <BarChart data={statement.byCategory} layout="vertical" margin={{ left: 8, right: 16 }}>
+                <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
+                <XAxis type="number" hide />
+                <YAxis
+                  dataKey="categoryName"
+                  type="category"
+                  width={110}
+                  tickLine={false}
+                  axisLine={false}
+                  style={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                />
+                <ChartTooltip cursor={{ fill: "hsl(var(--muted))" }} content={<ChartTooltipContent hideLabel />} />
+                <Bar dataKey="amount" fill="var(--color-amount)" radius={4} barSize={18} />
+              </BarChart>
+            </ChartContainer>
           </div>
         </div>
       </div>
@@ -249,29 +271,35 @@ export default function Billing() {
         <CardHeader>
           <CardTitle className="text-xl">Line Items</CardTitle>
         </CardHeader>
-        <div className="divide-y divide-border/30">
-          {statement.items.map(item => (
-            <div key={item.id} className="p-4 sm:p-6 flex justify-between items-center hover:bg-white/[0.03] transition-colors">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium leading-none">{item.serviceName}</p>
-                  <Badge className="text-[10px] h-4 px-1.5 py-0 rounded-sm font-normal bg-primary/10 text-primary border-0 hover:bg-primary/15">
-                    {item.categoryName}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {item.providerName} • {item.memberName}
-                </p>
-                <p className="text-xs text-muted-foreground/70">
-                  {new Date(item.date).toLocaleDateString()}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="font-medium">{item.amount} AED</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Service</TableHead>
+              <TableHead>Provider</TableHead>
+              <TableHead>Member</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {statement.items.map(item => (
+              <TableRow key={item.id} className="hover:bg-secondary">
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{item.serviceName}</span>
+                    <Badge className="text-[10px] h-4 px-1.5 py-0 rounded-sm font-normal bg-primary/10 text-primary border-0 hover:bg-primary/15">
+                      {item.categoryName}
+                    </Badge>
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{item.providerName}</TableCell>
+                <TableCell className="text-muted-foreground">{item.memberName}</TableCell>
+                <TableCell className="text-muted-foreground">{new Date(item.date).toLocaleDateString()}</TableCell>
+                <TableCell className="text-right font-medium">{item.amount} AED</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )

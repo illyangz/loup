@@ -11,11 +11,15 @@ import platformRouter from "./platform";
 import adminRouter from "./admin";
 import providerRouter from "./provider";
 import webhooksRouter from "./webhooks";
+import ssoRouter from "./sso";
+import widgetRouter from "./widget";
 import openaiRouter from "./openai/index";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(ssoRouter);
+router.use(widgetRouter);
 router.use(homeRouter);
 router.use(catalogRouter);
 router.use(householdRouter);

@@ -70,6 +70,10 @@ export const employeesTable = pgTable("employees", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
+  /** Bumped on every write — powers roster delta sync (`?updatedSince=`, P1-6). */
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const allowanceLedgerTable = pgTable("allowance_ledger", {

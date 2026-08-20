@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
+import { useReveal } from "@/hooks/use-reveal"
+import { API_BASE_URL } from "@/lib/demo-auth"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   useGetHousehold,
@@ -95,7 +97,7 @@ function BenefitAdvisor() {
 
     try {
       const id = await ensureConversation()
-      const res = await fetch(`/api/openai/conversations/${id}/messages`, {
+      const res = await fetch(`${API_BASE_URL}/api/openai/conversations/${id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: trimmed }),
@@ -145,7 +147,7 @@ function BenefitAdvisor() {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[hsl(var(--platform-plum)/0.25)] bg-[hsl(var(--platform-plum)/0.05)] backdrop-blur-xl">
+    <div className="overflow-hidden rounded-lg border border-[hsl(var(--platform-plum)/0.25)] bg-[hsl(var(--platform-plum)/0.05)] backdrop-blur-xl">
       {/* Header — always visible */}
       <button
         type="button"
@@ -153,22 +155,22 @@ function BenefitAdvisor() {
           setOpen(o => !o)
           if (!open && messages.length === 0) sendMessage("How do I get the most from my AED 295 before 1 September?")
         }}
-        className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-white/[0.03]"
+        className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-secondary"
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--platform-plum)/0.2)] border border-[hsl(var(--platform-plum)/0.3)]">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[hsl(var(--platform-plum)/0.2)] border border-[hsl(var(--platform-plum)/0.3)]">
           <Sparkles className="h-4 w-4 text-[hsl(var(--platform-plum))]" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--platform-plum))]">
             Benefit Advisor · AI
           </p>
-          <p className="text-[13px] text-white/50 truncate">
+          <p className="text-[13px] text-muted-foreground truncate">
             {messages.length === 0
               ? "Ask how to get the most from your AED 295 allowance"
               : messages[messages.length - 1]?.content.slice(0, 72) + "…"}
           </p>
         </div>
-        <span className="text-[10px] text-white/25">{open ? "▲" : "▼"}</span>
+        <span className="text-[10px] text-muted-foreground">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
@@ -176,7 +178,7 @@ function BenefitAdvisor() {
           {/* Message thread */}
           <div className="flex h-[340px] flex-col gap-3 overflow-y-auto border-t border-[hsl(var(--platform-plum)/0.12)] p-4">
             {messages.length === 0 && streaming && (
-              <div className="flex items-center gap-2 py-6 justify-center text-sm text-white/30">
+              <div className="flex items-center gap-2 py-6 justify-center text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" /> Thinking…
               </div>
             )}
@@ -192,10 +194,10 @@ function BenefitAdvisor() {
                 )}
                 <div
                   className={cn(
-                    "max-w-[80%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap",
+                    "max-w-[80%] rounded-lg px-4 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap",
                     msg.role === "user"
-                      ? "rounded-br-sm bg-[hsl(var(--primary)/0.12)] border border-[hsl(var(--primary)/0.2)] text-white/80"
-                      : "rounded-bl-sm bg-[hsl(var(--platform-plum)/0.08)] border border-[hsl(var(--platform-plum)/0.15)] text-white/75",
+                      ? "rounded-br-sm bg-[hsl(var(--primary)/0.12)] border border-[hsl(var(--primary)/0.2)] text-foreground"
+                      : "rounded-bl-sm bg-[hsl(var(--platform-plum)/0.08)] border border-[hsl(var(--platform-plum)/0.15)] text-muted-foreground",
                   )}
                 >
                   {msg.content}
@@ -217,7 +219,7 @@ function BenefitAdvisor() {
                   type="button"
                   onClick={() => sendMessage(p)}
                   disabled={streaming}
-                  className="rounded-full border border-[hsl(var(--platform-plum)/0.2)] bg-[hsl(var(--platform-plum)/0.06)] px-3 py-1 text-[11px] text-[hsl(var(--platform-plum))] transition hover:bg-[hsl(var(--platform-plum)/0.12)] disabled:opacity-40"
+                  className="rounded border border-[hsl(var(--platform-plum)/0.2)] bg-[hsl(var(--platform-plum)/0.06)] px-3 py-1 text-[11px] text-[hsl(var(--platform-plum))] transition hover:bg-[hsl(var(--platform-plum)/0.12)] disabled:opacity-40"
                 >
                   {p}
                 </button>
@@ -232,13 +234,13 @@ function BenefitAdvisor() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
               placeholder="Ask about your allowance…"
-              className="min-w-0 flex-1 rounded-xl border border-[hsl(var(--platform-plum)/0.2)] bg-[hsl(var(--platform-plum)/0.06)] px-3.5 py-2.5 text-sm text-white/80 placeholder:text-white/25 outline-none focus:border-[hsl(var(--platform-plum)/0.5)] transition-colors"
+              className="min-w-0 flex-1 rounded border border-[hsl(var(--platform-plum)/0.2)] bg-[hsl(var(--platform-plum)/0.06)] px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-[hsl(var(--platform-plum)/0.5)] transition-colors"
             />
             <button
               type="button"
               onClick={() => sendMessage(input)}
               disabled={!input.trim() || streaming}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--platform-plum))] text-white transition-opacity disabled:opacity-40"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-[hsl(var(--platform-plum))] text-white transition-opacity disabled:opacity-40"
             >
               {streaming
                 ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -279,7 +281,7 @@ function NotificationsToggle() {
       onClick={handleClick}
       disabled={busy || !!permissionDenied}
       title={permissionDenied ? "Notifications are blocked in your browser settings" : undefined}
-      className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-[12px] text-white/60 transition hover:bg-white/[0.07] disabled:opacity-40"
+      className="flex items-center gap-2 rounded border border-border bg-secondary px-3 py-2 text-[12px] text-muted-foreground transition hover:bg-muted disabled:opacity-40"
     >
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : enabled ? <Bell className="h-4 w-4 text-[hsl(var(--primary))]" /> : <BellOff className="h-4 w-4" />}
       {enabled ? "Alerts on" : "Alerts off"}
@@ -348,33 +350,42 @@ export default function Household() {
   const pending = requests?.filter(r => r.status === "pending") ?? []
   const decided = requests?.filter(r => r.status !== "pending") ?? []
 
+  const headerRef = useRef<HTMLDivElement>(null)
+  const requestsRef = useRef<HTMLDivElement>(null)
+  const membersRef = useRef<HTMLDivElement>(null)
+  const activityRef = useRef<HTMLDivElement>(null)
+  useReveal(headerRef, { y: 12, immediate: true })
+  useReveal(requestsRef, { y: 16, stagger: true })
+  useReveal(membersRef, { y: 16, stagger: true })
+  useReveal(activityRef, { y: 16, stagger: true })
+
   const getActivityIcon = (kind: string) => {
     switch (kind) {
       case "booking_created":   return <CalendarCheck className="h-4 w-4 text-blue-400" />
       case "booking_completed": return <CalendarCheck className="h-4 w-4 text-emerald-400" />
       case "payment":           return <CreditCard className="h-4 w-4 text-[hsl(var(--primary))]" />
       case "review":            return <MessageSquare className="h-4 w-4 text-amber-400" />
-      default:                  return <Activity className="h-4 w-4 text-white/40" />
+      default:                  return <Activity className="h-4 w-4 text-muted-foreground" />
     }
   }
 
   return (
     <div className="space-y-10 pb-24">
       {/* Header */}
-      <header className="flex items-start justify-between gap-4">
+      <header ref={headerRef} className="flex items-start justify-between gap-4">
         <div>
           <div className="mb-2 flex items-center gap-2">
-            <span className="rounded-full border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.08)] px-3 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--primary))]">
+            <span className="rounded border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.08)] px-3 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(var(--primary))]">
               The Pack
             </span>
           </div>
-          <h1 className="flex items-center gap-3 text-4xl font-extrabold tracking-tight text-white">
+          <h1 className="flex items-center gap-3 font-serif text-4xl font-normal tracking-tight text-foreground">
             <Users className="h-8 w-8 text-[hsl(var(--primary))]" />
             {isLoadingHousehold
-              ? <span className="h-10 w-48 animate-pulse rounded-lg bg-white/10 inline-block" />
+              ? <span className="h-10 w-48 animate-pulse rounded-lg bg-muted inline-block" />
               : household?.name ?? "Household"}
           </h1>
-          <p className="mt-2 text-sm text-white/40">Experience optimizer · Dubai Hills</p>
+          <p className="mt-2 text-sm text-muted-foreground">Experience optimizer · Dubai Hills</p>
         </div>
         <NotificationsToggle />
       </header>
@@ -383,8 +394,8 @@ export default function Household() {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-[hsl(var(--platform-plum))]" />
-          <h2 className="text-xl font-bold tracking-tight text-white">Benefit Advisor</h2>
-          <span className="ml-1 rounded-full bg-[hsl(var(--platform-plum)/0.12)] border border-[hsl(var(--platform-plum)/0.2)] px-2 py-0.5 text-[10px] font-semibold text-[hsl(var(--platform-plum))]">
+          <h2 className="font-serif text-2xl font-normal tracking-tight text-foreground">Benefit Advisor</h2>
+          <span className="ml-1 rounded bg-[hsl(var(--platform-plum)/0.12)] border border-[hsl(var(--platform-plum)/0.2)] px-2 py-0.5 text-[10px] font-semibold text-[hsl(var(--platform-plum))]">
             AI
           </span>
         </div>
@@ -394,10 +405,10 @@ export default function Household() {
       {/* Service requests */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight text-white">Requests</h2>
+          <h2 className="font-serif text-2xl font-normal tracking-tight text-foreground">Requests</h2>
           <div className="flex items-center gap-3">
             {pending.length > 0 && (
-              <span className="rounded-full bg-[hsl(var(--primary)/0.12)] border border-[hsl(var(--primary)/0.2)] px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--primary))]">
+              <span className="rounded bg-[hsl(var(--primary)/0.12)] border border-[hsl(var(--primary)/0.2)] px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--primary))]">
                 {pending.length} pending
               </span>
             )}
@@ -406,20 +417,20 @@ export default function Household() {
         </div>
         {isLoadingRequests ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            {[1, 2].map(i => <div key={i} className="h-44 animate-pulse rounded-2xl bg-white/[0.05]" />)}
+            {[1, 2].map(i => <div key={i} className="h-44 animate-pulse rounded-lg bg-muted" />)}
           </div>
         ) : requests?.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/[0.08] p-10 text-center text-sm text-white/30">
+          <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
             No requests yet — family members can request a service for approval here.
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div ref={requestsRef} className="grid gap-4 sm:grid-cols-2">
               {pending.map(request => <ServiceRequestCard key={request.id} request={request} />)}
             </div>
             {decided.length > 0 && (
               <div className="space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-white/30">Decided</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Decided</h3>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {decided.map(request => <ServiceRequestCard key={request.id} request={request} />)}
                 </div>
@@ -431,11 +442,11 @@ export default function Household() {
 
       {/* Members */}
       <section className="space-y-4">
-        <h2 className="text-xl font-bold tracking-tight text-white">Members</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <h2 className="font-serif text-2xl font-normal tracking-tight text-foreground">Members</h2>
+        <div ref={membersRef} className="grid gap-4 sm:grid-cols-2">
           {isLoadingHousehold ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-36 animate-pulse rounded-2xl bg-white/[0.05]" />
+              <div key={i} className="h-36 animate-pulse rounded-lg bg-muted" />
             ))
           ) : (
             household?.members.map(member => {
@@ -447,10 +458,10 @@ export default function Household() {
                 <div
                   key={member.id}
                   className={cn(
-                    "rounded-2xl border p-5 backdrop-blur-xl",
+                    "rounded-lg border p-5 backdrop-blur-xl transition-all hover:-translate-y-0.5",
                     member.isCurrentUser
-                      ? "border-[hsl(var(--primary)/0.25)] bg-[hsl(var(--primary)/0.05)]"
-                      : "border-white/[0.07] bg-white/[0.03]",
+                      ? "border-[hsl(var(--primary)/0.25)] bg-[hsl(var(--primary)/0.05)] hover:border-[hsl(var(--primary)/0.4)]"
+                      : "border-border bg-secondary hover:border-[hsl(var(--primary)/0.4)]",
                   )}
                 >
                   <div className="flex items-start justify-between mb-4">
@@ -459,18 +470,18 @@ export default function Household() {
                         "flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold border-2",
                         member.role === "head" || member.role === "owner"
                           ? "border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.15)] text-[hsl(var(--primary))]"
-                          : "border-white/10 bg-white/[0.06] text-white/70",
+                          : "border-border bg-secondary text-muted-foreground",
                       )}>
                         {member.initials}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-white">{member.name}</h3>
+                          <h3 className="font-semibold text-foreground">{member.name}</h3>
                           {member.isCurrentUser && (
-                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">You</span>
+                            <span className="rounded bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">You</span>
                           )}
                         </div>
-                        <p className="text-sm text-white/40 flex items-center gap-1 mt-0.5">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
                           {(member.role === "head" || member.role === "owner") && (
                             <Crown className="h-3 w-3 text-amber-400" />
                           )}
@@ -479,15 +490,15 @@ export default function Household() {
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-2 pt-4 border-t border-white/[0.06]">
+                  <div className="space-y-2 pt-4 border-t border-border">
                     <div className="flex justify-between text-sm">
-                      <span className="text-white/40">Month to date</span>
-                      <span className="font-semibold text-white">{member.monthToDateSpend} AED</span>
+                      <span className="text-muted-foreground">Month to date</span>
+                      <span className="font-semibold text-foreground">{member.monthToDateSpend} AED</span>
                     </div>
                     {member.monthlySpendLimit && (
                       <div className="space-y-1.5">
                         <Progress value={spendPercent} className={cn("h-1.5", isNearLimit && "[&>div]:bg-destructive")} />
-                        <div className="flex justify-between text-xs text-white/30">
+                        <div className="flex justify-between text-xs text-muted-foreground">
                           <span>{spendPercent}% used</span>
                           <span className="flex items-center gap-1">
                             {isNearLimit && <ShieldAlert className="h-3 w-3 text-destructive" />}
@@ -506,43 +517,43 @@ export default function Household() {
 
       {/* Activity feed */}
       <section className="space-y-4">
-        <h2 className="text-xl font-bold tracking-tight text-white">Recent Activity</h2>
-        <div className="overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03] backdrop-blur-xl">
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Recent Activity</h2>
+        <div className="overflow-hidden rounded-lg border border-border bg-secondary">
           {isLoadingActivity ? (
             <div className="p-6 space-y-5">
               {[1, 2, 3].map(i => (
                 <div key={i} className="flex gap-4">
-                  <div className="h-10 w-10 animate-pulse rounded-full bg-white/10" />
+                  <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
-                    <div className="h-3 w-1/4 animate-pulse rounded bg-white/10" />
+                    <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+                    <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
                   </div>
                 </div>
               ))}
             </div>
           ) : activity?.length === 0 ? (
-            <div className="p-10 text-center text-sm text-white/30">No recent activity</div>
+            <div className="p-10 text-center text-sm text-muted-foreground">No recent activity</div>
           ) : (
-            <div className="divide-y divide-white/[0.05]">
+            <div className="divide-y divide-border">
               {activity?.map(item => (
-                <div key={item.id} className="flex gap-4 p-4 sm:p-5 transition-colors hover:bg-white/[0.03]">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.06]">
+                <div key={item.id} className="flex gap-4 p-4 sm:p-5 transition-colors hover:bg-muted">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card">
                     {getActivityIcon(item.kind)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm">
-                      <span className="font-semibold text-white/90">{item.memberName}</span>
+                      <span className="font-semibold text-foreground">{item.memberName}</span>
                       {" "}
-                      <span className="text-white/50">{item.description}</span>
+                      <span className="text-muted-foreground">{item.description}</span>
                     </p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-white/30">
+                      <span className="text-xs text-muted-foreground">
                         {new Date(item.occurredAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                       </span>
                       {item.amount && (
                         <>
-                          <span className="text-white/20">·</span>
-                          <span className="text-xs font-semibold text-white/70">{item.amount} AED</span>
+                          <span className="text-muted-foreground">·</span>
+                          <span className="text-xs font-semibold text-muted-foreground">{item.amount} AED</span>
                         </>
                       )}
                     </div>

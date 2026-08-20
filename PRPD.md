@@ -246,6 +246,7 @@ Shopify's app model, mapped to Loup:
 | P1-9 | Test suite expansion | Full brief §20 matrix: expiration rules, role permissions, booking status transitions, cancellation reversal, CSV validation, webhook signing |
 | P1-10 | PWA | Manifest + service worker + push for web employee app |
 | P1-11 | PDPL posture | Consent records, data export per institution, deletion workflow, retention on webhook logs |
+| P1-12 | Frontend polish | Upgrade visual design across the marketing/landing site, the `loup` web app (all four portals + consumer flows), and the `loup-admin` ops dashboard: legible type scale + a real font pairing (not default system stack), a motion/animation pass (page transitions, hover/press states, skeleton/loading states), a consistent spacing/color token system, and componentry that's actually shared and scaffolded across surfaces rather than duplicated per-page. User-requested 2026-08-19. |
 
 **Phase 1 exit criteria:** pilot institution on-boarded with real SSO + roster sync; a real booking completes with a real provider; ledger reconciles; institution sees fee-bearing reports; incident flow works; webhook delivery verified against a test endpoint.
 

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useSearch } from "wouter";
 import { Layout } from "@/components/layout";
-import { Card } from "@/components/ui/card";
+import { useReveal } from "@/hooks/use-reveal";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,12 +13,12 @@ import { formatAED, formatDateTime } from "@/lib/utils";
 import { AdminIncident, IncidentNote } from "@/lib/api";
 import { useIncidents, useResolveIncident, useIncidentNotes, useAddIncidentNote, useAssignIncident } from "@/hooks/api-hooks";
 import { Input } from "@/components/ui/input";
-import { AlertTriangle, ChevronDown, ChevronRight, MessageSquare, Send, UserCheck, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, MessageSquare, Search, Send, ShieldAlert, UserCheck, X } from "lucide-react";
 
-const STATUS_VARIANTS: Record<string, "default" | "warning" | "success" | "destructive" | "secondary"> = {
+const STATUS_VARIANTS: Record<string, "default" | "destructive" | "secondary"> = {
   open: "destructive",
-  investigating: "warning",
-  resolved: "success",
+  investigating: "secondary",
+  resolved: "secondary",
   closed: "secondary",
 };
 
@@ -81,7 +82,7 @@ function AssignControl({ incident }: { incident: AdminIncident }) {
   if (incident.assigneeName) {
     return (
       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-foreground">
           <UserCheck className="h-3.5 w-3.5" />
           {incident.assigneeName}
         </span>
@@ -145,8 +146,8 @@ function NoteThread({ incidentId, incidentStatus }: { incidentId: number; incide
         <div className="space-y-2">
           {notes.map((n: IncidentNote) => (
             <div key={n.id} className="flex gap-2">
-              <div className="flex-shrink-0 mt-0.5 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center">
-                <MessageSquare className="h-3 w-3 text-primary" />
+              <div className="flex-shrink-0 mt-0.5 h-5 w-5 rounded-full bg-secondary flex items-center justify-center">
+                <MessageSquare className="h-3 w-3 text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
@@ -318,6 +319,75 @@ function IncidentRow({
   );
 }
 
+// ── Mobile incident card (same data + actions as IncidentRow, stacked layout) ──
+
+function IncidentCard({
+  incident,
+  onInvestigate,
+  onResolve,
+  isPending,
+}: {
+  incident: AdminIncident;
+  onInvestigate: (id: number) => void;
+  onResolve: (incident: AdminIncident) => void;
+  isPending: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+            <span>#{incident.id.toString().padStart(4, "0")}</span>
+            <Badge variant="outline" className="font-sans">{CATEGORY_LABELS[incident.category] ?? incident.category}</Badge>
+          </div>
+          <div className="font-medium text-sm mt-1">{incident.memberName ?? incident.employeeName ?? "—"}</div>
+          {incident.providerName && <div className="text-xs text-muted-foreground">via {incident.providerName}</div>}
+        </div>
+        <Badge variant={STATUS_VARIANTS[incident.status] ?? "secondary"} className="shrink-0">{incident.status}</Badge>
+      </div>
+
+      <p className="mt-2 text-sm line-clamp-2">{incident.description}</p>
+      {incident.resolution && (
+        <p className="mt-1 text-xs text-muted-foreground italic line-clamp-1">✓ {incident.resolution}</p>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-muted-foreground">
+        <span>{formatDateTime(incident.createdAt)}</span>
+        {incident.bookingId && <span className="font-mono">Booking #{incident.bookingId.toString().padStart(6, "0")}</span>}
+      </div>
+
+      <div className="mt-3">
+        <AssignControl incident={incident} />
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {incident.status === "open" && (
+          <Button variant="outline" size="sm" onClick={() => onInvestigate(incident.id)} disabled={isPending}>
+            Investigate
+          </Button>
+        )}
+        {(incident.status === "open" || incident.status === "investigating") && (
+          <Button variant="default" size="sm" onClick={() => onResolve(incident)} disabled={isPending}>
+            Resolve
+          </Button>
+        )}
+        <Button variant="ghost" size="sm" onClick={() => setExpanded((v) => !v)} className="ml-auto text-muted-foreground">
+          {expanded ? "Hide notes" : "Notes"}
+          {expanded ? <ChevronDown className="h-3.5 w-3.5 ml-1" /> : <ChevronRight className="h-3.5 w-3.5 ml-1" />}
+        </Button>
+      </div>
+
+      {expanded && (
+        <div className="mt-3 border-t border-border pt-3">
+          <NoteThread incidentId={incident.id} incidentStatus={incident.status} />
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Incidents() {
@@ -328,7 +398,15 @@ export default function Incidents() {
   const [resolution, setResolution] = useState("");
 
   const { data: incidents, isLoading } = useIncidents(statusFilter || undefined);
+  const { data: allIncidents } = useIncidents(undefined);
   const resolveIncident = useResolveIncident();
+
+  const counts = {
+    open: allIncidents?.filter(i => i.status === "open").length ?? 0,
+    investigating: allIncidents?.filter(i => i.status === "investigating").length ?? 0,
+    resolved: allIncidents?.filter(i => i.status === "resolved").length ?? 0,
+    closed: allIncidents?.filter(i => i.status === "closed").length ?? 0,
+  };
 
   function handleResolve(incident: AdminIncident) {
     setResolving(incident);
@@ -352,6 +430,13 @@ export default function Incidents() {
     resolveIncident.mutate({ id, status: "investigating" });
   }
 
+  const headerRef = useRef<HTMLDivElement>(null);
+  const statsRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  useReveal(headerRef, { y: 12, immediate: true });
+  useReveal(statsRef, { y: 12, stagger: true, immediate: true, delay: 0.06 });
+  useReveal(tableRef, { y: 16, immediate: true, delay: 0.14 });
+
   if (isLoading) return <Layout><div className="animate-pulse">Loading...</div></Layout>;
 
   const openCount = incidents?.filter(i => i.status === "open").length ?? 0;
@@ -359,9 +444,9 @@ export default function Incidents() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div ref={headerRef} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Support Incidents</h1>
+            <h1 className="font-serif text-3xl tracking-tight">Support Incidents</h1>
             <p className="text-muted-foreground mt-2">
               Disputed bookings and provider-reported issues requiring admin action.
               {openCount > 0 && (
@@ -372,7 +457,7 @@ export default function Incidents() {
               )}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {(["", "open", "investigating", "resolved", "closed"] as const).map((s) => (
               <Button
                 key={s}
@@ -386,7 +471,43 @@ export default function Incidents() {
           </div>
         </div>
 
-        <Card>
+        <div ref={statsRef} className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {[
+            { label: "Open", value: counts.open, icon: AlertTriangle, tone: "text-destructive" },
+            { label: "Investigating", value: counts.investigating, icon: Search, tone: "text-muted-foreground" },
+            { label: "Resolved", value: counts.resolved, icon: CheckCircle2, tone: "text-muted-foreground" },
+            { label: "Closed", value: counts.closed, icon: ShieldAlert, tone: "text-muted-foreground" },
+          ].map((s) => (
+            <Card key={s.label} className="transition-transform hover:-translate-y-0.5 hover:border-primary/40">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
+                <s.icon className={`h-4 w-4 ${s.tone}`} />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${s.tone}`}>{s.value}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Cards below sm, real table sm+ */}
+        <div ref={tableRef} className="sm:hidden space-y-3">
+          {incidents?.map((incident) => (
+            <IncidentCard
+              key={incident.id}
+              incident={incident}
+              onInvestigate={handleMarkInvestigating}
+              onResolve={handleResolve}
+              isPending={resolveIncident.isPending}
+            />
+          ))}
+          {incidents?.length === 0 && (
+            <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+              No incidents found{statusFilter ? ` with status "${statusFilter}"` : ""}.
+            </div>
+          )}
+        </div>
+        <Card className="hidden sm:block">
           <Table>
             <TableHeader>
               <TableRow>

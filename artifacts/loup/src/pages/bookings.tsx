@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { Link } from "wouter"
 import { useListBookings, useGetHousehold, ListBookingsScope } from "@workspace/api-client-react"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronLeft, ChevronRight, Sparkles, AirVent, Wrench, Scissors, HeartPulse, Bug, Droplets, Shirt, CalendarClock, Activity, AlertCircle, RefreshCw } from "lucide-react"
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, addMonths, subMonths, isSameMonth, isSameDay, isToday, getDate, getDaysInMonth, setDate } from "date-fns"
 import { getMemberColor, getMemberBg } from "@/lib/member-colors"
+import { useReveal } from "@/hooks/use-reveal"
 
 const ICONS: Record<string, any> = {
   Sparkles, AirVent, Wrench, Scissors, HeartPulse, Bug, Droplets, Shirt
@@ -19,6 +20,11 @@ export default function Bookings() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null)
   const [listScope, setListScope] = useState<ListBookingsScope>("upcoming")
+
+  const calendarGridRef = useRef<HTMLDivElement>(null)
+  const railRef = useRef<HTMLDivElement>(null)
+  useReveal(calendarGridRef, { y: 12, stagger: true, immediate: true })
+  useReveal(railRef, { y: 16, immediate: true, delay: 0.1 })
 
   const { data: bookingsAll, isLoading: isLoadingAll, error: errorAll, refetch: refetchAll } = useListBookings({ scope: "all" })
   const { data: household, isLoading: isLoadingHousehold, error: errorHousehold, refetch: refetchHousehold } = useGetHousehold()
@@ -112,12 +118,12 @@ export default function Bookings() {
 
     return (
       <Link key={booking.id} href={`/bookings/${booking.id}`} className="block group">
-        <div className={`glass-card rounded-2xl cursor-pointer ${isLive ? 'border-primary/30' : ''} ${isPast ? 'opacity-60' : ''}`}>
+        <div className={`glass-card rounded-lg cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary/40 ${isLive ? 'border-primary/30' : ''} ${isPast ? 'opacity-60' : ''}`}>
           <div className="p-4 flex items-center gap-4">
-            <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
+            <div className={`h-12 w-12 rounded flex items-center justify-center shrink-0 ${
               isLive
                 ? 'bg-primary/15 border border-primary/25 text-primary'
-                : 'bg-white/[0.04] border border-white/[0.08] text-foreground'
+                : 'bg-secondary border border-border text-foreground'
             }`}>
               <Icon className={`h-6 w-6 ${isLive ? 'animate-pulse' : ''}`} strokeWidth={1.5} />
             </div>
@@ -127,7 +133,7 @@ export default function Bookings() {
                 <h3 className={`font-medium truncate transition-colors ${isPast && booking.status === 'cancelled' ? 'line-through text-muted-foreground' : 'group-hover:text-primary'}`}>
                   {booking.serviceName}
                 </h3>
-                <span className={`capitalize text-[10px] py-0.5 px-2 rounded-full font-bold uppercase tracking-wide shrink-0 ml-2 ${getStatusBadgeClass(booking.status)}`}>
+                <span className={`capitalize text-[10px] py-0.5 px-2 rounded font-bold uppercase tracking-wide shrink-0 ml-2 ${getStatusBadgeClass(booking.status)}`}>
                   {booking.status.replace("_", " ")}
                 </span>
               </div>
@@ -146,7 +152,7 @@ export default function Bookings() {
                     {member?.initials || "?"}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md" style={{ backgroundColor: bg, color }}>
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ backgroundColor: bg, color }}>
                   {member?.name.split(" ")[0]}
                 </span>
               </div>
@@ -158,7 +164,7 @@ export default function Bookings() {
   }
 
   const renderErrorState = (onRetry: () => void) => (
-    <div className="glass-card text-center py-10 px-4 rounded-3xl border-destructive/20">
+    <div className="glass-card text-center py-10 px-4 rounded-lg border-destructive/20">
       <AlertCircle className="h-8 w-8 text-destructive/70 mx-auto mb-3" />
       <h3 className="font-serif text-xl mb-2 text-destructive">Connection interrupted</h3>
       <p className="text-sm text-destructive/80 mb-4 max-w-sm mx-auto">We're having trouble retrieving the household schedule. Please give us a moment to reconnect.</p>
@@ -205,23 +211,23 @@ export default function Bookings() {
           <h1 className="text-3xl lg:text-4xl font-serif tracking-tight flex items-center gap-3">
             Calendar
           </h1>
-          <div className="flex items-center gap-1 glass-card p-1 rounded-xl">
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/[0.06]" onClick={prevMonth}>
+          <div className="flex items-center gap-1 glass-card p-1 rounded-lg">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded hover:bg-secondary" onClick={prevMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-sm font-bold uppercase tracking-widest min-w-[130px] text-center">
               {format(currentMonth, "MMM yyyy")}
             </span>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/[0.06]" onClick={nextMonth}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded hover:bg-secondary" onClick={nextMonth}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button variant="outline" size="sm" className="h-8 rounded-lg hidden sm:flex font-semibold border-border/50 hover:border-primary/40 hover:text-primary" onClick={goToToday}>Today</Button>
+          <Button variant="outline" size="sm" className="h-8 rounded hidden sm:flex font-semibold border-border/50 hover:border-primary/40 hover:text-primary" onClick={goToToday}>Today</Button>
         </div>
 
         {/* Legend / Filter */}
         {household?.members && (
-          <div className="flex flex-wrap items-center gap-2 glass-card p-1.5 rounded-2xl">
+          <div className="flex flex-wrap items-center gap-2 glass-card p-1.5 rounded-lg">
             {household.members.map(member => {
               const isSelected = selectedMemberId === member.id
               const color = getMemberColor(member.id, member.isCurrentUser, household.members)
@@ -231,8 +237,8 @@ export default function Bookings() {
                 <button
                   key={member.id}
                   onClick={() => setSelectedMemberId(isSelected ? null : member.id)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all ${
-                    isSelected ? 'ring-1 ring-border shadow-sm' : 'border-transparent hover:bg-white/[0.05]'
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded transition-all ${
+                    isSelected ? 'ring-1 ring-border shadow-sm' : 'border-transparent hover:bg-secondary'
                   } ${selectedMemberId && !isSelected ? 'opacity-40 grayscale' : ''}`}
                   style={{ backgroundColor: isSelected ? bg : undefined }}
                 >
@@ -258,7 +264,7 @@ export default function Bookings() {
         {/* Main Stage: Calendar */}
         <main className="flex-1 w-full min-w-0">
           {hasCalendarError ? renderErrorState(handleCalendarRetry) : (
-            <div className="glass-card rounded-[2rem] p-2 sm:p-4">
+            <div className="glass-card rounded-lg p-2 sm:p-4">
               {/* Days of week */}
               <div className="grid grid-cols-7 gap-1 lg:gap-2 mb-2">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
@@ -270,7 +276,7 @@ export default function Bookings() {
               </div>
 
               {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-1 lg:gap-2">
+              <div ref={calendarGridRef} className="grid grid-cols-7 gap-1 lg:gap-2">
                 {daysInMonth.map((day) => {
                   const dateKey = format(day, "yyyy-MM-dd")
                   const dayBookings = bookingsByDate.get(dateKey) || []
@@ -293,8 +299,8 @@ export default function Bookings() {
                       aria-label={`${format(day, "MMMM d")}, ${dayBookings.length} bookings`}
                       aria-pressed={isSelected}
                       aria-selected={isSelected}
-                      className={`cursor-pointer min-h-[70px] sm:min-h-[90px] lg:min-h-[130px] p-1 lg:p-2 rounded-2xl border transition-all flex flex-col items-center sm:items-start gap-1
-                        ${isCurrentMonth ? "bg-white/[0.03] hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" : "bg-transparent opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"}
+                      className={`cursor-pointer min-h-[70px] sm:min-h-[90px] lg:min-h-[130px] p-1 lg:p-2 rounded-lg border transition-all flex flex-col items-center sm:items-start gap-1
+                        ${isCurrentMonth ? "bg-secondary/50 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" : "bg-transparent opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"}
                         ${isSelected ? "border-primary shadow-sm ring-1 ring-primary/20 bg-primary/5" : "border-border/30 hover:border-primary/30"}
                         ${isTodayDate && !isSelected ? "border-primary/40 bg-primary/[0.03]" : ""}
                       `}
@@ -322,7 +328,7 @@ export default function Bookings() {
                               <Link
                                 key={booking.id}
                                 href={`/bookings/${booking.id}`}
-                                className={`text-[9px] lg:text-[10px] font-medium truncate px-1.5 py-1 rounded-md flex items-center gap-1.5 hover:brightness-110 transition-all w-full border border-transparent ${isPast ? 'opacity-50' : ''} ${isLive ? 'border-primary/20' : ''}`}
+                                className={`text-[9px] lg:text-[10px] font-medium truncate px-1.5 py-1 rounded flex items-center gap-1.5 hover:brightness-110 transition-all w-full border border-transparent ${isPast ? 'opacity-50' : ''} ${isLive ? 'border-primary/20' : ''}`}
                                 style={{ backgroundColor: bg, color: color }}
                                 onClick={(e) => e.stopPropagation()}
                               >
@@ -368,21 +374,21 @@ export default function Bookings() {
           )}
 
           {/* Mobile Day Details & Rail (shown below calendar on mobile) */}
-          <div className="lg:hidden mt-8 space-y-8">
+          <div className="lg:hidden mt-8 grid gap-6 sm:grid-cols-2 sm:items-start">
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-border/40 pb-3">
                 <h3 className="font-serif text-2xl">
                   {isToday(selectedDate) ? "Today" : format(selectedDate, "EEEE, MMMM d")}
                 </h3>
-                <Badge className="bg-primary/15 text-primary border border-primary/25">{selectedDateBookings.length}</Badge>
+                <Badge className="rounded bg-primary/15 text-primary border border-primary/25">{selectedDateBookings.length}</Badge>
               </div>
 
               <div className="space-y-3">
                 {isLoadingAll ? (
                   Array.from({ length: 2 }).map((_, i) => (
-                    <div key={i} className="glass-card rounded-2xl">
+                    <div key={i} className="glass-card rounded-lg">
                       <div className="p-4 flex gap-4 items-center">
-                        <Skeleton className="h-12 w-12 rounded-xl shrink-0" />
+                        <Skeleton className="h-12 w-12 rounded shrink-0" />
                         <div className="flex-1 space-y-2">
                           <Skeleton className="h-5 w-1/2" />
                           <Skeleton className="h-4 w-1/3" />
@@ -393,7 +399,7 @@ export default function Bookings() {
                 ) : hasCalendarError ? (
                   renderErrorState(handleCalendarRetry)
                 ) : selectedDateBookings.length === 0 ? (
-                  <div className="glass-card text-center py-10 rounded-3xl border-dashed">
+                  <div className="glass-card text-center py-10 rounded-lg border-dashed">
                     <CalendarClock className="h-8 w-8 text-muted-foreground mx-auto mb-3 opacity-50" />
                     <p className="text-sm text-muted-foreground font-medium">The schedule is clear.</p>
                   </div>
@@ -404,7 +410,7 @@ export default function Bookings() {
             </div>
 
             {/* Mobile Scoped List */}
-            <div className="glass-card rounded-[2rem] p-5">
+            <div className="glass-card rounded-lg p-5">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-serif text-2xl text-foreground">{getScopeTitle()}</h3>
                 <ScopeSelector />
@@ -468,20 +474,20 @@ export default function Bookings() {
         </main>
 
         {/* Desktop Rail */}
-        <aside className="hidden lg:flex w-[380px] xl:w-[420px] shrink-0 flex-col gap-8">
+        <aside ref={railRef} className="hidden lg:flex w-[380px] xl:w-[420px] shrink-0 flex-col gap-8 sticky top-28 self-start max-h-[calc(100vh-8rem)] overflow-y-auto pr-1 scrollbar-none">
           {/* Day Detail Card */}
-          <div className="glass-card rounded-[2rem] p-6 xl:p-8 golden-shadow-sm sticky top-28 transition-all">
+          <div className="glass-card rounded-lg p-6 xl:p-8 golden-shadow-sm transition-all">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-serif text-3xl text-foreground">
                 {isToday(selectedDate) ? "Today's Plan" : format(selectedDate, "MMM d")}
               </h3>
-              <Badge className="bg-primary/15 text-primary border border-primary/25">{selectedDateBookings.length} Visits</Badge>
+              <Badge className="rounded bg-primary/15 text-primary border border-primary/25">{selectedDateBookings.length} Visits</Badge>
             </div>
 
-            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 pb-4 scrollbar-none">
+            <div className="space-y-4 pb-4">
               {isLoadingAll ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+                  <Skeleton key={i} className="h-24 w-full rounded-lg" />
                 ))
               ) : hasCalendarError ? (
                 renderErrorState(handleCalendarRetry)
@@ -497,7 +503,7 @@ export default function Bookings() {
           </div>
 
           {/* Scoped preview list */}
-          <div className="glass-card rounded-[2rem] p-6 xl:p-8 transition-all">
+          <div className="glass-card rounded-lg p-6 xl:p-8 transition-all">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-serif text-2xl text-foreground">{getScopeTitle()}</h3>
               <ScopeSelector />

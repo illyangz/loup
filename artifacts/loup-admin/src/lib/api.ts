@@ -1,13 +1,18 @@
-export const ADMIN_HEADERS = {
-  "Content-Type": "application/json",
-  "x-loup-demo-role": "admin",
-};
+import { ensureAdminToken, getStoredToken } from "./demo-auth";
+
+// In dev, requests stay relative and go through Vite's proxy to API_TARGET.
+// In a static production build (e.g. Cloudflare Pages) there's no proxy, so
+// point relative /api/... calls at the deployed API origin instead.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
 
 export async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  await ensureAdminToken();
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE_URL}/api${path}`, {
     ...init,
     headers: {
-      ...ADMIN_HEADERS,
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers as Record<string, string> | undefined),
     },
   });

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, paymentMethodsTable, statementsTable } from "@workspace/db";
 import {
   GetBillingStatementResponse,
@@ -16,6 +16,7 @@ import {
   statementView,
   writeWebhookEvent,
 } from "../lib/loup";
+import { withIdempotency } from "../lib/idempotency";
 
 const router: IRouter = Router();
 
@@ -38,7 +39,7 @@ router.get("/billing/methods", async (_req, res): Promise<void> => {
   );
 });
 
-router.post("/billing/pay", async (req, res): Promise<void> => {
+router.post("/billing/pay", withIdempotency("POST /billing/pay", async (req, res): Promise<void> => {
   const parsed = PayBillingStatementBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -63,7 +64,9 @@ router.post("/billing/pay", async (req, res): Promise<void> => {
 
   const total = items.reduce((sum, item) => sum + item.amount, 0);
   const paidAt = new Date();
-  await db
+  // Atomically claim the open statement so a concurrent duplicate request
+  // (double-click, retry) can't pay it twice or open two fresh statements.
+  const claimed = await db
     .update(statementsTable)
     .set({
       status: "paid",
@@ -72,7 +75,12 @@ router.post("/billing/pay", async (req, res): Promise<void> => {
       paidAt,
       paidWith: method.label,
     })
-    .where(eq(statementsTable.id, statement.id));
+    .where(and(eq(statementsTable.id, statement.id), eq(statementsTable.status, "open")))
+    .returning();
+  if (claimed.length === 0) {
+    res.status(409).json({ error: "This statement was already paid" });
+    return;
+  }
 
   // Open a fresh statement so new completed jobs keep accruing.
   await db.insert(statementsTable).values({
@@ -98,7 +106,7 @@ router.post("/billing/pay", async (req, res): Promise<void> => {
     monthLabel: statement.monthLabel,
   });
   res.json(PayBillingStatementResponse.parse(view));
-});
+}));
 
 router.get("/billing/history", async (_req, res): Promise<void> => {
   const rows = await db

@@ -5,10 +5,12 @@
  * Loup — household services marketplace API
  * OpenAPI spec version: 0.1.0
  */
+import type { ImportResultRowError } from './importResultRowError';
 
 export interface ImportResult {
   status: string;
   imported: number;
   skipped: number;
   message: string;
+  errors: ImportResultRowError[];
 }

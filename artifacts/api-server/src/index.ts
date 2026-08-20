@@ -1,4 +1,5 @@
 import app from "./app";
+import { startWebhookWorker } from "./lib/webhook-delivery";
 import { logger } from "./lib/logger";
 
 const rawPort = process.env["PORT"];
@@ -21,5 +22,7 @@ app.listen(port, (err) => {
     process.exit(1);
   }
 
+  // P1-3: in-process outbox delivery worker (MVP; queue-backed in production).
+  startWebhookWorker();
   logger.info({ port }, "Server listening");
 });

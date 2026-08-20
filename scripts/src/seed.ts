@@ -40,6 +40,8 @@ import {
   supportIncidentsTable,
   providerQualityFlagsTable,
   webhookEventsTable,
+  webhookEndpointsTable,
+  idempotencyRecordsTable,
   // AI advisor tables
   conversations as conversationsTable,
   aiMessages as aiMessagesTable,
@@ -78,6 +80,8 @@ async function main() {
   await db.delete(supportIncidentsTable);
   await db.delete(providerQualityFlagsTable);
   await db.delete(webhookEventsTable);
+  await db.delete(webhookEndpointsTable);
+  await db.delete(idempotencyRecordsTable);
 
   // Booking / billing leaf tables
   await db.delete(billItemsTable);
@@ -131,6 +135,12 @@ async function main() {
     country: "AE",
     city: "Dubai",
     active: true,
+    adminEmails: ["hradmin@meridian-edu.ae", "benefits@meridian-edu.ae"],
+    // Fixed (not randomly generated) so the demo widget snippet stays stable across reseeds — P1-7.
+    widgetSecret: "demo-widget-secret-meridian-3f9a1c2b8e7d4056",
+    // Meridian has accepted the PDPL data processing terms; Al Noor hasn't yet — P1-11.
+    dataProcessingConsentAt: daysAgo(60),
+    dataProcessingConsentBy: "hradmin@meridian-edu.ae",
   }).returning();
 
   const campuses = await db.insert(campusesTable).values([
@@ -876,6 +886,7 @@ async function main() {
     country: "AE",
     city: "Dubai",
     active: true,
+    adminEmails: ["admins@alnoor.ac.ae"],
   }).returning();
 
   const [anCampus] = await db.insert(campusesTable).values({

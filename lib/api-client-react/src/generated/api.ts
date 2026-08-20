@@ -25,6 +25,7 @@ import type {
   Address,
   AdminIncident,
   AdminIncidentUpdate,
+  AdminSettlement,
   ApiMessage,
   AuditEvent,
   BenefitPlanInput,
@@ -38,6 +39,8 @@ import type {
   CampusBreakdown,
   Category,
   CheckoutPreview,
+  ConsentStatus,
+  DataExportBundle,
   DemoLogin,
   DemoLoginResult,
   DemoRole,
@@ -50,6 +53,8 @@ import type {
   EmployerOverview,
   ForecastReport,
   GetCheckoutPreviewParams,
+  GetSsoStatus200,
+  GetWidgetTokenResult,
   HealthStatus,
   HomeSummary,
   Household,
@@ -57,6 +62,7 @@ import type {
   IntegrationDetails,
   ListAdminIncidentsParams,
   ListBookingsParams,
+  ListEmployerEmployeesParams,
   ListProviderOrdersParams,
   ListProvidersParams,
   Message,
@@ -80,19 +86,32 @@ import type {
   ProviderDetail,
   ProviderOrder,
   ProviderOrderActionInput,
+  ProviderSettlement,
   PushPublicKey,
   PushSubscriptionInput,
   PushUnsubscribeInput,
   Review,
   ReviewInput,
+  ServiceDetail,
   ServiceFitEvaluation,
   ServiceRequest,
   ServiceRequestInput,
+  SsoCallbackParams,
+  StartSsoParams,
   SupportIssue,
   SupportIssueInput,
   UtilizationReport,
   VendorPerformance,
-  VendorToday
+  VendorToday,
+  WebhookEndpointCreated,
+  WebhookEndpointDeactivateResult,
+  WebhookEndpointInput,
+  WebhookEndpointsResult,
+  WebhookEventsResult,
+  WebhookPurgeInput,
+  WebhookPurgeResult,
+  WebhookReplayResult,
+  WidgetTokenInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -121,6 +140,253 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetSsoStatusUrl = () => {
+
+
+
+
+  return `/api/v1/auth/sso/status`
+}
+
+/**
+ * @summary SSO configuration status per institution
+ */
+export const getSsoStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<GetSsoStatus200> => {
+
+  return customFetch<GetSsoStatus200>(getGetSsoStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSsoStatusQueryKey = () => {
+    return [
+    `/api/v1/auth/sso/status`
+    ] as const;
+    }
+
+
+export const getGetSsoStatusQueryOptions = <TData = Awaited<ReturnType<typeof getSsoStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSsoStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSsoStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSsoStatus>>> = ({ signal }) => getSsoStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSsoStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSsoStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getSsoStatus>>>
+export type GetSsoStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary SSO configuration status per institution
+ */
+
+export function useGetSsoStatus<TData = Awaited<ReturnType<typeof getSsoStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSsoStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSsoStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartSsoUrl = (params: StartSsoParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/auth/sso?${stringifiedParams}` : `/api/v1/auth/sso`
+}
+
+/**
+ * Redirects the browser to the institution's WorkOS connection.
+ * @summary Start WorkOS SSO for an institution
+ */
+export const startSso = async (params: StartSsoParams, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getStartSsoUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartSsoQueryKey = (params?: StartSsoParams,) => {
+    return [
+    `/api/v1/auth/sso`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getStartSsoQueryOptions = <TData = Awaited<ReturnType<typeof startSso>>, TError = ErrorType<void>>(params: StartSsoParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof startSso>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStartSsoQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof startSso>>> = ({ signal }) => startSso(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof startSso>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type StartSsoQueryResult = NonNullable<Awaited<ReturnType<typeof startSso>>>
+export type StartSsoQueryError = ErrorType<void>
+
+
+/**
+ * @summary Start WorkOS SSO for an institution
+ */
+
+export function useStartSso<TData = Awaited<ReturnType<typeof startSso>>, TError = ErrorType<void>>(
+ params: StartSsoParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof startSso>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getStartSsoQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSsoCallbackUrl = (params: SsoCallbackParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/auth/callback?${stringifiedParams}` : `/api/v1/auth/callback`
+}
+
+/**
+ * Exchanges the authorization code, resolves the profile to a Loup principal, and redirects to the web app with a signed token.
+ * @summary WorkOS OAuth callback
+ */
+export const ssoCallback = async (params: SsoCallbackParams, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getSsoCallbackUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSsoCallbackQueryKey = (params?: SsoCallbackParams,) => {
+    return [
+    `/api/v1/auth/callback`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSsoCallbackQueryOptions = <TData = Awaited<ReturnType<typeof ssoCallback>>, TError = ErrorType<void>>(params: SsoCallbackParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof ssoCallback>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSsoCallbackQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof ssoCallback>>> = ({ signal }) => ssoCallback(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof ssoCallback>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SsoCallbackQueryResult = NonNullable<Awaited<ReturnType<typeof ssoCallback>>>
+export type SsoCallbackQueryError = ErrorType<void>
+
+
+/**
+ * @summary WorkOS OAuth callback
+ */
+
+export function useSsoCallback<TData = Awaited<ReturnType<typeof ssoCallback>>, TError = ErrorType<void>>(
+ params: SsoCallbackParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof ssoCallback>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSsoCallbackQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getHealthCheckUrl = () => {
 
@@ -503,6 +769,83 @@ export function useGetProvider<TData = Awaited<ReturnType<typeof getProvider>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetProviderQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetServiceUrl = (id: number,) => {
+
+
+
+
+  return `/api/services/${id}`
+}
+
+/**
+ * @summary A single service with its provider — used to resolve a widget deep link (P1-7) to a booking
+ */
+export const getService = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ServiceDetail> => {
+
+  return customFetch<ServiceDetail>(getGetServiceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetServiceQueryKey = (id: number,) => {
+    return [
+    `/api/services/${id}`
+    ] as const;
+    }
+
+
+export const getGetServiceQueryOptions = <TData = Awaited<ReturnType<typeof getService>>, TError = ErrorType<ApiMessage>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getService>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetServiceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getService>>> = ({ signal }) => getService(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getService>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetServiceQueryResult = NonNullable<Awaited<ReturnType<typeof getService>>>
+export type GetServiceQueryError = ErrorType<ApiMessage>
+
+
+/**
+ * @summary A single service with its provider — used to resolve a widget deep link (P1-7) to a booking
+ */
+
+export function useGetService<TData = Awaited<ReturnType<typeof getService>>, TError = ErrorType<ApiMessage>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getService>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetServiceQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2982,20 +3325,27 @@ export function useGetEmployerOverview<TData = Awaited<ReturnType<typeof getEmpl
 
 
 
-export const getListEmployerEmployeesUrl = () => {
+export const getListEmployerEmployeesUrl = (params?: ListEmployerEmployeesParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/v1/employer/employees`
+  return stringifiedParams.length > 0 ? `/api/v1/employer/employees?${stringifiedParams}` : `/api/v1/employer/employees`
 }
 
 /**
  * @summary Employer-safe employee roster
  */
-export const listEmployerEmployees = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmployerEmployee[]> => {
+export const listEmployerEmployees = async (params?: ListEmployerEmployeesParams, options?: Parameters<typeof customFetch>[1]): Promise<EmployerEmployee[]> => {
 
-  return customFetch<EmployerEmployee[]>(getListEmployerEmployeesUrl(),
+  return customFetch<EmployerEmployee[]>(getListEmployerEmployeesUrl(params),
   {
     ...options,
     method: 'GET'
@@ -3008,23 +3358,23 @@ export const listEmployerEmployees = async ( options?: Parameters<typeof customF
 
 
 
-export const getListEmployerEmployeesQueryKey = () => {
+export const getListEmployerEmployeesQueryKey = (params?: ListEmployerEmployeesParams,) => {
     return [
-    `/api/v1/employer/employees`
+    `/api/v1/employer/employees`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListEmployerEmployeesQueryOptions = <TData = Awaited<ReturnType<typeof listEmployerEmployees>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployerEmployees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListEmployerEmployeesQueryOptions = <TData = Awaited<ReturnType<typeof listEmployerEmployees>>, TError = ErrorType<unknown>>(params?: ListEmployerEmployeesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployerEmployees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListEmployerEmployeesQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListEmployerEmployeesQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmployerEmployees>>> = ({ signal }) => listEmployerEmployees({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmployerEmployees>>> = ({ signal }) => listEmployerEmployees(params, { signal, ...requestOptions });
 
 
 
@@ -3042,11 +3392,11 @@ export type ListEmployerEmployeesQueryError = ErrorType<unknown>
  */
 
 export function useListEmployerEmployees<TData = Awaited<ReturnType<typeof listEmployerEmployees>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployerEmployees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListEmployerEmployeesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmployerEmployees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListEmployerEmployeesQueryOptions(options)
+  const queryOptions = getListEmployerEmployeesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -3068,7 +3418,7 @@ export const getImportEmployerEmployeesUrl = () => {
 }
 
 /**
- * @summary Simulate a CSV employee roster import
+ * @summary Bulk upsert an employee roster from CSV (dedupes on externalEmployeeId, max 500 rows/batch)
  */
 export const importEmployerEmployees = async (employeeImportInput: EmployeeImportInput, options?: Parameters<typeof customFetch>[1]): Promise<ImportResult> => {
 
@@ -3085,7 +3435,7 @@ export const importEmployerEmployees = async (employeeImportInput: EmployeeImpor
 
 
 
-export const getImportEmployerEmployeesMutationOptions = <TError = ErrorType<unknown>,
+export const getImportEmployerEmployeesMutationOptions = <TError = ErrorType<ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importEmployerEmployees>>, TError,{data: BodyType<EmployeeImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof importEmployerEmployees>>, TError,{data: BodyType<EmployeeImportInput>}, TContext> => {
 
@@ -3114,12 +3464,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ImportEmployerEmployeesMutationResult = NonNullable<Awaited<ReturnType<typeof importEmployerEmployees>>>
     export type ImportEmployerEmployeesMutationBody = BodyType<EmployeeImportInput>
-    export type ImportEmployerEmployeesMutationError = ErrorType<unknown>
+    export type ImportEmployerEmployeesMutationError = ErrorType<ApiMessage>
 
     /**
- * @summary Simulate a CSV employee roster import
+ * @summary Bulk upsert an employee roster from CSV (dedupes on externalEmployeeId, max 500 rows/batch)
  */
-export const useImportEmployerEmployees = <TError = ErrorType<unknown>,
+export const useImportEmployerEmployees = <TError = ErrorType<ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importEmployerEmployees>>, TError,{data: BodyType<EmployeeImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof importEmployerEmployees>>,
@@ -3129,6 +3479,83 @@ export const useImportEmployerEmployees = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getImportEmployerEmployeesMutationOptions(options));
     }
+
+export const getGetEmployerEmployeesTemplateUrl = () => {
+
+
+
+
+  return `/api/v1/employer/employees/template`
+}
+
+/**
+ * @summary Download a starter CSV template for the roster bulk-upsert endpoint
+ */
+export const getEmployerEmployeesTemplate = async ( options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+
+  return customFetch<string>(getGetEmployerEmployeesTemplateUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmployerEmployeesTemplateQueryKey = () => {
+    return [
+    `/api/v1/employer/employees/template`
+    ] as const;
+    }
+
+
+export const getGetEmployerEmployeesTemplateQueryOptions = <TData = Awaited<ReturnType<typeof getEmployerEmployeesTemplate>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerEmployeesTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmployerEmployeesTemplateQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmployerEmployeesTemplate>>> = ({ signal }) => getEmployerEmployeesTemplate({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmployerEmployeesTemplate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmployerEmployeesTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof getEmployerEmployeesTemplate>>>
+export type GetEmployerEmployeesTemplateQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download a starter CSV template for the roster bulk-upsert endpoint
+ */
+
+export function useGetEmployerEmployeesTemplate<TData = Awaited<ReturnType<typeof getEmployerEmployeesTemplate>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerEmployeesTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmployerEmployeesTemplateQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetEmployerUtilizationUrl = () => {
 
@@ -3206,6 +3633,302 @@ export function useGetEmployerUtilization<TData = Awaited<ReturnType<typeof getE
 
 
 
+
+export const getGetEmployerConsentUrl = () => {
+
+
+
+
+  return `/api/v1/employer/consent`
+}
+
+/**
+ * @summary PDPL data-processing consent status for this institution (P1-11)
+ */
+export const getEmployerConsent = async ( options?: Parameters<typeof customFetch>[1]): Promise<ConsentStatus> => {
+
+  return customFetch<ConsentStatus>(getGetEmployerConsentUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmployerConsentQueryKey = () => {
+    return [
+    `/api/v1/employer/consent`
+    ] as const;
+    }
+
+
+export const getGetEmployerConsentQueryOptions = <TData = Awaited<ReturnType<typeof getEmployerConsent>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerConsent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmployerConsentQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmployerConsent>>> = ({ signal }) => getEmployerConsent({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmployerConsent>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmployerConsentQueryResult = NonNullable<Awaited<ReturnType<typeof getEmployerConsent>>>
+export type GetEmployerConsentQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary PDPL data-processing consent status for this institution (P1-11)
+ */
+
+export function useGetEmployerConsent<TData = Awaited<ReturnType<typeof getEmployerConsent>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerConsent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmployerConsentQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordEmployerConsentUrl = () => {
+
+
+
+
+  return `/api/v1/employer/consent`
+}
+
+/**
+ * @summary Record PDPL data-processing consent for this institution, on behalf of the authenticated admin
+ */
+export const recordEmployerConsent = async ( options?: Parameters<typeof customFetch>[1]): Promise<ConsentStatus> => {
+
+  return customFetch<ConsentStatus>(getRecordEmployerConsentUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRecordEmployerConsentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordEmployerConsent>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordEmployerConsent>>, TError,void, TContext> => {
+
+const mutationKey = ['recordEmployerConsent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordEmployerConsent>>, void> = () => {
+
+
+          return  recordEmployerConsent(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordEmployerConsentMutationResult = NonNullable<Awaited<ReturnType<typeof recordEmployerConsent>>>
+
+    export type RecordEmployerConsentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Record PDPL data-processing consent for this institution, on behalf of the authenticated admin
+ */
+export const useRecordEmployerConsent = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordEmployerConsent>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordEmployerConsent>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRecordEmployerConsentMutationOptions(options));
+    }
+
+export const getGetEmployerDataExportUrl = () => {
+
+
+
+
+  return `/api/v1/employer/data-export`
+}
+
+/**
+ * @summary Full PDPL data-portability export — every record this institution's data touches (P1-11)
+ */
+export const getEmployerDataExport = async ( options?: Parameters<typeof customFetch>[1]): Promise<DataExportBundle> => {
+
+  return customFetch<DataExportBundle>(getGetEmployerDataExportUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmployerDataExportQueryKey = () => {
+    return [
+    `/api/v1/employer/data-export`
+    ] as const;
+    }
+
+
+export const getGetEmployerDataExportQueryOptions = <TData = Awaited<ReturnType<typeof getEmployerDataExport>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerDataExport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmployerDataExportQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmployerDataExport>>> = ({ signal }) => getEmployerDataExport({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmployerDataExport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmployerDataExportQueryResult = NonNullable<Awaited<ReturnType<typeof getEmployerDataExport>>>
+export type GetEmployerDataExportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Full PDPL data-portability export — every record this institution's data touches (P1-11)
+ */
+
+export function useGetEmployerDataExport<TData = Awaited<ReturnType<typeof getEmployerDataExport>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployerDataExport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmployerDataExportQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getEraseEmployerEmployeeUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/employer/employees/${id}/erase`
+}
+
+/**
+ * @summary PDPL right-to-erasure — anonymizes an employee's PII while retaining financial/audit records (P1-11)
+ */
+export const eraseEmployerEmployee = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<EmployerEmployee> => {
+
+  return customFetch<EmployerEmployee>(getEraseEmployerEmployeeUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEraseEmployerEmployeeMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eraseEmployerEmployee>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof eraseEmployerEmployee>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['eraseEmployerEmployee'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eraseEmployerEmployee>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  eraseEmployerEmployee(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EraseEmployerEmployeeMutationResult = NonNullable<Awaited<ReturnType<typeof eraseEmployerEmployee>>>
+
+    export type EraseEmployerEmployeeMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary PDPL right-to-erasure — anonymizes an employee's PII while retaining financial/audit records (P1-11)
+ */
+export const useEraseEmployerEmployee = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eraseEmployerEmployee>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof eraseEmployerEmployee>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getEraseEmployerEmployeeMutationOptions(options));
+    }
 
 export const getGetEmployerIntegrationsUrl = () => {
 
@@ -4626,6 +5349,83 @@ export function useGetProviderAnalytics<TData = Awaited<ReturnType<typeof getPro
 
 
 
+export const getGetProviderSettlementUrl = () => {
+
+
+
+
+  return `/api/v1/provider/settlement`
+}
+
+/**
+ * @summary Provider settlement — net-of-platform-fee payout for the current calendar month
+ */
+export const getProviderSettlement = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderSettlement> => {
+
+  return customFetch<ProviderSettlement>(getGetProviderSettlementUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProviderSettlementQueryKey = () => {
+    return [
+    `/api/v1/provider/settlement`
+    ] as const;
+    }
+
+
+export const getGetProviderSettlementQueryOptions = <TData = Awaited<ReturnType<typeof getProviderSettlement>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderSettlement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProviderSettlementQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderSettlement>>> = ({ signal }) => getProviderSettlement({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderSettlement>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProviderSettlementQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderSettlement>>>
+export type GetProviderSettlementQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Provider settlement — net-of-platform-fee payout for the current calendar month
+ */
+
+export function useGetProviderSettlement<TData = Awaited<ReturnType<typeof getProviderSettlement>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderSettlement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProviderSettlementQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetOperationsOverviewUrl = () => {
 
 
@@ -5011,6 +5811,592 @@ export const useResolveAdminIncident = <TError = ErrorType<ApiMessage>,
         TContext
       > => {
       return useMutation(getResolveAdminIncidentMutationOptions(options));
+    }
+
+export const getGetAdminSettlementUrl = () => {
+
+
+
+
+  return `/api/v1/admin/settlement`
+}
+
+/**
+ * @summary Platform-wide provider settlement for the current calendar month, by provider
+ */
+export const getAdminSettlement = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminSettlement> => {
+
+  return customFetch<AdminSettlement>(getGetAdminSettlementUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminSettlementQueryKey = () => {
+    return [
+    `/api/v1/admin/settlement`
+    ] as const;
+    }
+
+
+export const getGetAdminSettlementQueryOptions = <TData = Awaited<ReturnType<typeof getAdminSettlement>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSettlement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminSettlementQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminSettlement>>> = ({ signal }) => getAdminSettlement({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminSettlement>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminSettlementQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminSettlement>>>
+export type GetAdminSettlementQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Platform-wide provider settlement for the current calendar month, by provider
+ */
+
+export function useGetAdminSettlement<TData = Awaited<ReturnType<typeof getAdminSettlement>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSettlement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminSettlementQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminWebhookEventsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/webhook-events`
+}
+
+/**
+ * @summary Webhook event log (latest 100, newest first) with delivery summary
+ */
+export const listAdminWebhookEvents = async ( options?: Parameters<typeof customFetch>[1]): Promise<WebhookEventsResult> => {
+
+  return customFetch<WebhookEventsResult>(getListAdminWebhookEventsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminWebhookEventsQueryKey = () => {
+    return [
+    `/api/v1/admin/webhook-events`
+    ] as const;
+    }
+
+
+export const getListAdminWebhookEventsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminWebhookEvents>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminWebhookEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminWebhookEventsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminWebhookEvents>>> = ({ signal }) => listAdminWebhookEvents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminWebhookEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminWebhookEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminWebhookEvents>>>
+export type ListAdminWebhookEventsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Webhook event log (latest 100, newest first) with delivery summary
+ */
+
+export function useListAdminWebhookEvents<TData = Awaited<ReturnType<typeof listAdminWebhookEvents>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminWebhookEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminWebhookEventsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReplayAdminWebhookEventUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/webhook-events/${id}/replay`
+}
+
+/**
+ * @summary Re-enqueue a webhook event for delivery
+ */
+export const replayAdminWebhookEvent = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<WebhookReplayResult> => {
+
+  return customFetch<WebhookReplayResult>(getReplayAdminWebhookEventUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReplayAdminWebhookEventMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replayAdminWebhookEvent>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof replayAdminWebhookEvent>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['replayAdminWebhookEvent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replayAdminWebhookEvent>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  replayAdminWebhookEvent(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReplayAdminWebhookEventMutationResult = NonNullable<Awaited<ReturnType<typeof replayAdminWebhookEvent>>>
+
+    export type ReplayAdminWebhookEventMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary Re-enqueue a webhook event for delivery
+ */
+export const useReplayAdminWebhookEvent = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replayAdminWebhookEvent>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof replayAdminWebhookEvent>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getReplayAdminWebhookEventMutationOptions(options));
+    }
+
+export const getPurgeAdminWebhookEventsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/webhook-events/purge`
+}
+
+/**
+ * @summary PDPL data-minimization retention purge — deletes resolved (delivered/failed) webhook events older than the retention window (P1-11)
+ */
+export const purgeAdminWebhookEvents = async (webhookPurgeInput?: WebhookPurgeInput, options?: Parameters<typeof customFetch>[1]): Promise<WebhookPurgeResult> => {
+
+  return customFetch<WebhookPurgeResult>(getPurgeAdminWebhookEventsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(webhookPurgeInput)
+  }
+);}
+
+
+
+
+
+export const getPurgeAdminWebhookEventsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeAdminWebhookEvents>>, TError,{data?: BodyType<WebhookPurgeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof purgeAdminWebhookEvents>>, TError,{data?: BodyType<WebhookPurgeInput>}, TContext> => {
+
+const mutationKey = ['purgeAdminWebhookEvents'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof purgeAdminWebhookEvents>>, {data?: BodyType<WebhookPurgeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  purgeAdminWebhookEvents(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PurgeAdminWebhookEventsMutationResult = NonNullable<Awaited<ReturnType<typeof purgeAdminWebhookEvents>>>
+    export type PurgeAdminWebhookEventsMutationBody = BodyType<WebhookPurgeInput> | undefined
+    export type PurgeAdminWebhookEventsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary PDPL data-minimization retention purge — deletes resolved (delivered/failed) webhook events older than the retention window (P1-11)
+ */
+export const usePurgeAdminWebhookEvents = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeAdminWebhookEvents>>, TError,{data?: BodyType<WebhookPurgeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof purgeAdminWebhookEvents>>,
+        TError,
+        {data?: BodyType<WebhookPurgeInput>},
+        TContext
+      > => {
+      return useMutation(getPurgeAdminWebhookEventsMutationOptions(options));
+    }
+
+export const getListAdminWebhookEndpointsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/webhook-endpoints`
+}
+
+/**
+ * @summary List webhook delivery endpoints across institutions
+ */
+export const listAdminWebhookEndpoints = async ( options?: Parameters<typeof customFetch>[1]): Promise<WebhookEndpointsResult> => {
+
+  return customFetch<WebhookEndpointsResult>(getListAdminWebhookEndpointsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminWebhookEndpointsQueryKey = () => {
+    return [
+    `/api/v1/admin/webhook-endpoints`
+    ] as const;
+    }
+
+
+export const getListAdminWebhookEndpointsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminWebhookEndpoints>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminWebhookEndpoints>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminWebhookEndpointsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminWebhookEndpoints>>> = ({ signal }) => listAdminWebhookEndpoints({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminWebhookEndpoints>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminWebhookEndpointsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminWebhookEndpoints>>>
+export type ListAdminWebhookEndpointsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List webhook delivery endpoints across institutions
+ */
+
+export function useListAdminWebhookEndpoints<TData = Awaited<ReturnType<typeof listAdminWebhookEndpoints>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminWebhookEndpoints>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminWebhookEndpointsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminWebhookEndpointUrl = () => {
+
+
+
+
+  return `/api/v1/admin/webhook-endpoints`
+}
+
+/**
+ * @summary Register a webhook delivery endpoint for an institution
+ */
+export const createAdminWebhookEndpoint = async (webhookEndpointInput: WebhookEndpointInput, options?: Parameters<typeof customFetch>[1]): Promise<WebhookEndpointCreated> => {
+
+  return customFetch<WebhookEndpointCreated>(getCreateAdminWebhookEndpointUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(webhookEndpointInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminWebhookEndpointMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminWebhookEndpoint>>, TError,{data: BodyType<WebhookEndpointInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminWebhookEndpoint>>, TError,{data: BodyType<WebhookEndpointInput>}, TContext> => {
+
+const mutationKey = ['createAdminWebhookEndpoint'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminWebhookEndpoint>>, {data: BodyType<WebhookEndpointInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminWebhookEndpoint(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminWebhookEndpointMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminWebhookEndpoint>>>
+    export type CreateAdminWebhookEndpointMutationBody = BodyType<WebhookEndpointInput>
+    export type CreateAdminWebhookEndpointMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary Register a webhook delivery endpoint for an institution
+ */
+export const useCreateAdminWebhookEndpoint = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminWebhookEndpoint>>, TError,{data: BodyType<WebhookEndpointInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminWebhookEndpoint>>,
+        TError,
+        {data: BodyType<WebhookEndpointInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAdminWebhookEndpointMutationOptions(options));
+    }
+
+export const getDeactivateAdminWebhookEndpointUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/webhook-endpoints/${id}`
+}
+
+/**
+ * @summary Deactivate a webhook delivery endpoint
+ */
+export const deactivateAdminWebhookEndpoint = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<WebhookEndpointDeactivateResult> => {
+
+  return customFetch<WebhookEndpointDeactivateResult>(getDeactivateAdminWebhookEndpointUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeactivateAdminWebhookEndpointMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deactivateAdminWebhookEndpoint>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deactivateAdminWebhookEndpoint>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deactivateAdminWebhookEndpoint'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deactivateAdminWebhookEndpoint>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deactivateAdminWebhookEndpoint(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeactivateAdminWebhookEndpointMutationResult = NonNullable<Awaited<ReturnType<typeof deactivateAdminWebhookEndpoint>>>
+
+    export type DeactivateAdminWebhookEndpointMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary Deactivate a webhook delivery endpoint
+ */
+export const useDeactivateAdminWebhookEndpoint = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deactivateAdminWebhookEndpoint>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deactivateAdminWebhookEndpoint>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeactivateAdminWebhookEndpointMutationOptions(options));
+    }
+
+export const getGetWidgetTokenUrl = () => {
+
+
+
+
+  return `/api/v1/widget/token`
+}
+
+/**
+ * @summary Server-to-server exchange — issues a short-lived employee-scoped token for the embeddable widget (P1-7)
+ */
+export const getWidgetToken = async (widgetTokenInput: WidgetTokenInput, options?: Parameters<typeof customFetch>[1]): Promise<GetWidgetTokenResult> => {
+
+  return customFetch<GetWidgetTokenResult>(getGetWidgetTokenUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(widgetTokenInput)
+  }
+);}
+
+
+
+
+
+export const getGetWidgetTokenMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getWidgetToken>>, TError,{data: BodyType<WidgetTokenInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof getWidgetToken>>, TError,{data: BodyType<WidgetTokenInput>}, TContext> => {
+
+const mutationKey = ['getWidgetToken'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getWidgetToken>>, {data: BodyType<WidgetTokenInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  getWidgetToken(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GetWidgetTokenMutationResult = NonNullable<Awaited<ReturnType<typeof getWidgetToken>>>
+    export type GetWidgetTokenMutationBody = BodyType<WidgetTokenInput>
+    export type GetWidgetTokenMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary Server-to-server exchange — issues a short-lived employee-scoped token for the embeddable widget (P1-7)
+ */
+export const useGetWidgetToken = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getWidgetToken>>, TError,{data: BodyType<WidgetTokenInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof getWidgetToken>>,
+        TError,
+        {data: BodyType<WidgetTokenInput>},
+        TContext
+      > => {
+      return useMutation(getGetWidgetTokenMutationOptions(options));
     }
 
 export const getListOpenaiConversationsUrl = () => {

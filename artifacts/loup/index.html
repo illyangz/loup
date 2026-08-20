@@ -15,8 +15,8 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f9f6f1" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#201813" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f4ef" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181818" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -28,10 +28,12 @@
   <body>
     <script>
       (function () {
+        // Dark is the default (see index.css :root); this only avoids a
+        // flash of dark before hydration for users who chose light mode.
         try {
-          var stored = localStorage.getItem("loup-theme");
-          var dark = stored !== "light";
-          if (dark) document.documentElement.classList.add("dark");
+          if (localStorage.getItem("loup-app-theme") === "light") {
+            document.documentElement.classList.add("light");
+          }
         } catch (e) {}
       })();
     </script>

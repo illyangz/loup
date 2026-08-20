@@ -30,6 +30,7 @@ import {
   UpdateBookingResponse,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { withIdempotency } from "../lib/idempotency";
 import {
   STATUS_CHAIN,
   addCompletionBillItem,
@@ -62,7 +63,7 @@ router.get("/bookings", async (req, res): Promise<void> => {
   res.json(ListBookingsResponse.parse(rows));
 });
 
-router.post("/bookings", async (req, res): Promise<void> => {
+router.post("/bookings", withIdempotency("POST /bookings", async (req, res): Promise<void> => {
   const parsed = CreateBookingBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -177,7 +178,7 @@ router.post("/bookings", async (req, res): Promise<void> => {
   const view = await fetchBookingView(bookingId);
   req.log.info({ bookingId }, "Booking created");
   res.status(201).json(CreateBookingResponse.parse(view));
-});
+}));
 
 async function bookingDetail(id: number) {
   const view = await fetchBookingView(id);

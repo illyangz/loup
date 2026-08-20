@@ -1,11 +1,15 @@
 import { useParams, Link } from "wouter"
+import { Bar, BarChart, XAxis, YAxis } from "recharts"
 import { useGetProvider, useListProviderReviews } from "@workspace/api-client-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { Star, CheckCircle2, Clock, Award, Shield, ArrowLeft, ChevronRight } from "lucide-react"
+
+const ratingChartConfig: ChartConfig = { count: { label: "Reviews", color: "hsl(var(--primary))" } }
 
 export default function ProviderProfile() {
   const { id } = useParams<{ id: string }>()
@@ -24,7 +28,7 @@ export default function ProviderProfile() {
       <div className="space-y-6">
         <Skeleton className="h-10 w-10 rounded-full" />
         <div className="space-y-4">
-          <Skeleton className="h-24 w-24 rounded-2xl" />
+          <Skeleton className="h-24 w-24 rounded-lg" />
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-full max-w-md" />
         </div>
@@ -46,7 +50,7 @@ export default function ProviderProfile() {
 
       <div className="space-y-6">
         <div className="flex gap-6 items-start">
-          <div className="h-24 w-24 rounded-2xl bg-primary flex items-center justify-center text-4xl font-serif text-primary-foreground shadow-md shrink-0">
+          <div className="h-24 w-24 rounded-lg bg-primary flex items-center justify-center text-4xl font-serif text-primary-foreground shadow-md shrink-0">
             {provider.name.charAt(0)}
           </div>
           <div>
@@ -84,6 +88,26 @@ export default function ProviderProfile() {
               </Badge>
             ))}
           </div>
+        )}
+
+        {!isLoadingReviews && reviews && reviews.length > 0 && (
+          <Card className="border-border/50">
+            <CardContent className="p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">Rating breakdown</p>
+              <ChartContainer config={ratingChartConfig} className="h-[140px] w-full">
+                <BarChart
+                  data={[5, 4, 3, 2, 1].map(stars => ({ stars: `${stars}★`, count: reviews.filter(r => Math.round(r.rating) === stars).length }))}
+                  layout="vertical"
+                  margin={{ left: 0, right: 12, top: 0, bottom: 0 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="stars" width={28} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                  <ChartTooltip content={<ChartTooltipContent hideLabel formatter={(value) => [`${value} reviews`, ""]} />} />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={4} barSize={12} />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
         )}
       </div>
 

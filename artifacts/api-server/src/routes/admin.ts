@@ -20,7 +20,9 @@ import {
   membersTable,
   bookingStatusHistoryTable,
 } from "@workspace/db";
-import { estimateMonthlyPlatformRevenue, fetchBookingViews, writeWebhookEvent } from "../lib/loup";
+import { GetAdminSettlementResponse } from "@workspace/api-zod";
+import { estimateMonthlyPlatformRevenue, fetchBookingViews, writeWebhookEvent, feeRateByInstitution, institutionIdByMember, currentMonthLabel } from "../lib/loup";
+import { computeSettlementLine, summarizeSettlement } from "../lib/money";
 import { requireRole } from "../lib/auth";
 const router: IRouter = Router();
 
@@ -790,6 +792,71 @@ router.get("/v1/admin/analytics", async (_req, res): Promise<void> => {
   });
 
   res.json({ bookingsPerDay, revenueByCategory, redemptionByInstitution });
+});
+
+// ── Settlement (P1-5) ──────────────────────────────────────────────────────────
+// Platform-wide view of the same net-of-fee settlement math the provider
+// portal shows each provider individually — this is what "admin dashboard
+// consistent with ledger" means: the fee totals here are computed from the
+// exact same completed-booking data and fee config, just summed across every
+// provider instead of scoped to one.
+
+router.get("/v1/admin/settlement", async (_req, res): Promise<void> => {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [bookings, feeRates, institutionByMember, providerRows] = await Promise.all([
+    db
+      .select({
+        id: bookingsTable.id,
+        providerId: bookingsTable.providerId,
+        memberId: bookingsTable.memberId,
+        priceEstimate: bookingsTable.priceEstimate,
+      })
+      .from(bookingsTable)
+      .where(and(eq(bookingsTable.status, "completed"), gte(bookingsTable.scheduledAt, startOfMonth))),
+    feeRateByInstitution(),
+    institutionIdByMember(),
+    db.select({ id: providersTable.id, name: providersTable.name }).from(providersTable),
+  ]);
+  const providerNames = new Map(providerRows.map((p) => [p.id, p.name]));
+
+  const linesByProvider = new Map<number, ReturnType<typeof computeSettlementLine>[]>();
+  for (const b of bookings) {
+    const institutionId = institutionByMember.get(b.memberId) ?? null;
+    const feeRatePct = institutionId != null ? (feeRates.get(institutionId) ?? 0) : 0;
+    const line = computeSettlementLine(b.priceEstimate, feeRatePct);
+    const existing = linesByProvider.get(b.providerId) ?? [];
+    existing.push(line);
+    linesByProvider.set(b.providerId, existing);
+  }
+
+  const byProvider = [...linesByProvider.entries()]
+    .map(([providerId, lines]) => {
+      const totals = summarizeSettlement(lines);
+      return {
+        providerId,
+        providerName: providerNames.get(providerId) ?? "Unknown provider",
+        grossRevenue: totals.grossRevenue,
+        platformFee: totals.platformFee,
+        netPayout: totals.netPayout,
+        bookingCount: totals.bookingCount,
+      };
+    })
+    .sort((a, b) => b.grossRevenue - a.grossRevenue);
+
+  const platformTotals = summarizeSettlement([...linesByProvider.values()].flat());
+
+  res.json(
+    GetAdminSettlementResponse.parse({
+      cycleLabel: currentMonthLabel(),
+      grossRevenue: platformTotals.grossRevenue,
+      platformFee: platformTotals.platformFee,
+      netPayout: platformTotals.netPayout,
+      bookingCount: platformTotals.bookingCount,
+      byProvider,
+    }),
+  );
 });
 
 export default router;

@@ -3,9 +3,9 @@ import { ArrowRight, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, Ho
 import { Link } from "wouter";
 import { useGetEmployeeOverview, getGetEmployeeOverviewQueryKey } from "@workspace/api-client-react";
 import { DataState } from "@/components/platform-shell";
-import { ensureAuthGetter, getStoredToken, storeToken } from "@/lib/demo-auth";
+import { API_BASE_URL, ensureAuthGetter, getStoredToken, storeToken } from "@/lib/demo-auth";
 
-const BASE = import.meta.env.BASE_URL;
+const BASE = `${API_BASE_URL}${import.meta.env.BASE_URL}`;
 
 function money(value: number) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(value); }
 function date(value: string) { return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(value)); }

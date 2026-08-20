@@ -4,6 +4,15 @@
 
   const baseUrl = new URL(".", currentScript.src);
   const widgetUrl = new URL("./demo?widget=1", baseUrl);
+
+  // P1-7: the host page's server exchanges its per-institution widget secret
+  // for a short-lived employee token (POST /v1/widget/token) BEFORE rendering
+  // this script tag, then sets data-employee-token on it. The secret itself
+  // is never present in the browser. Without a token, the widget falls back
+  // to self-bootstrapping a generic demo session (standalone preview mode).
+  const employeeToken = currentScript.dataset.employeeToken;
+  if (employeeToken) widgetUrl.searchParams.set("token", employeeToken);
+
   const frame = document.createElement("iframe");
   frame.title = "Loup employee benefit widget";
   frame.src = widgetUrl.toString();
