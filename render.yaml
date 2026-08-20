@@ -13,10 +13,10 @@ services:
         value: production
       - key: PORT
         value: 10000
-      - key: DATABASE_URL
-        fromDatabase:
-          name: loup-db
-          property: connectionString
+      # DATABASE_URL: paste your Neon connection string here manually in the
+      # Render dashboard (Environment tab). Render's own Postgres wants a
+      # card; Neon's free tier doesn't, so DB lives there instead — no
+      # fromDatabase/databases: block here on purpose.
       - key: LOUP_DEMO_JWT_SECRET
         generateValue: true
       - key: LOG_LEVEL
@@ -25,8 +25,3 @@ services:
         sync: false
       - key: AI_INTEGRATIONS_OPENAI_BASE_URL
         sync: false
-
-databases:
-  - name: loup-db
-    plan: free
-    region: oregon
